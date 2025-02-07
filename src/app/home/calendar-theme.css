@@ -1,0 +1,51 @@
+.react-calendar {
+  background-color: #1f2937; /* Dark background */
+  color: #ffffff; /* White text */
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.react-calendar__tile {
+  background-color: #374151; /* Slightly lighter background for tiles */
+  color: #ffffff; /* White text */
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.react-calendar__tile--active {
+  background-color: #6b21a8; /* Purple background for active tile */
+  color: #ffffff; /* White text */
+}
+
+.react-calendar__tile--now {
+  background-color: #4b5563; /* Gray background for current day */
+  color: #ffffff; /* White text */
+}
+
+.react-calendar__tile:hover {
+  background-color: #6b21a8; /* Purple background on hover */
+  color: #ffffff; /* White text */
+}
+
+.react-calendar__navigation button {
+  background-color: #4b5563; /* Gray background for navigation buttons */
+  color: #ffffff; /* White text */
+  border: none;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.react-calendar__navigation button:hover {
+  background-color: #6b21a8; /* Purple background on hover */
+  color: #ffffff; /* White text */
+}
+
+.react-calendar__month-view__weekdays {
+  background-color: #1f2937; /* Dark background for weekdays */
+  color: #ffffff; /* White text */
+}
+
+.react-calendar__month-view__days__day--weekend {
+  color: #f87171; /* Red text for weekends */
+}
