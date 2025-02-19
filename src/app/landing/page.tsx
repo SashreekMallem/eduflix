@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import FilmReelEffect from './FilmReelEffect';
-import SlidingWords from './SlidingWords'; // Import the SlidingWords component
 import Head from "next/head";
 import Link from 'next/link';
 
@@ -22,7 +21,8 @@ export default function LandingPage() {
     { id: 'personalization', label: 'Personalization', color: 'amber-700' },
     { id: 'engagement', label: 'Engagement', color: 'rose-700' },
     { id: 'certifications', label: 'Certifications', color: 'fuchsia-700' },
-    { id: 'testimonials', label: 'Testimonials', color: 'gray-700' },
+    { id: 'meet-njan', label: 'NJAN', color: 'indigo-700' },
+    { id: 'testimonials', label: 'Testimonials', color: 'gray-700' }
   ];
 
   useEffect(() => {
@@ -113,12 +113,13 @@ export default function LandingPage() {
       {/* Dynamic Island Header */}
       <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white/70 backdrop-blur-md shadow-lg rounded-full py-2 px-4 transition-all duration-300">
         <div className="container mx-auto px-4 flex items-center justify-between">
-          {/* EduFlix AI Logo */}
-          <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold py-1 px-2 rounded-md shadow-md whitespace-nowrap">
-            EduFlix AI
+          {/* Updated EduFlix AI Logo with NJAN info */}
+          <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold py-1 px-2 rounded-md shadow-md whitespace-nowrap">
+            <span>EduFlix AI</span>
+            <span className="text-xs font-normal opacity-80">Powered by NJAN</span>
           </div>
-          <nav className="ml-4 flex-1"> {/* Added flex-1 to nav */}
-            <ul className="flex space-x-4 justify-center"> {/* Added justify-center to ul */}
+          <nav className="ml-4 flex-1">
+            <ul className="flex space-x-4 justify-center">
               {sections.map((section) => (
                 <li key={section.id}>
                   <a
@@ -133,8 +134,8 @@ export default function LandingPage() {
               ))}
             </ul>
           </nav>
-          {/* Login/Sign Up Button Group updated to navigate to /login */}
-          <div className="flex space-x-2 ml-4">
+          {/* Updated Login/Sign Up Buttons without Notification Badge */}
+          <div className="flex items-center space-x-2 ml-4">
             <Link href="/Login">
               <button className="bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold py-1 px-2 rounded-md shadow-md transition-colors duration-300 hover:from-purple-600 hover:to-blue-600 whitespace-nowrap text-sm">
                 Login
@@ -166,8 +167,13 @@ export default function LandingPage() {
           <span className="inline-block ml-2">
             <FilmReelEffect color="bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700" />
           </span>
-          {/* Sliding Words */}
-          <SlidingWords leftWord="Learn" rightWord="Create" />
+          {/* Animated Tagline */}
+          <div className="text-3xl font-semibold text-gray-700 mt-4">
+            Curate | Personalize | Adapt | Engage
+          </div>
+          <p className="text-gray-500">
+            Powered by Neural Justification & Adaptive Nexus; NJAN (/ˈen.dʒɪn/)
+          </p>
         </div>
       </section>
 
@@ -179,30 +185,15 @@ export default function LandingPage() {
         </div>
         <div className="container mx-auto px-4 text-center relative z-10">
           <h2 className="text-6xl font-semibold mb-12 text-gray-800 leading-tight">
-            The Future of Personalized Learning, Powered by NJAN.
+            What Powers EduFlix AI?
           </h2>
           <p className="text-2xl text-gray-600 leading-relaxed">
-            Your journey to a brighter future starts here.
+            EduFlix AI is driven by NJAN a Neural Justification & Adaptive Nexus an advanced AI engine that curates, personalizes, and optimizes learning in real time.
+            NJAN adapts to each learner, delivering the right content, at the right pace, with the right engagement, ensuring a truly intelligent and interactive learning experience.
           </p>
-          {/* Hero Image/Video - Replace placeholder with actual content */}
-          {/* <div className="mt-12">
-            <img src="https://via.placeholder.com/1200x600" alt="Hero Image" className="rounded-3xl shadow-2xl mx-auto" />
-          </div> */}
+          
         </div>
-        {/* Subtle gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white opacity-20"></div>
-      </section>
 
-      {/* New Section: What Powers EduFlix AI? */}
-      <section className="relative py-24 bg-gradient-to-br from-gray-50 to-blue-50" id="what-powers">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-semibold text-gray-800 mb-8">What Powers EduFlix AI?</h2>
-          <p className="text-xl text-gray-600 leading-relaxed mb-12">
-            EduFlix AI is powered by <strong>NJAN (Neural Justification & Adaptive Nexus)</strong>, the AI engine that intelligently curates, personalizes, analyzes, and connects learners with the most effective content, adaptive learning paths, and AI-powered tutors.
-            NJAN is not just an AI. It’s the future of personalized education.
-          </p>
-          {/* Add a visual representation or breakdown of NJAN's sub-models here */}
-        </div>
       </section>
 
       {/* Feature Sections */}
@@ -388,53 +379,53 @@ export default function LandingPage() {
       </section>
 
       {/* New Section: Meet NJAN – The AI Brain of EduFlix */}
-      <section className="relative py-24 bg-gradient-to-br from-fuchsia-50 to-gray-50" id="meet-njan">
+      <section className="relative py-24 bg-gradient-to-br from-fuchsia-50 to-gray-50 transition-all duration-300" id="meet-njan">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-semibold text-gray-800 mb-12">Meet NJAN – The AI Brain of EduFlix</h2>
+          <h2 className="text-4xl font-semibold text-indigo-700 mb-12">Meet NJAN The AI Brain of EduFlix</h2>
           <p className="text-xl text-gray-600 leading-relaxed mb-8">
-            NJAN (Neural Justification & Adaptive Nexus) is the AI engine that powers EduFlix. It's a sophisticated ecosystem of AI models working seamlessly to provide a personalized and effective learning experience.
+            NJAN a Neural Justification & Adaptive Nexus is the AI engine that powers EduFlix. It's a sophisticated ecosystem of AI models working seamlessly to provide a personalized and effective learning experience.
           </p>
           <div className="flex flex-wrap justify-center">
             {/* NJAN Sub-models */}
             <div className="w-full md:w-1/3 p-4">
               <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Curate</h4>
+                <h4 className="text-xl font-semibold text-indigo-700">NJAN-Curate</h4>
                 <p className="text-gray-600">AI-driven content selection that picks the best courses for you.</p>
               </div>
             </div>
             <div className="w-full md:w-1/3 p-4">
               <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Personal</h4>
+                <h4 className="text-xl font-semibold text-indigo-700">NJAN-Personal</h4>
                 <p className="text-gray-600">Adaptive learning AI that modifies courses based on your progress.</p>
               </div>
             </div>
             <div className="w-full md:w-1/3 p-4">
               <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Engage</h4>
+                <h4 className="text-xl font-semibold text-indigo-700">NJAN-Engage</h4>
                 <p className="text-gray-600">Motivation & Gamification AI that tracks streaks and sends engagement triggers.</p>
               </div>
             </div>
             <div className="w-full md:w-1/3 p-4">
               <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Tutor</h4>
+                <h4 className="text-xl font-semibold text-indigo-700">NJAN-Tutor</h4>
                 <p className="text-gray-600">AI-powered tutor that answers questions and acts as a virtual mentor.</p>
               </div>
             </div>
             <div className="w-full md:w-1/3 p-4">
               <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Insight</h4>
+                <h4 className="text-xl font-semibold text-indigo-700">NJAN-Insight</h4>
                 <p className="text-gray-600">AI Analytics & Progress Reports that track performance & suggest improvements.</p>
               </div>
             </div>
             <div className="w-full md:w-1/3 p-4">
               <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Connect</h4>
+                <h4 className="text-xl font-semibold text-indigo-700">NJAN-Connect</h4>
                 <p className="text-gray-600">Networking AI that suggests mentors, study groups, and live discussions.</p>
               </div>
             </div>
             <div className="w-full md:w-1/3 p-4">
               <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Voice</h4>
+                <h4 className="text-xl font-semibold text-indigo-700 ">NJAN-Voice</h4>
                 <p className="text-gray-600">Voice-based AI assistant that helps users navigate EduFlix.</p>
               </div>
             </div>
@@ -442,14 +433,27 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* NEW Testimonials Section (inserted before the Call to Action) */}
+      <section className="relative py-24 bg-gradient-to-br from-gray-50 to-gray-200 transition-all duration-300" id="testimonials">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-4xl font-semibold text-gray-800 mb-8">Testimonials</h2>
+          <p className="text-xl text-gray-600 leading-relaxed mb-12">
+            Hear from our learners who transformed their careers with EduFlix.
+          </p>
+          {/* ...Insert testimonials content here... */}
+        </div>
+      </section>
+
       {/* Call to Action Section */}
-      <section className="relative py-32 bg-gradient-to-r from-blue-400 to-purple-500 text-white">
+      <section className="relative py-32 bg-gradient-to-br from-blue-400 to-purple-500 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-5xl font-bold mb-8">Ready to Transform Your Skills?</h2>
-          <p className="text-2xl mb-8">Join EduFlix today and start your learning journey.</p>
-          <button className="bg-white text-blue-500 font-bold py-3 px-8 rounded-full transform transition-transform duration-300 hover:scale-110 hover:shadow-lg">
-            Sign Up Now
-          </button>
+          <p className="text-2xl mb-8">Unlock your potential with EduFlix today!</p>
+          <Link href="/Login">
+            <button className="bg-white text-blue-500 font-bold py-3 px-8 rounded-full transform transition-transform duration-300 hover:scale-110 hover:shadow-lg">
+              Sign Up Now
+            </button>
+          </Link>
         </div>
       </section>
 

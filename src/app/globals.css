@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
 :root {
   --background: #ffffff;
@@ -113,4 +113,20 @@ body {
   100% {
     background-position: 0% 50%;
   }
+}
+
+.hover\:rotateY-180:hover .flip-card-inner {
+  transform: rotateY(180deg);
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.flip-card-inner {
+  transform-style: preserve-3d;
+}
+
+.flip-card {
+  perspective: 1000px;
 }
