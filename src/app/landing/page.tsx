@@ -7,6 +7,7 @@ import FilmReelEffect from './FilmReelEffect';
 import SlidingWords from './SlidingWords'; // Import the SlidingWords component
 import Head from "next/head";
 import Link from 'next/link';
+import FlipCard from './FlipCard';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -397,46 +398,25 @@ export default function LandingPage() {
           <div className="flex flex-wrap justify-center">
             {/* NJAN Sub-models */}
             <div className="w-full md:w-1/3 p-4">
-              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Curate</h4>
-                <p className="text-gray-600">AI-driven content selection that picks the best courses for you.</p>
-              </div>
+              <FlipCard title="NJAN-Curate" description="AI-driven content selection that picks the best courses for you." />
             </div>
             <div className="w-full md:w-1/3 p-4">
-              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Personal</h4>
-                <p className="text-gray-600">Adaptive learning AI that modifies courses based on your progress.</p>
-              </div>
+              <FlipCard title="NJAN-Personal" description="Adaptive learning AI that modifies courses based on your progress." />
             </div>
             <div className="w-full md:w-1/3 p-4">
-              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Engage</h4>
-                <p className="text-gray-600">Motivation & Gamification AI that tracks streaks and sends engagement triggers.</p>
-              </div>
+              <FlipCard title="NJAN-Engage" description="Motivation & Gamification AI that tracks streaks and sends engagement triggers." />
             </div>
             <div className="w-full md:w-1/3 p-4">
-              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Tutor</h4>
-                <p className="text-gray-600">AI-powered tutor that answers questions and acts as a virtual mentor.</p>
-              </div>
+              <FlipCard title="NJAN-Tutor" description="AI-powered tutor that answers questions and acts as a virtual mentor." />
             </div>
             <div className="w-full md:w-1/3 p-4">
-              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Insight</h4>
-                <p className="text-gray-600">AI Analytics & Progress Reports that track performance & suggest improvements.</p>
-              </div>
+              <FlipCard title="NJAN-Insight" description="AI Analytics & Progress Reports that track performance & suggest improvements." />
             </div>
             <div className="w-full md:w-1/3 p-4">
-              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Connect</h4>
-                <p className="text-gray-600">Networking AI that suggests mentors, study groups, and live discussions.</p>
-              </div>
+              <FlipCard title="NJAN-Connect" description="Networking AI that suggests mentors, study groups, and live discussions." />
             </div>
-            <div className="w-full md:w-1/3 p-4">
-              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <h4 className="text-xl font-semibold text-gray-800">NJAN-Voice</h4>
-                <p className="text-gray-600">Voice-based AI assistant that helps users navigate EduFlix.</p>
-              </div>
+             <div className="w-full md:w-1/3 p-4">
+              <FlipCard title="NJAN-Voice" description="Voice-based AI assistant that helps users navigate EduFlix." />
             </div>
           </div>
         </div>
