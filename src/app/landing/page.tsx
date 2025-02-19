@@ -179,7 +179,7 @@ export default function LandingPage() {
         </div>
         <div className="container mx-auto px-4 text-center relative z-10">
           <h2 className="text-6xl font-semibold mb-12 text-gray-800 leading-tight">
-            We Personalize, Curate, Adapt & Engage.
+            The Future of Personalized Learning, Powered by NJAN.
           </h2>
           <p className="text-2xl text-gray-600 leading-relaxed">
             Your journey to a brighter future starts here.
@@ -193,6 +193,18 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white opacity-20"></div>
       </section>
 
+      {/* New Section: What Powers EduFlix AI? */}
+      <section className="relative py-24 bg-gradient-to-br from-gray-50 to-blue-50" id="what-powers">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-4xl font-semibold text-gray-800 mb-8">What Powers EduFlix AI?</h2>
+          <p className="text-xl text-gray-600 leading-relaxed mb-12">
+            EduFlix AI is powered by <strong>NJAN (Neural Justification & Adaptive Nexus)</strong>, the AI engine that intelligently curates, personalizes, analyzes, and connects learners with the most effective content, adaptive learning paths, and AI-powered tutors.
+            NJAN is not just an AI. It’s the future of personalized education.
+          </p>
+          {/* Add a visual representation or breakdown of NJAN's sub-models here */}
+        </div>
+      </section>
+
       {/* Feature Sections */}
       <section className="relative py-24 bg-gradient-to-br from-blue-50 to-emerald-50" id="onboarding"> {/* Added ID */}
         <div className="container mx-auto px-4">
@@ -202,7 +214,7 @@ export default function LandingPage() {
               <div className="bg-gray-50 rounded-3xl shadow-md p-6 mb-6 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg"> {/* Neumorphic background */}
                 <h3 className="text-2xl font-semibold mb-4 text-emerald-700">First Step</h3>
                 <p className="text-lg text-gray-700 mb-6 leading-relaxed">
-                  The first stage of your EduFlix journey is User Onboarding, where we collect essential information to build a customized learning experience tailored to your needs.
+                  The first stage of your EduFlix journey is User Onboarding, where <strong>NJAN</strong> collects essential information to build a customized learning experience tailored to your needs.
                 </p>
                 <video loop autoPlay muted className="w-full h-64 rounded-2xl shadow-sm object-cover">
                   <source src="/Useronboaridng.mov" type="video/mp4" />
@@ -214,11 +226,11 @@ export default function LandingPage() {
               <div className="bg-gray-50 rounded-3xl shadow-md p-6 mb-6 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg"> {/* Neumorphic background */}
                 <h3 className="text-2xl font-semibold mb-4 text-emerald-700">What We Collect</h3>
                 <p className="text-lg text-gray-700 leading-relaxed">
-                  ✔ <strong>Profile & Auto-Fill Data</strong> – Resume, and academic transcript to extract education, experience, and skills.<br /><br />
-                  ✔ <strong>Education & Certifications</strong> – University, degrees, coursework, certifications, and online courses.<br /><br />
-                  ✔ <strong>Work & Projects</strong> – Job roles, past projects, and real-world experience.<br /><br />
-                  ✔ <strong>Learning Preferences</strong> – Pace, commitment level, and preferred content formats (videos, articles, projects, etc.).<br /><br />
-                  ✔ <strong>Self-Assessment</strong> – Skill levels, knowledge gaps, and future goals.
+                  ✔ <strong>Profile & Auto-Fill Data</strong> – Resume, and academic transcript to extract education, experience, and skills using <strong>NJAN-Insight</strong>.<br /><br />
+                  ✔ <strong>Education & Certifications</strong> – University, degrees, coursework, certifications, and online courses, analyzed by <strong>NJAN-Curate</strong>.<br /><br />
+                  ✔ <strong>Work & Projects</strong> – Job roles, past projects, and real-world experience, assessed by <strong>NJAN-Personal</strong>.<br /><br />
+                  ✔ <strong>Learning Preferences</strong> – Pace, commitment level, and preferred content formats (videos, articles, projects, etc.), optimized by <strong>NJAN-Engage</strong>.<br /><br />
+                  ✔ <strong>Self-Assessment</strong> – Skill levels, knowledge gaps, and future goals, understood by <strong>NJAN-Connect</strong>.
                 </p>
               </div>
             </div>
@@ -226,10 +238,10 @@ export default function LandingPage() {
               <div className="bg-gray-50 rounded-3xl shadow-md p-6 mb-6 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg"> {/* Neumorphic background */}
                 <h3 className="text-2xl font-semibold mb-4 text-emerald-700">What We Do With It</h3>
                 <p className="text-lg text-gray-700 leading-relaxed">
-                  ✔ <strong>Understand Your Depth</strong> – Assess your expertise to recommend the right content.<br /><br />
-                  ✔ <strong>Adapt to Your Learning Style</strong> – Deliver courses in formats that suit you best.<br /><br />
-                  ✔ <strong>Fill Knowledge Gaps</strong> – Identify missing skills and suggest relevant courses.<br /><br />
-                  ✔ <strong>Align with Career Goals</strong> – Personalize your learning to match professional aspirations.<br /><br />
+                  ✔ <strong>Understand Your Depth</strong> – <strong>NJAN-Insight</strong> assesses your expertise to recommend the right content.<br /><br />
+                  ✔ <strong>Adapt to Your Learning Style</strong> – <strong>NJAN-Personal</strong> delivers courses in formats that suit you best.<br /><br />
+                  ✔ <strong>Fill Knowledge Gaps</strong> – <strong>NJAN-Curate</strong> identifies missing skills and suggests relevant courses.<br /><br />
+                  ✔ <strong>Align with Career Goals</strong> – <strong>NJAN-Connect</strong> personalizes your learning to match professional aspirations.<br /><br />
                   Your journey, your rules. Let EduFlix tailor your learning experience.
                 </p>
               </div>
@@ -243,7 +255,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <h3 className="text-4xl font-semibold text-sky-700 mb-12 text-left">Content Curation</h3>
           <p className="text-lg text-gray-700 mb-8 leading-relaxed">
-            At EduFlix, we don’t just give you content, we give you the right content. Our intelligent curation process ensures that every course, tutorial, and resource is high-quality, relevant, and tailored to your learning needs.
+            At EduFlix, we don’t just give you content, we give you the right content. Our intelligent curation process, powered by <strong>NJAN-Curate</strong>, ensures that every course, tutorial, and resource is high-quality, relevant, and tailored to your learning needs.
           </p>
           <div className="flex flex-wrap">
             <div className="w-full md:w-1/2 p-6">
@@ -251,10 +263,10 @@ export default function LandingPage() {
                 <h4 className="text-2xl font-semibold text-sky-700 mb-4">What We Do</h4>
                 <p className="text-lg text-gray-700 leading-relaxed">
                   {/* Replace bullet points with custom icons */}
-                  ✔ <strong>Source from the Best</strong> – We bring together content from top educational platforms, industry experts, and trusted learning communities.<br /><br />
-                  ✔ <strong>Quality-Driven Selection</strong> – Every course is evaluated based on engagement, effectiveness, and real learner feedback.<br /><br />
-                  ✔ <strong>Personalized Learning Paths</strong> – Content is structured based on your proficiency level, learning pace, and career goals.<br /><br />
-                  ✔ <strong>Continuously Updated</strong> – As new trends emerge, our recommendations evolve to keep you ahead.
+                  ✔ <strong>Source from the Best</strong> – We bring together content from top educational platforms, industry experts, and trusted learning communities using <strong>NJAN-Curate</strong>.<br /><br />
+                  ✔ <strong>Quality-Driven Selection</strong> – Every course is evaluated based on engagement, effectiveness, and real learner feedback by <strong>NJAN-Insight</strong>.<br /><br />
+                  ✔ <strong>Personalized Learning Paths</strong> – Content is structured based on your proficiency level, learning pace, and career goals with <strong>NJAN-Personal</strong>.<br /><br />
+                  ✔ <strong>Continuously Updated</strong> – As new trends emerge, our recommendations evolve to keep you ahead, thanks to <strong>NJAN-Curate</strong>.
                 </p>
               </div>
             </div>
@@ -263,10 +275,10 @@ export default function LandingPage() {
                 <h4 className="text-2xl font-semibold text-sky-700 mb-4">Why It Matters</h4>
                 <p className="text-lg text-gray-700 leading-relaxed">
                   {/* Replace bullet points with custom icons */}
-                  ✔ <strong>No More Searching</strong> – The best courses, handpicked and ranked for you.<br /><br />
-                  ✔ <strong>Always Relevant</strong> – Learning that adapts to your goals and progress.<br /><br />
-                  ✔ <strong>Expert-Backed</strong> – Content that meets real-world industry standards.<br /><br />
-                  ✔ <strong>Multi-Format Flexibility</strong> – Videos, articles, hands-on projects, and interactive learning delivered your way.<br /><br />
+                  ✔ <strong>No More Searching</strong> – The best courses, handpicked and ranked for you by <strong>NJAN-Curate</strong>.<br /><br />
+                  ✔ <strong>Always Relevant</strong> – Learning that adapts to your goals and progress with <strong>NJAN-Personal</strong>.<br /><br />
+                  ✔ <strong>Expert-Backed</strong> – Content that meets real-world industry standards, validated by <strong>NJAN-Insight</strong>.<br /><br />
+                  ✔ <strong>Multi-Format Flexibility</strong> – Videos, articles, hands-on projects, and interactive learning delivered your way, orchestrated by <strong>NJAN</strong>.<br /><br />
                   Your time is valuable. Let EduFlix tailor your learning experience.
                 </p>
               </div>
@@ -280,16 +292,16 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <h3 className="text-4xl font-semibold text-amber-700 mb-12 text-left">EduFlix Personalization</h3>
           <p className="text-lg text-gray-700 mb-8 leading-relaxed">
-            At EduFlix, learning isn’t one-size-fits-all. Our Flix AI dynamically adapts to your pace, preferences, and behavior, ensuring a truly personalized experience.
+            At EduFlix, learning isn’t one-size-fits-all. Our <strong>NJAN-Personal</strong> dynamically adapts to your pace, preferences, and behavior, ensuring a truly personalized experience.
           </p>
           <div className="flex flex-wrap">
             <div className="w-full md:w-1/2 p-6">
               <div className="bg-gray-50 rounded-3xl shadow-md p-6 mb-6 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg"> {/* Neumorphic background */}
                 <h4 className="text-2xl font-semibold text-amber-700 mb-4">What We Do</h4>
                 <p className="text-lg text-black leading-relaxed">
-                  ✔ <strong>Adaptive Learning Paths</strong> – Modify, replace, or adjust content, learning methods, and pace to match your style.<br /><br />
-                  ✔ <strong>Behavior-Based Personalization</strong> – Flix AI learns from your interactions to refine recommendations in real time.<br /><br />
-                  ✔ <strong>Full Flexibility</strong> – Choose how you learn videos, articles, projects, or discussions on your terms.
+                  ✔ <strong>Adaptive Learning Paths</strong> – <strong>NJAN-Personal</strong> modifies, replaces, or adjusts content, learning methods, and pace to match your style.<br /><br />
+                  ✔ <strong>Behavior-Based Personalization</strong> – <strong>NJAN-Engage</strong> learns from your interactions to refine recommendations in real time.<br /><br />
+                  ✔ <strong>Full Flexibility</strong> – Choose how you learn videos, articles, projects, or discussions on your terms, guided by <strong>NJAN</strong>.
                 </p>
               </div>
             </div>
@@ -297,9 +309,9 @@ export default function LandingPage() {
               <div className="bg-gray-50 rounded-3xl shadow-md p-6 mb-6 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg"> {/* Neumorphic background */}
                 <h4 className="text-2xl font-semibold text-amber-700 mb-4">Why It Matters</h4>
                 <p className="text-lg text-black leading-relaxed">
-                  ✔ <strong>Smarter Recommendations</strong> – Content evolves as you progress.<br /><br />
-                  ✔ <strong>Effortless Learning</strong> – The right pace, the right content, at the right time.<br /><br />
-                  ✔ <strong>Total Control</strong> – A platform that adapts to you, not the other way around.<br /><br />
+                  ✔ <strong>Smarter Recommendations</strong> – Content evolves as you progress, thanks to <strong>NJAN-Curate</strong>.<br /><br />
+                  ✔ <strong>Effortless Learning</strong> – The right pace, the right content, at the right time, orchestrated by <strong>NJAN-Personal</strong>.<br /><br />
+                  ✔ <strong>Total Control</strong> – A platform that adapts to you, not the other way around, powered by <strong>NJAN</strong>.<br /><br />
                   Your journey, your rules. Let EduFlix tailor your learning experience.
                 </p>
               </div>
@@ -313,17 +325,17 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <h3 className="text-4xl font-semibold text-rose-700 mb-12 text-left">EduFlix Engagement</h3>
           <p className="text-lg text-gray-700 mb-8 leading-relaxed">
-            At EduFlix, we go beyond just learning—we make it interactive, engaging, and community-driven to keep you motivated every step of the way.
+            At EduFlix, we go beyond just learning—we make it interactive, engaging, and community-driven to keep you motivated every step of the way, all powered by <strong>NJAN-Engage</strong>.
           </p>
           <div className="flex flex-wrap">
             <div className="w-full md:w-1/2 p-6">
               <div className="bg-gray-50 rounded-xl shadow-lg p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg"> {/* Neumorphic background */}
                 <h4 className="text-2xl font-semibold text-rose-700 mb-4">What We Do</h4>
                 <p className="text-lg text-gray-700 leading-relaxed">
-                  ✔ <strong>Edureels & Edunews</strong> – Bite-sized, high-impact learning updates and industry insights to keep you informed and inspired.<br /><br />
-                  ✔ <strong>Leaderboards & Healthy Competition</strong> – Earn points based on test scores, completion rates, engagement, and helping others.<br /><br />
-                  ✔ <strong>Real-Time Community Interaction</strong> – Connect with peers through study groups, discussion rooms, and direct messaging.<br /><br />
-                  ✔ <strong>Peer-to-Peer Support</strong> – Learn faster and stay motivated by helping and getting help from other learners.
+                  ✔ <strong>Edureels & Edunews</strong> – Bite-sized, high-impact learning updates and industry insights to keep you informed and inspired, curated by <strong>NJAN-Curate</strong>.<br /><br />
+                  ✔ <strong>Leaderboards & Healthy Competition</strong> – Earn points based on test scores, completion rates, engagement, and helping others, tracked by <strong>NJAN-Engage</strong>.<br /><br />
+                  ✔ <strong>Real-Time Community Interaction</strong> – Connect with peers through study groups, discussion rooms, and direct messaging, facilitated by <strong>NJAN-Connect</strong>.<br /><br />
+                  ✔ <strong>Peer-to-Peer Support</strong> – Learn faster and stay motivated by helping and getting help from other learners, guided by <strong>NJAN-Tutor</strong>.
                 </p>
               </div>
             </div>
@@ -331,9 +343,9 @@ export default function LandingPage() {
               <div className="bg-gray-50 rounded-xl shadow-lg p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg"> {/* Neumorphic background */}
                 <h4 className="text-2xl font-semibold text-rose-700 mb-4">Why It Matters</h4>
                 <p className="text-lg text-gray-700 leading-relaxed">
-                  ✔ <strong>Stay Motivated</strong> – Compete, collaborate, and celebrate your progress.<br /><br />
-                  ✔ <strong>Never Feel Isolated</strong> – Engage in active discussions and real-time learning support.<br /><br />
-                  ✔ <strong>Learn Beyond Courses</strong> – Get the latest insights and trends in your field.<br /><br />
+                  ✔ <strong>Stay Motivated</strong> – Compete, collaborate, and celebrate your progress, all fueled by <strong>NJAN-Engage</strong>.<br /><br />
+                  ✔ <strong>Never Feel Isolated</strong> – Engage in active discussions and real-time learning support, facilitated by <strong>NJAN-Connect</strong>.<br /><br />
+                  ✔ <strong>Learn Beyond Courses</strong> – Get the latest insights and trends in your field, curated by <strong>NJAN-Curate</strong>.<br /><br />
                   EduFlix isn’t just a platform it’s a thriving learning community.
                 </p>
               </div>
@@ -347,16 +359,16 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <h3 className="text-4xl font-semibold text-fuchsia-700 mb-12 text-left">EduFlix Certifications & Hiring</h3>
           <p className="text-lg text-gray-700 mb-8 leading-relaxed">
-            EduFlix goes beyond traditional certifications. We don’t just partner with companies and institutions—we collaborate with technical teams to create certifications that directly match industry needs.
+            EduFlix goes beyond traditional certifications. We don’t just partner with companies and institutions—we collaborate with technical teams to create certifications that directly match industry needs, all powered by <strong>NJAN</strong>.
           </p>
           <div className="flex flex-wrap">
             <div className="w-full md:w-1/2 p-6">
               <div className="bg-gray-50 rounded-xl shadow-lg p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg"> {/* Neumorphic background */}
                 <h4 className="text-2xl font-semibold text-fuchsia-700 mb-4">What We Do</h4>
                 <p className="text-lg text-black leading-relaxed">
-                  ✔ <strong>Industry-Aligned Certifications</strong> – Designed in collaboration with technical teams, ensuring real-world relevance.<br /><br />
-                  ✔ <strong>Job Simulation Certifications</strong> – Hands-on projects and real-world problem-solving to make users job-ready.<br /><br />
-                  ✔ <strong>Direct Hiring Pipeline</strong> – Our certifications match recruiter expectations, making it easier for companies to hire from our talent pool.
+                  ✔ <strong>Industry-Aligned Certifications</strong> – Designed in collaboration with technical teams, ensuring real-world relevance, guided by <strong>NJAN-Insight</strong>.<br /><br />
+                  ✔ <strong>Job Simulation Certifications</strong> – Hands-on projects and real-world problem-solving to make users job-ready, assessed by <strong>NJAN-Personal</strong>.<br /><br />
+                  ✔ <strong>Direct Hiring Pipeline</strong> – Our certifications match recruiter expectations, making it easier for companies to hire from our talent pool, facilitated by <strong>NJAN-Connect</strong>.
                 </p>
               </div>
             </div>
@@ -364,9 +376,9 @@ export default function LandingPage() {
               <div className="bg-gray-50 rounded-xl shadow-lg p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg"> {/* Neumorphic background */}
                 <h4 className="text-2xl font-semibold text-fuchsia-700 mb-4">Why It Matters</h4>
                 <p className="text-lg text-black leading-relaxed">
-                  ✔ <strong>More Than a Certificate</strong> – Gain skills that match actual job requirements.<br /><br />
-                  ✔ <strong>Industry-Driven Learning</strong> – Certifications built with real professionals, not just academic frameworks.<br /><br />
-                  ✔ <strong>Fast-Track to Hiring</strong> – A seamless bridge between learning and career opportunities.<br /><br />
+                  ✔ <strong>More Than a Certificate</strong> – Gain skills that match actual job requirements, validated by <strong>NJAN-Insight</strong>.<br /><br />
+                  ✔ <strong>Industry-Driven Learning</strong> – Certifications built with real professionals, not just academic frameworks, powered by <strong>NJAN</strong>.<br /><br />
+                  ✔ <strong>Fast-Track to Hiring</strong> – A seamless bridge between learning and career opportunities, facilitated by <strong>NJAN-Connect</strong>.<br /><br />
                   EduFlix isn’t just about learning it’s about landing your dream job.
                 </p>
               </div>
@@ -375,23 +387,55 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonial Section */}
-      <section className="relative py-24 bg-gray-50" id="testimonials"> {/* Added ID */}
+      {/* New Section: Meet NJAN – The AI Brain of EduFlix */}
+      <section className="relative py-24 bg-gradient-to-br from-fuchsia-50 to-gray-50" id="meet-njan">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-semibold mb-12 text-gray-800">What Our Learners Say</h2>
+          <h2 className="text-4xl font-semibold text-gray-800 mb-12">Meet NJAN – The AI Brain of EduFlix</h2>
+          <p className="text-xl text-gray-600 leading-relaxed mb-8">
+            NJAN (Neural Justification & Adaptive Nexus) is the AI engine that powers EduFlix. It's a sophisticated ecosystem of AI models working seamlessly to provide a personalized and effective learning experience.
+          </p>
           <div className="flex flex-wrap justify-center">
+            {/* NJAN Sub-models */}
             <div className="w-full md:w-1/3 p-4">
-              <div className="bg-white rounded-3xl shadow-md p-6 mb-6 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <img src="https://via.placeholder.com/100" alt="Testimonial 1" className="rounded-full mx-auto mb-4" />
-                <p className="text-lg text-gray-700 italic mb-4">"EduFlix has transformed my career prospects. The certifications are directly aligned with industry needs, and I landed my dream job!"</p>
-                <h4 className="text-xl font-semibold text-gray-800">- Jane Doe</h4>
+              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
+                <h4 className="text-xl font-semibold text-gray-800">NJAN-Curate</h4>
+                <p className="text-gray-600">AI-driven content selection that picks the best courses for you.</p>
               </div>
             </div>
             <div className="w-full md:w-1/3 p-4">
-              <div className="bg-white rounded-3xl shadow-md p-6 mb-6 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <img src="https://via.placeholder.com/100" alt="Testimonial 2" className="rounded-full mx-auto mb-4" />
-                <p className="text-lg text-gray-700 italic mb-4">"The personalized learning experience on EduFlix is unparalleled. I was able to learn at my own pace and focus on the skills that mattered most to me."</p>
-                <h4 className="text-xl font-semibold text-gray-800">- John Smith</h4>
+              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
+                <h4 className="text-xl font-semibold text-gray-800">NJAN-Personal</h4>
+                <p className="text-gray-600">Adaptive learning AI that modifies courses based on your progress.</p>
+              </div>
+            </div>
+            <div className="w-full md:w-1/3 p-4">
+              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
+                <h4 className="text-xl font-semibold text-gray-800">NJAN-Engage</h4>
+                <p className="text-gray-600">Motivation & Gamification AI that tracks streaks and sends engagement triggers.</p>
+              </div>
+            </div>
+            <div className="w-full md:w-1/3 p-4">
+              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
+                <h4 className="text-xl font-semibold text-gray-800">NJAN-Tutor</h4>
+                <p className="text-gray-600">AI-powered tutor that answers questions and acts as a virtual mentor.</p>
+              </div>
+            </div>
+            <div className="w-full md:w-1/3 p-4">
+              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
+                <h4 className="text-xl font-semibold text-gray-800">NJAN-Insight</h4>
+                <p className="text-gray-600">AI Analytics & Progress Reports that track performance & suggest improvements.</p>
+              </div>
+            </div>
+            <div className="w-full md:w-1/3 p-4">
+              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
+                <h4 className="text-xl font-semibold text-gray-800">NJAN-Connect</h4>
+                <p className="text-gray-600">Networking AI that suggests mentors, study groups, and live discussions.</p>
+              </div>
+            </div>
+            <div className="w-full md:w-1/3 p-4">
+              <div className="bg-white rounded-xl shadow-md p-4 mb-4 h-full transform transition-transform duration-300 hover:scale-105 hover:shadow-lg">
+                <h4 className="text-xl font-semibold text-gray-800">NJAN-Voice</h4>
+                <p className="text-gray-600">Voice-based AI assistant that helps users navigate EduFlix.</p>
               </div>
             </div>
           </div>
@@ -413,13 +457,14 @@ export default function LandingPage() {
       <footer className="relative bg-gray-800 text-white py-10">
         <div className="container mx-auto px-4 text-center">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p>&copy; 2025 EduFlix AI Inc. All rights reserved.</p>
+            <p>&copy; 2023 EduFlix. All rights reserved.</p>
             <div className="mt-4 md:mt-0">
               <a href="#" className="text-gray-300 hover:text-white mx-2">Terms of Service</a>
               <a href="#" className="text-gray-300 hover:text-white mx-2">Privacy Policy</a>
               <a href="#" className="text-gray-300 hover:text-white mx-2">Contact Us</a>
             </div>
           </div>
+          <p className="mt-4 text-sm text-gray-400">Powered by NJAN – The AI Engine That Learns, Adapts & Guides</p>
         </div>
       </footer>
     </div>
