@@ -413,7 +413,7 @@ export default function LandingPage() {
       <footer className="relative bg-gray-800 text-white py-10">
         <div className="container mx-auto px-4 text-center">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p>&copy; 2023 EduFlix. All rights reserved.</p>
+            <p>&copy; 2025 EduFlix AI Inc. All rights reserved.</p>
             <div className="mt-4 md:mt-0">
               <a href="#" className="text-gray-300 hover:text-white mx-2">Terms of Service</a>
               <a href="#" className="text-gray-300 hover:text-white mx-2">Privacy Policy</a>
