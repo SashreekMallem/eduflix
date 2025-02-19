@@ -15,7 +15,7 @@ const FilmReelEffect: React.FC<FilmReelEffectProps> = ({ color }) => {
       const letterWidth = 64; // 4rem ~ 64px per letter
       gsap.to(scrollingRef.current, {
         x: -21 * letterWidth, // scroll through 4 letters * 5 times + 1 blank space
-        duration: 1., // Increased duration for longer animation
+        duration: 0.2, // Increased duration for longer animation
         ease: "power2.inOut",
       });
     }
