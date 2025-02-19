@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { FaQuestionCircle, FaUser, FaMicrophone, FaVideo, FaCheck, FaTimes, FaPaperPlane, FaCalendarAlt } from 'react-icons/fa';
+import { FaQuestionCircle, FaUser, FaMicrophone, FaVideo, FaCheck, FaTimes, FaPaperPlane, FaCalendarAlt, FaTrophy, FaFire } from 'react-icons/fa';
 import Link from 'next/link';
-import Calendar from 'react-calendar';
+import Calendar, { CalendarProps } from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
+import { motion } from 'framer-motion';
 
 const TimeOptions = () => {
   const times = [];
@@ -20,7 +21,7 @@ export default function DiscussionPage() {
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
   const [selectedVideo, setSelectedVideo] = useState('');
-  const [potentialHelpers, setPotentialHelpers] = useState([]);
+  const [potentialHelpers, setPotentialHelpers] = useState<{ name: string; courses: string[]; rating: number; }[]>([]);
   const [availableCourses, setAvailableCourses] = useState([
     {
       name: 'Data Structures',
@@ -51,17 +52,20 @@ export default function DiscussionPage() {
     { name: 'Diana Miller', courses: ['Data Structures', 'Algorithms'], rating: 4.7 },
     { name: 'Ethan Davis', courses: ['Web Development', 'React'], rating: 4.6 },
   ]);
-  const [selectedHelper, setSelectedHelper] = useState(null);
+  const [selectedHelper, setSelectedHelper] = useState<{ name: string; courses: string[]; rating: number; } | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isLoadingHelpers, setIsLoadingHelpers] = useState(false);
   const [isAwaitingHelper, setIsAwaitingHelper] = useState(false);
   const [isHelperAccepted, setIsHelperAccepted] = useState(false);
-  const [chatMessages, setChatMessages] = useState([]);
+  const [chatMessages, setChatMessages] = useState<{ sender: string; text: string; }[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isSessionFinalized, setIsSessionFinalized] = useState(false);
-  const [scheduledTime, setScheduledTime] = useState(null);
+  const [scheduledTime, setScheduledTime] = useState<Date | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedTime, setSelectedTime] = useState('');
+  const [xp, setXp] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [isConfettiActive, setIsConfettiActive] = useState(false);
 
   useEffect(() => {
     // Simulate fetching helpers from a backend based on the selected course
@@ -93,7 +97,7 @@ export default function DiscussionPage() {
     setIsLoadingHelpers(true); // Start looking for helpers after submitting
   };
 
-  const handleSelectHelper = (helper) => {
+  const handleSelectHelper = (helper: { name: string; courses: string[]; rating: number; }) => {
     setSelectedHelper(helper);
     setShowConfirmation(true);
   };
@@ -119,15 +123,19 @@ export default function DiscussionPage() {
       const newMessage = { sender: 'You', text: chatInput };
       setChatMessages([...chatMessages, newMessage]);
       setChatInput('');
+      // Award XP for sending a message
+      setXp(prevXp => prevXp + 5);
     }
   };
 
   const handleConfirmSession = () => {
-    // Simulate setting up the session with the selected helper
-    // This would involve creating a new "classroom" with whiteboard, voice call, etc.
-    console.log('Session confirmed with:', selectedHelper);
-    alert(`Session confirmed with ${selectedHelper.name}!`);
-    setIsHelperAccepted(false);
+    if (selectedHelper) {
+      // Simulate setting up the session with the selected helper
+      // This would involve creating a new "classroom" with whiteboard, voice call, etc.
+      console.log('Session confirmed with:', selectedHelper);
+      alert(`Session confirmed with ${selectedHelper.name}!`);
+      setIsHelperAccepted(false);
+    }
   };
 
   const handleCancelSession = () => {
@@ -135,17 +143,19 @@ export default function DiscussionPage() {
     setIsHelperAccepted(false);
   };
 
-  const handleDateChange = (date) => {
-    setScheduledTime(date);
+  const handleDateChange: CalendarProps['onChange'] = (date) => {
+    if (date instanceof Date) {
+      setScheduledTime(date);
+    }
   };
 
-  const handleTimeChange = (time) => {
+  const handleTimeChange = (time: string) => {
     setSelectedTime(time);
   };
 
   const handleFinalizeSchedule = () => {
     if (scheduledTime && selectedTime) {
-      const [hours, minutes] = selectedTime.split(':');
+      const [hours, minutes] = selectedTime.split(':').map(Number);
       const newDate = new Date(scheduledTime);
       newDate.setHours(hours);
       newDate.setMinutes(minutes);
@@ -156,14 +166,27 @@ export default function DiscussionPage() {
     }
   };
 
+  const aiSmartReply = (message: string) => {
+    // Simulate AI generating a smart reply
+    return `AI Smart Reply: Is this helpful for you?`;
+  };
+
   return (
-    <div className="bg-gray-900 text-white min-h-screen transition-opacity duration-300">
+    <motion.div
+      className="bg-gray-900 text-white min-h-screen transition-opacity duration-300"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
       <header className="bg-gray-800 p-4 shadow-md transition-colors duration-300">
         <h1 className="text-2xl font-bold">Discussion Room</h1>
       </header>
       <div className="container mx-auto p-8">
-        {/* Course Selection */}
-        <div className="mb-6 transition-all duration-300">
+        <motion.div
+          className="mb-6 transition-all duration-300"
+          whileHover={{ scale: 1.03 }}
+          transition={{ duration: 0.2 }}
+        >
           <label className="block text-xl font-semibold mb-2">Select Course:</label>
           <select
             value={selectedCourse}
@@ -181,11 +204,13 @@ export default function DiscussionPage() {
               </option>
             ))}
           </select>
-        </div>
-
-        {/* Chapter Selection */}
+        </motion.div>
         {selectedCourse && (
-          <div className="mb-6 transition-all duration-300">
+          <motion.div
+            className="mb-6 transition-all duration-300"
+            whileHover={{ scale: 1.03 }}
+            transition={{ duration: 0.2 }}
+          >
             <label className="block text-xl font-semibold mb-2">Select Chapter:</label>
             <select
               value={selectedChapter}
@@ -204,12 +229,14 @@ export default function DiscussionPage() {
                   </option>
                 ))}
             </select>
-          </div>
+          </motion.div>
         )}
-
-        {/* Video Selection */}
         {selectedChapter && (
-          <div className="mb-6 transition-all duration-300">
+          <motion.div
+            className="mb-6 transition-all duration-300"
+            whileHover={{ scale: 1.03 }}
+            transition={{ duration: 0.2 }}
+          >
             <label className="block text-xl font-semibold mb-2">Select Video:</label>
             <select
               value={selectedVideo}
@@ -226,11 +253,13 @@ export default function DiscussionPage() {
                   </option>
                 ))}
             </select>
-          </div>
+          </motion.div>
         )}
-
-        {/* Question Input */}
-        <div className="mb-6 transition-all duration-300">
+        <motion.div
+          className="mb-6 transition-all duration-300"
+          whileHover={{ scale: 1.03 }}
+          transition={{ duration: 0.2 }}
+        >
           <label className="block text-xl font-semibold mb-2">Ask Your Question:</label>
           <textarea
             placeholder="Type your question here..."
@@ -245,20 +274,33 @@ export default function DiscussionPage() {
           >
             Submit Question <FaQuestionCircle className="inline-block ml-2 animate-pulse" />
           </button>
-        </div>
-
-        {/* Potential Helpers */}
+        </motion.div>
         {isLoadingHelpers ? (
-          <div className="bg-gray-800 rounded-lg p-4 mb-6 transition-opacity duration-300">
+          <motion.div
+            className="bg-gray-800 rounded-lg p-4 mb-6 transition-opacity duration-300"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+          >
             <h2 className="text-xl font-semibold mb-2">Searching for Helpers...</h2>
             <p>Please wait while we find the best helpers for you.</p>
-          </div>
+          </motion.div>
         ) : potentialHelpers.length > 0 && !selectedHelper && !isAwaitingHelper && !isHelperAccepted && (
-          <div className="bg-gray-800 rounded-lg p-4 mb-6 transition-opacity duration-300">
+          <motion.div
+            className="bg-gray-800 rounded-lg p-4 mb-6 transition-opacity duration-300"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
             <h2 className="text-xl font-semibold mb-2">Potential Helpers:</h2>
             <ul>
               {potentialHelpers.map((helper, index) => (
-                <li key={index} className="flex items-center justify-between py-2 border-b border-gray-700 transition-colors duration-200 hover:bg-gray-700">
+                <motion.li
+                  key={index}
+                  className="flex items-center justify-between py-2 border-b border-gray-700 transition-colors duration-200 hover:bg-gray-700"
+                  whileHover={{ scale: 1.03 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <div>
                     <div className="flex items-center space-x-2">
                       <FaUser className="text-gray-400" />
@@ -275,15 +317,18 @@ export default function DiscussionPage() {
                   >
                     Help
                   </button>
-                </li>
+                </motion.li>
               ))}
             </ul>
-          </div>
+          </motion.div>
         )}
-
-        {/* Confirmation */}
         {selectedHelper && showConfirmation && (
-          <div className="bg-gray-800 rounded-lg p-4 mb-6 transition-opacity duration-300">
+          <motion.div
+            className="bg-gray-800 rounded-lg p-4 mb-6 transition-opacity duration-300"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+          >
             <h2 className="text-xl font-semibold mb-2">Confirm Help Request:</h2>
             <p>
               Are you sure you want to send a help request to {selectedHelper.name}?
@@ -302,40 +347,50 @@ export default function DiscussionPage() {
                 Cancel <FaTimes className="inline-block ml-2" />
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
-
-        {/* Awaiting Helper */}
-        {isAwaitingHelper && (
-          <div className="bg-gray-800 rounded-lg p-4 mb-6 transition-opacity duration-300">
+        {isAwaitingHelper && selectedHelper && (
+          <motion.div
+            className="bg-gray-800 rounded-lg p-4 mb-6 transition-opacity duration-300"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+          >
             <h2 className="text-xl font-semibold mb-2">Awaiting Helper Response...</h2>
             <p>Please wait while {selectedHelper.name} reviews your request.</p>
-          </div>
+          </motion.div>
         )}
-
-        {/* Helper Accepted */}
         {isHelperAccepted && selectedHelper && !isSessionFinalized && (
-          <div className="bg-gray-800 rounded-lg p-4 mb-6 transition-opacity duration-300">
+          <motion.div
+            className="bg-gray-800 rounded-lg p-4 mb-6 transition-opacity duration-300"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
             <h2 className="text-xl font-semibold mb-2">{selectedHelper.name} Accepted!</h2>
             <p>
               {selectedHelper.name} has accepted your help request. Discuss the details below.
             </p>
-
-            {/* Chat Box */}
             <div className="mb-4">
               <h3 className="text-lg font-semibold mb-2">Chat with {selectedHelper.name}</h3>
               <div className="overflow-y-auto p-4 space-y-2 max-h-48">
                 {chatMessages.map((msg, index) => (
-                  <div
+                  <motion.div
                     key={index}
                     className={`flex space-x-2 items-start ${msg.sender === 'You' ? 'flex-row-reverse text-right self-end' : 'flex-row text-left self-start'} transition-opacity duration-200`}
+                    initial={{ opacity: 0, x: msg.sender === 'You' ? 50 : -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: msg.sender === 'You' ? 50 : -50 }}
                   >
                     <div className="w-8 h-8 bg-gray-700 rounded-full flex-shrink-0 transition-transform duration-300 hover:scale-110" />
                     <div className="bg-gray-700 p-3 rounded-lg shadow-md transition-shadow duration-200 hover:shadow-lg">
                       <p className="text-sm font-bold text-purple-400">{msg.sender}</p>
                       <p className="text-sm">{msg.text}</p>
+                      {msg.sender !== 'You' && (
+                        <p className="text-xs text-gray-500 mt-1">{aiSmartReply(msg.text)}</p>
+                      )}
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
               <div className="flex items-center mt-2">
@@ -354,8 +409,6 @@ export default function DiscussionPage() {
                 </button>
               </div>
             </div>
-
-            {/* Scheduling Options */}
             <div className="mb-4">
               <h3 className="text-lg font-semibold mb-2">Schedule a Session:</h3>
               <p>Discuss with {selectedHelper.name} to decide on a time and date, or start immediately.</p>
@@ -394,18 +447,32 @@ export default function DiscussionPage() {
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         )}
-
-        {/* Classroom Placeholder */}
         {selectedHelper && isHelperAccepted && (
-          <div className="bg-gray-800 rounded-lg p-4 transition-opacity duration-300">
-            <h2 className="text-xl font-semibold mb-2">Classroom with {selectedHelper.name}</h2>
+          <motion.div
+            className="bg-gray-800 rounded-lg p-4 transition-opacity duration-300"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Classroom with {selectedHelper.name}</h2>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center">
+                  <FaTrophy className="mr-1 text-yellow-500" />
+                  <span>XP: {xp}</span>
+                </div>
+                <div className="flex items-center">
+                  <FaFire className="mr-1 text-red-500" />
+                  <span>Streak: {streak}</span>
+                </div>
+              </div>
+            </div>
             <p>Whiteboard, voice call, and content materials will be displayed here.</p>
-            {/* Placeholder for whiteboard, voice call, and content materials */}
-          </div>
+          </motion.div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

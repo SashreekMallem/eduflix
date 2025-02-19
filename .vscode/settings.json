@@ -1,0 +1,7 @@
+{
+    "github.copilot.chat.followUps": "always",
+    "github.copilot.chat.edits.codesearch.enabled": true,
+    "github.copilot.nextEditSuggestions.enabled": true,
+    "chat.agent.maxRequests": 100,
+    "github.copilot.advanced": {}
+}

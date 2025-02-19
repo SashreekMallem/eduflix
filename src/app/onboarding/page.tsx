@@ -5,33 +5,104 @@ import gsap from "gsap";
 import { FaUpload, FaLinkedin } from "react-icons/fa";
 import { useRouter } from 'next/navigation';
 
+interface Node {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  connectedTo: number[];
+  isStatic: boolean;
+}
+
 export default function NeuralNetworkBackground() {
-  const [expandedNode, setExpandedNode] = useState(null);
-  const [nodes, setNodes] = useState([]);
+  const [expandedNode, setExpandedNode] = useState<number | null>(null);
+  
+  const [nodes, setNodes] = useState<Node[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
   const [username, setUsername] = useState("");
   const [formVisible, setFormVisible] = useState(true);
   const [step, setStep] = useState(1);
 
-  const [resumeFile, setResumeFile] = useState(null);
-  const [transcriptFile, setTranscriptFile] = useState(null);
-  const [relevantCourses, setRelevantCourses] = useState([]);
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [transcriptFiles, setTranscriptFiles] = useState<File[]>([]);
   const [currentCourse, setCurrentCourse] = useState("");
-  const [certifications, setCertifications] = useState([]);
+  interface Certification {
+    title: string;
+    issuer: string;
+  }
+  
+  const [certifications, setCertifications] = useState<Certification[]>([]);
   const [currentCertificationTitle, setCurrentCertificationTitle] = useState("");
   const [currentCertificationIssuer, setCurrentCertificationIssuer] = useState("");
-  const [onlineCourses, setOnlineCourses] = useState([]);
+  interface OnlineCourse {
+    name: string;
+    company: string;
+  }
+  
+  const [onlineCourses, setOnlineCourses] = useState<OnlineCourse[]>([]);
   const [currentOnlineCourseName, setCurrentOnlineCourseName] = useState("");
-  const [currentOnlineCourseCompany, setCurrentOnlineCourseCompany] = useState("");
-  // New state variables for work experience
+  const [currentOnlineCourseIssuer, setCurrentOnlineCourseIssuer] = useState("");
+  const [currentOnlineCourseStatus, setCurrentOnlineCourseStatus] = useState("");
+  const [onlineCourseCertificate, setOnlineCourseCertificate] = useState(null);
+  const [addedCertifications, setAddedCertifications] = useState([]);
+  const [addedOnlineCourses, setAddedOnlineCourses] = useState([]);
+  const [addedItems, setAddedItems] = useState<{ type: string; title?: string; name?: string; issuer: string; verificationLink?: string }[]>([]);
+  const [currentVerificationLink, setCurrentVerificationLink] = useState("");
+  const [showVerificationLinkInput, setShowVerificationLinkInput] = useState(false);
+  const [currentType, setCurrentType] = useState("certification");
+  const [workExperienceCompany, setWorkExperienceCompany] = useState("");
   const [workExperienceTitle, setWorkExperienceTitle] = useState("");
   const [workExperienceDescription, setWorkExperienceDescription] = useState("");
+  interface WorkExperience {
+    company: string;
+    title: string;
+    description: string;
+  }
+
+  const [addedWorkExperiences, setAddedWorkExperiences] = useState<WorkExperience[]>([]);
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+  const [projectFile, setProjectFile] = useState<File | null>(null);
+  const [projectDescription, setProjectDescription] = useState("");
+  interface Project {
+    file: File;
+    description: string;
+  }
+  
+  const [addedProjects, setAddedProjects] = useState<Project[]>([]);
+  // New state variables for work experience
   // New state variables for steps 6 and 7
   const [preferredLearningPace, setPreferredLearningPace] = useState("");
+  const [learningCommitment, setLearningCommitment] = useState("");
   const [preferredLearningMethods, setPreferredLearningMethods] = useState<string[]>([]);
   // New state variables for project
-  const [projectFile, setProjectFile] = useState(null);
-  const [projectDescription, setProjectDescription] = useState("");
+  const [userId, setUserId] = useState(""); // New state for storing the auth user id
+  const [university, setUniversity] = useState("");
+  const [degree, setDegree] = useState("High School");
+  const [currentStatus, setCurrentStatus] = useState(""); // New state for current status
+  const [fieldOfStudy, setFieldOfStudy] = useState("");
+  const [relevantCourses, setRelevantCourses] = useState<string[]>([]);
+  const [addedDegrees, setAddedDegrees] = useState([]);
+  const [proficiencyLevels, setProficiencyLevels] = useState({});
+
+  const handleAddDegree = () => {
+    if (university && degree && fieldOfStudy) {
+      setAddedDegrees([
+        ...addedDegrees,
+      ]);
+      setUniversity("");
+      setDegree("High School");
+      setFieldOfStudy("");
+      setRelevantCourses([]);
+    }
+  };
+
+  const handleRemoveDegree = (index: number) => {
+    const newDegrees = [...addedDegrees];
+    newDegrees.splice(index, 1);
+    setAddedDegrees(newDegrees);
+  };
 
   // Add a ref to the form container
   const formContainerRef = useRef<HTMLDivElement>(null);
@@ -46,48 +117,156 @@ export default function NeuralNetworkBackground() {
     }
   }, [step]); // update when step changes
 
-  const handleFileUpload = (event, setFile) => {
-    const file = event.target.files[0];
+  useEffect(() => {
+    const storedUserId = localStorage.getItem("auth_user_id");
+    if (storedUserId) {
+      setUserId(storedUserId);
+    }
+  }, []);
+
+  const handleFileUpload = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    setFile: (file: File | null) => void
+  ) => {
+    const file = event.target.files ? event.target.files[0] : null;
     if (file) {
       setFile(file);
     }
   };
 
-  const handleRemoveCourse = (index) => {
+  const handleMultipleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, setFiles: React.Dispatch<React.SetStateAction<File[]>>) => {
+    const files = Array.from(event.target.files || []);
+    setFiles(prevFiles => [...prevFiles, ...files]);
+  };
+
+  const handleRemoveCourse = (index: number) => {
     setRelevantCourses(relevantCourses.filter((_, i) => i !== index));
   };
 
   const handleAddCertification = () => {
     if (currentCertificationTitle.trim() !== "" && currentCertificationIssuer.trim() !== "") {
-      setCertifications([...certifications, { title: currentCertificationTitle.trim(), issuer: currentCertificationIssuer.trim() }]);
+      setAddedItems([
+        ...addedItems,
+        {
+          type: currentType,
+          title: currentCertificationTitle.trim(),
+          issuer: currentCertificationIssuer.trim(),
+          verificationLink: currentVerificationLink.trim(),
+        },
+      ]);
       setCurrentCertificationTitle("");
       setCurrentCertificationIssuer("");
+      setCurrentVerificationLink("");
+      setCurrentType("certification");
     }
   };
 
-  const handleRemoveCertification = (index) => {
+  const handleRemoveCertification = (index: number) => {
     setCertifications(certifications.filter((_, i) => i !== index));
   };
 
   const handleAddOnlineCourse = () => {
-    if (currentOnlineCourseName.trim() !== "" && currentOnlineCourseCompany.trim() !== "") {
-      setOnlineCourses([...onlineCourses, { name: currentOnlineCourseName.trim(), company: currentOnlineCourseCompany.trim() }]);
+    if (currentOnlineCourseName.trim() !== "" && currentOnlineCourseIssuer.trim() !== "") {
+      setAddedItems([
+        ...addedItems,
+        {
+          type: "onlineCourse",
+          name: currentOnlineCourseName.trim(),
+          issuer: currentOnlineCourseIssuer.trim(),
+        },
+      ]);
       setCurrentOnlineCourseName("");
-      setCurrentOnlineCourseCompany("");
+      setCurrentOnlineCourseIssuer("");
     }
   };
 
-  const handleRemoveOnlineCourse = (index) => {
+  const handleRemoveOnlineCourse = (index: number) => {
     setOnlineCourses(onlineCourses.filter((_, i) => i !== index));
   };
 
-  // New helper to toggle learning methods selection
-  const togglePreferredLearningMethod = (method: string) => {
-    if (preferredLearningMethods.includes(method)) {
-      setPreferredLearningMethods(preferredLearningMethods.filter(m => m !== method));
-    } else {
-      setPreferredLearningMethods([...preferredLearningMethods, method]);
+  const handleRemoveItem = (index: number) => {
+    const newItems = [...addedItems];
+    newItems.splice(index, 1);
+    setAddedItems(newItems);
+  };
+
+  const handleEditItem = (index: number) => {
+    const item = addedItems[index];
+    setSelectedItemIndex(index);
+    if (item.type === "certification" || item.type === "onlineCourse") {
+      setCurrentType(item.type);
+      setCurrentCertificationTitle(item.title || "");
+      setCurrentCertificationIssuer(item.issuer);
+      setCurrentVerificationLink(item.verificationLink || "");
     }
+  };
+
+  const handleUpdateItem = () => {
+    if (selectedItemIndex !== null) {
+      const updatedItems = [...addedItems];
+      updatedItems[selectedItemIndex] = {
+        type: currentType,
+        title: currentCertificationTitle.trim(),
+        issuer: currentCertificationIssuer.trim(),
+        verificationLink: currentVerificationLink.trim(),
+      };
+      setAddedItems(updatedItems);
+      setSelectedItemIndex(null);
+      setCurrentCertificationTitle("");
+      setCurrentCertificationIssuer("");
+      setCurrentVerificationLink("");
+    }
+  };
+
+  const toggleVerificationLinkInput = () => {
+    setShowVerificationLinkInput(!showVerificationLinkInput);
+  };
+
+  // Add missing handleAddWorkExperience function
+  const handleAddWorkExperience = () => {
+    if (
+      workExperienceCompany.trim() !== "" &&
+      workExperienceTitle.trim() !== "" &&
+      workExperienceDescription.trim() !== ""
+    ) {
+      setAddedWorkExperiences([
+        ...addedWorkExperiences,
+        {
+          company: workExperienceCompany.trim(),
+          title: workExperienceTitle.trim(),
+          description: workExperienceDescription.trim(),
+        },
+      ]);
+      setWorkExperienceCompany("");
+      setWorkExperienceTitle("");
+      setWorkExperienceDescription("");
+    }
+  };
+
+  const handleAddProject = () => {
+    if (projectFile) {
+      setAddedProjects([
+        ...addedProjects,
+        {
+          file: projectFile,
+          description: projectDescription.trim(),
+        },
+      ]);
+      setProjectFile(null);
+      setProjectDescription("");
+    }
+  };
+
+  const handleRemoveProject = (index: number) => {
+    const newProjects = [...addedProjects];
+    newProjects.splice(index, 1);
+    setAddedProjects(newProjects);
+  };
+
+  const handleEditProject = (index: number) => {
+    const item = addedProjects[index];
+    setProjectFile(item.file);
+    setProjectDescription(item.description);
   };
 
   // Add this helper function at the top of the component (after state declarations, for example)
@@ -110,26 +289,26 @@ export default function NeuralNetworkBackground() {
   useEffect(() => {
     const canvas = document.getElementById("networkCanvas");
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const ctx = (canvas as HTMLCanvasElement).getContext("2d");
+    (canvas as HTMLCanvasElement).width = window.innerWidth;
+    (canvas as HTMLCanvasElement).height = window.innerHeight;
 
     // Increase the number of nodes from 25 to 30
     const generatedNodes = Array.from({ length: 35 }, (_, index) => ({
       id: index,
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
+      x: Math.random() * (canvas as HTMLCanvasElement).width,
+      y: Math.random() * (canvas as HTMLCanvasElement).height,
       vx: Math.random() * 2 - 1,
       vy: Math.random() * 2 - 1,
-      size: 4,
-      connectedTo: [],
+      size: 4, // Initial size
+      connectedTo: [] as number[],
       isStatic: false,
     }));
 
     function updateConnections() {
-      for (let i = 0; i < generatedNodes.length; i++) {
-        generatedNodes[i].connectedTo = [];
-        for (let j = 0; j < generatedNodes.length; j++) {
+      for (let i = 0; i < nodes.length; i++) {
+          nodes[i].connectedTo = [];
+          for (let j = 0; j < nodes.length; j++) {
           if (i !== j) {
             const dist = Math.hypot(
               generatedNodes[i].x - generatedNodes[j].x,
@@ -146,30 +325,60 @@ export default function NeuralNetworkBackground() {
     updateConnections();
     setNodes(generatedNodes);
 
-    function drawNetwork() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawNetwork(ctx, canvas as HTMLCanvasElement, generatedNodes, generatedNodes, updateConnections);
 
-      generatedNodes.forEach((node) => {
-        ctx.fillStyle = "rgba(147, 112, 219, 0.8)";
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, node.size, 0, Math.PI * 2);
-        ctx.fill();
+    const handleResize = () => {
+      (canvas as HTMLCanvasElement).width = window.innerWidth;
+      (canvas as HTMLCanvasElement).height = window.innerHeight;
+      updateConnections();
+    };
 
-        if (!node.isStatic) {
-          node.x += node.vx;
-          node.y += node.vy;
-          if (node.x < 0 || node.x > canvas.width) node.vx *= -1;
-          if (node.y < 0 || node.y > canvas.height) node.vy *= -1;
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  function drawNetwork(ctx: CanvasRenderingContext2D | null, canvas: HTMLCanvasElement | null, nodes: Node[], generatedNodes: Node[], updateConnections: () => void) {
+    if (ctx) {
+      if (ctx && canvas) {
+        ctx.clearRect(0, 0, (canvas as HTMLCanvasElement).width, (canvas as HTMLCanvasElement).height);
+      }
+    }
+
+    nodes.forEach((node) => {
+      if (!ctx) return;
+      ctx.fillStyle = "rgba(147, 112, 219, 0.8)";
+      ctx.beginPath();
+
+      // Draw hexagon
+      const numberOfSides = 8;
+      const size = node.size;
+      ctx.moveTo(node.x + size * Math.cos(0), node.y + size * Math.sin(0));
+      for (let i = 1; i <= numberOfSides; i++) {
+        ctx.lineTo(node.x + size * Math.cos(i * 2 * Math.PI / numberOfSides), node.y + size * Math.sin(i * 2 * Math.PI / numberOfSides));
+      }
+
+      ctx.closePath();
+      ctx.fill();
+
+      if (!node.isStatic) {
+        node.x += node.vx;
+        node.y += node.vy;
+        if (canvas) {
+          if (node.x < 0 || node.x > (canvas as HTMLCanvasElement).width) node.vx *= -1;
+          if (node.y < 0 || node.y > (canvas as HTMLCanvasElement).height) node.vy *= -1;
         }
+      }
       });
+    }
 
-      for (let i = 0; i < generatedNodes.length; i++) {
-        for (const j of generatedNodes[i].connectedTo) {
-          const dist = Math.hypot(
-            generatedNodes[i].x - generatedNodes[j].x,
-            generatedNodes[i].y - generatedNodes[j].y
-          );
-          if (dist < 250) {
+    for (let i = 0; i < generatedNodes.length; i++) {
+      for (const j of generatedNodes[i].connectedTo) {
+        const dist = Math.hypot(
+          generatedNodes[i].x - generatedNodes[j].x,
+          generatedNodes[i].y - generatedNodes[j].y
+        );
+        if (dist < 250) {
+          if (ctx) {
             ctx.strokeStyle = `rgba(147, 112, 219, ${1 - dist / 250})`;
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -179,29 +388,18 @@ export default function NeuralNetworkBackground() {
           }
         }
       }
-
-      updateConnections();
-      requestAnimationFrame(drawNetwork);
     }
 
-    drawNetwork();
-
-    const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      updateConnections();
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    updateConnections();
+    requestAnimationFrame(() => drawNetwork(ctx, canvas, generatedNodes, updateConnections));
+  }
   
   // When no node is expanded and no animation is running, select the closest node to the center
   useEffect(() => {
     // Only expand a node if we're still before step 7
     if (!expandedNode && !isAnimating && nodes.length && step < 7 && formVisible && !hasAutoExpanded) {
       const closestNode = nodes.reduce(
-        (closest, node) => {
+        (closest: { id: number; dist: number }, node: Node) => {
           const distToCenter = Math.hypot(
             node.x - window.innerWidth / 2,
             node.y - window.innerHeight / 2
@@ -210,7 +408,7 @@ export default function NeuralNetworkBackground() {
             ? { id: node.id, dist: distToCenter }
             : closest;
         },
-        { id: null, dist: Infinity }
+        { id: -1, dist: Infinity }
       );
 
       const selectedNode = nodes.find((node) => node.id === closestNode.id);
@@ -219,7 +417,7 @@ export default function NeuralNetworkBackground() {
         selectedNode.isStatic = true;
         setIsAnimating(true);
         gsap.to(selectedNode, {
-          size: calculateNodeSize(),
+          size: calculateNodeSize(), // Use new function for size
           x: getSafePosition(selectedNode.x, containerDims.width, window.innerWidth),
           y: getSafePosition(selectedNode.y, containerDims.height, window.innerHeight),
           duration: 1.5,
@@ -241,22 +439,22 @@ export default function NeuralNetworkBackground() {
   }, [step]);
 
   // Replace the calculateNodeSize function with this manual version:
-  const manualSizes = {
-    1: 150,
-    2: 300,
-    3: 300,
-    4: 250,
-    5: 300,
-    6: 200,
-    7: 250,
+  const manualSizes: { [key: number]: number } = {
+    1: 350, // Increased size for step 1
+    2: 550,
+    3: 350,
+    4: 350,
+    5: 350,
+    6: 350,
+    7: 350,
   };
 
   const calculateNodeSize = () => {
-    return manualSizes[step] || 300;
+    return manualSizes[step] || 100;
   };
 
   // When the form is submitted, animate the current node to shrink, then animate the next node.
-  const handleSubmit = () => {
+  const handleSubmit = (nodes: Node[]) => {
     if (isAnimating) return;
 
     gsap.to("#formContainer", {
@@ -276,7 +474,10 @@ export default function NeuralNetworkBackground() {
               shrinkingNode.isStatic = false;
               setExpandedNode(null);
               const nextNodeId = shrinkingNode.connectedTo.find(
-                (id) => !nodes.find((n) => n.id === id).isStatic
+                (id: number) => {
+                  const node = nodes.find((n) => n.id === id);
+                  return node ? !node.isStatic : false;
+                }
               );
               const nextNode = nodes.find((node) => node.id === nextNodeId);
               if (nextNode) {
@@ -361,7 +562,7 @@ export default function NeuralNetworkBackground() {
         </div>
         <div class="mb-4">
           <label class="text-black font-bold text-xl">Transcript:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${transcriptFile ? transcriptFile.name : "Not provided"}" />
+          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${transcriptFiles.length ? transcriptFiles.map(file => file.name).join(', ') : "Not provided"}" />
         </div>
         <div class="mb-4">
           <label class="text-black font-bold text-xl">Relevant Courses:</label>
@@ -406,8 +607,12 @@ export default function NeuralNetworkBackground() {
 
       gsap.fromTo(infoContainer, { opacity: 0 }, { opacity: 1, duration: 1 });
 
-      // Add event listener to save button
-      infoContainer.querySelector('button').addEventListener('click', () => {
+      const button = infoContainer.querySelector('button');
+      if (button) {
+        button.addEventListener('click', () => {
+      const button = infoContainer.querySelector('button');
+      if (button) {
+        button.addEventListener('click', () => {
         const inputs = infoContainer.querySelectorAll('input');
         setUsername(inputs[0].value);
         // Update other state variables similarly
@@ -491,8 +696,9 @@ export default function NeuralNetworkBackground() {
           // Add event listener to the input field
           const learningGoalsInput = document.getElementById('learningGoalsInput');
           const searchBarButton = document.getElementById('searchBarButton');
-          let intervalId;
-
+          let intervalId: NodeJS.Timeout;
+          if (learningGoalsInput) {
+            learningGoalsInput.addEventListener('keydown', (e) => {
           learningGoalsInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -502,7 +708,8 @@ export default function NeuralNetworkBackground() {
                 if (availableNode) {
                   availableNode.textPinned = true;
                   gsap.to(availableNode, {
-                    size: 100,
+                    width: 100,
+                    height: 100,
                     duration: 1,
                     ease: "power2.inOut",
                     onUpdate: () => setNodes([...nodes]),
@@ -536,14 +743,50 @@ export default function NeuralNetworkBackground() {
           });
 
           // Add event listener to the search bar button (learning goals button)
-          searchBarButton.addEventListener('click', () => {
+          searchBarButton.addEventListener('click', async () => {
             clearInterval(intervalId);
             gsap.to(searchBarContainer, {
               opacity: 0,
               duration: 1,
-              onComplete: () => {
+              onComplete: async () => {
                 document.body.removeChild(searchBarContainer);
-                router.push('/home'); // Redirect to home page when button is clicked
+                // Move the functionality of handleOnboardingSubmit here
+                if (!userId) {
+                  console.error("No valid user id available for onboarding.");
+                  return;
+                }
+                const formData = new FormData();
+                formData.append("user_id", userId); // Use the actual user id instead of "123"
+                formData.append("username", username);
+                if (resumeFile) formData.append("resume_file", resumeFile);
+                if (transcriptFiles.length) transcriptFiles.forEach(file => formData.append("transcript_files", file));
+                formData.append("university", university); // Append university
+                formData.append("degree", degree);         // Append degree
+                formData.append("relevant_courses", JSON.stringify(relevantCourses));
+                formData.append("certifications", JSON.stringify(certifications));
+                formData.append("online_courses", JSON.stringify(onlineCourses));
+                formData.append("work_experience_title", workExperienceTitle);
+                formData.append("work_experience_description", workExperienceDescription);
+                formData.append("preferred_learning_pace", preferredLearningPace);
+                formData.append("preferred_learning_methods", JSON.stringify(preferredLearningMethods));
+                if (projectFile) formData.append("project_file", projectFile);
+                formData.append("project_description", projectDescription);
+
+                try {
+                  const res = await fetch("http://localhost:8000/onboarding", {
+                    method: "POST",
+                    body: formData,
+                  });
+                  if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Onboarding submission failed");
+                  }
+                  // On successful submission, redirect the user
+                  router.push("/home");
+                } catch (error: any) {
+                  console.error("Onboarding submission error:", error.message);
+                  // Optionally handle error state
+                }
               }
             });
           });
@@ -551,7 +794,7 @@ export default function NeuralNetworkBackground() {
           // Prevent expanded nodes from passing through the search bar
           const preventNodeOverlap = () => {
             nodes.forEach(node => {
-              if (node.size > 4) {
+              if (node.width > 4) {
                 if (
                   node.x > centerX - 300 &&
                   node.x < centerX + 300 &&
@@ -635,6 +878,37 @@ export default function NeuralNetworkBackground() {
     }
   }, [step]);
 
+  const handleRemoveFile = (index, fileType) => {
+    if (fileType === "resume") {
+      setResumeFile(null);
+    } else if (fileType === "transcript") {
+      setTranscriptFiles(transcriptFiles.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleEditDegree = (index) => {
+    const item = addedDegrees[index];
+    setUniversity(item.university);
+    setDegree(item.degree);
+    setFieldOfStudy(item.fieldOfStudy);
+    setRelevantCourses(item.relevantCourses);
+  };
+
+  const handleEditWorkExperience = (index) => {
+    const item = addedWorkExperiences[index];
+    setWorkExperienceCompany(item.company);
+    setWorkExperienceTitle(item.title);
+    setWorkExperienceDescription(item.description);
+  };
+
+  const togglePreferredLearningMethod = (method) => {
+    setPreferredLearningMethods((prevMethods) =>
+      prevMethods.includes(method)
+        ? prevMethods.filter((m) => m !== method)
+        : [...prevMethods, method]
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-gray-900 to-black">
       <canvas id="networkCanvas" className="w-full h-full"></canvas>
@@ -665,87 +939,215 @@ export default function NeuralNetworkBackground() {
           {step === 1 ? (
             <>
               <label className="text-white mb-6 block text-center font-bold text-xl">
-                Username:
+                Upload Your Resume (Optional):
               </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="px-6 py-3 rounded bg-white text-black text-center"
-                style={{ width: "250px" }}
-              />
-              <button
-                onClick={handleSubmit}
-                className="mt-6 bg-purple-500 text-white px-5 py-2 rounded"
-              >
-                Submit
-              </button>
-            </>
-          ) : step === 2 ? (
-            <>
               <input
                 type="file"
                 id="resumeInput"
                 style={{ display: "none" }}
                 onChange={(e) => handleFileUpload(e, setResumeFile)}
               />
+              <button
+                onClick={() => document.getElementById("resumeInput").click()}
+                className="flex items-center justify-center px-4 py-2 mb-4 bg-purple-500 text-white rounded-full"
+                style={{ width: "280px", height: "40px" }}
+              >
+                <FaUpload className="mr-2" /> Upload Your Resume
+              </button>
+
+              <label className="text-white mb-6 block text-center font-bold text-xl">
+                Upload Your Academic Transcripts (Optional):
+              </label>
               <input
                 type="file"
                 id="transcriptInput"
                 style={{ display: "none" }}
-                onChange={(e) => handleFileUpload(e, setTranscriptFile)}
+                multiple // Allow multiple files
+                onChange={(e) => handleMultipleFileUpload(e, setTranscriptFiles)}
               />
-              <button
-                onClick={() => document.getElementById("resumeInput").click()}
-                className="flex items-center justify-center px-4 py-2 mb-4 bg-purple-500 text-white rounded-full"
-                style={{ width: "160px", height: "40px" }}
-              >
-                <FaUpload className="mr-2" /> Resume
-              </button>
               <button
                 onClick={() => document.getElementById("transcriptInput").click()}
                 className="flex items-center justify-center px-4 py-2 mb-4 bg-purple-500 text-white rounded-full"
-                style={{ width: "160px", height: "40px" }}
+                style={{ width: "280px", height: "40px" }}
               >
-                <FaUpload className="mr-2" /> Transcripts
+                <FaUpload className="mr-2" /> Upload Your Transcripts
               </button>
+
+              <label className="text-white mb-6 block text-center font-bold text-xl">
+                Import from LinkedIn (Optional):
+              </label>
               <button
                 onClick={() => alert("LinkedIn data imported")}
                 className="flex items-center justify-center px-4 py-2 mb-4 bg-purple-500 text-white rounded-full"
-                style={{ width: "160px", height: "40px" }}
+                style={{ width: "280px", height: "40px" }}
               >
-                <FaLinkedin className="mr-2" /> LinkedIn
+                <FaLinkedin className="mr-2" /> Import from LinkedIn
               </button>
+
+              <div className="flex justify-around w-full">
+                <button
+                  onClick={() => handleSubmit(nodes)}
+                  className="mt-4 bg-white text-black px-4 py-2 rounded-full"
+                  style={{ width: "130px", height: "40px" }}
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  className="mt-4 bg-white text-black px-4 py-2 rounded-full"
+                  style={{ width: "130px", height: "40px" }}
+                >
+                  Continue
+                </button>
+              </div>
+              <div className="mt-4 text-white">
+                Uploaded Files:
+                <div className="max-h-32 overflow-y-auto bg-gray-900 p-2 rounded" style={{ width: "280px" }}>
+                  {resumeFile && (
+                    <div
+                      className="mb-2 p-2 bg-gray-800 rounded flex items-center justify-between"
+                      style={{ wordBreak: "break-all" }}
+                    >
+                      <span>{resumeFile.name} (Resume)</span>
+                      <button
+                        onClick={() => handleRemoveFile(0, "resume")}
+                        className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                  {transcriptFiles.length > 0 &&
+                    transcriptFiles.map((file, index) => (
+                      <div
+                        key={index}
+                        className="mb-2 p-2 bg-gray-800 rounded flex items-center justify-between"
+                        style={{ wordBreak: "break-all" }}
+                      >
+                        <span>{file.name} (Transcript)</span>
+                        <button
+                          onClick={() => handleRemoveFile(index, "transcript")}
+                          className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                          style={{ whiteSpace: "nowrap" }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </>
+          ) : step === 2 ? (
+            <>
+              <label className="text-white mb-2 block text-center font-bold text-xl">
+                Full Name:
+              </label>
+              <input
+                type="text"
+                placeholder="Enter your Full Name"
+                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
+                style={{ width: "300px" }}
+              />
+
+              <label className="text-white mb-2 block text-center font-bold text-xl">
+                Username:
+              </label>
+              <input
+                type="text"
+                placeholder="Enter your Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
+                style={{ width: "300px" }}
+              />
+
+              <label className="text-white mb-2 block text-center font-bold text-xl">
+                Date of Birth:
+              </label>
+              <input
+                type="date"
+                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
+                style={{ width: "300px" }}
+              />
+
+              <label className="text-white mb-2 block text-center font-bold text-xl">
+                Current Status:
+              </label>
+              <select
+                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
+                style={{ width: "300px" }}
+                value={currentStatus}
+                onChange={(e) => setCurrentStatus(e.target.value)}
+              >
+                <option>Student (High School / University)</option>
+                <option>Recent Graduate</option>
+                <option>Working Professional</option>
+                <option>Freelancer</option>
+                <option>Entrepreneur</option>
+                <option>Unemployed (Looking for Opportunities)</option>
+                <option>Other</option>
+              </select>
+              {currentStatus === "Other" && (
+                <input
+                  type="text"
+                  placeholder="Enter your status"
+                  className="px-6 py-3 rounded bg-white text-black text-center mt-2"
+                  style={{ width: "300px" }}
+                />
+              )}
+
               <button
                 onClick={handleSubmit}
-                className="mt-4 bg-purple-600 text-white px-4 py-2 rounded-full"
-                style={{ width: "160px", height: "40px" }}
+                className="mt-6 bg-white text-black px-5 py-2 rounded"
               >
-                Skip
+                Continue
               </button>
             </>
           ) : step === 3 ? (
             <>
-              <label className="text-white mb-6 block text-center font-bold text-xl">
-                University/School Name:
+              <label className="text-white mb-2 block text-center font-bold text-xl">
+                University Name(s):
               </label>
               <input
                 type="text"
-                placeholder="Enter your University/School Name"
+                placeholder="Enter University Name(s)"
+                value={university}
+                onChange={(e) => setUniversity(e.target.value)}
                 className="px-6 py-3 rounded bg-white text-black text-center mb-4"
                 style={{ width: "300px" }}
               />
-              <label className="text-white mb-6 block text-center font-bold text-xl">
+
+              <label className="text-white mb-2 block text-center font-bold text-xl">
                 Degree:
               </label>
+              <select
+                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
+                style={{ width: "300px" }}
+                value={degree}
+                onChange={(e) => setDegree(e.target.value)}
+              >
+                <option>High School</option>
+                <option>Bachelor’s</option>
+                <option>Master’s</option>
+                <option>PhD</option>
+                <option>Diploma</option>
+              </select>
+
+              <label className="text-white mb-2 block text-center font-bold text-xl">
+                Field of Study (Degree In):
+              </label>
               <input
                 type="text"
-                placeholder="Enter your Degree"
+                placeholder="Enter Field of Study"
+                value={fieldOfStudy}
+                onChange={(e) => setFieldOfStudy(e.target.value)}
                 className="px-6 py-3 rounded bg-white text-black text-center mb-4"
                 style={{ width: "300px" }}
               />
-              <label className="text-white mb-6 block text-center font-bold text-xl">
-                Relevant Courses:
+
+              <label className="text-white mb-2 block text-center font-bold text-xl">
+                Relevant Courses Completed:
               </label>
               <div
                 className="flex items-center px-3 py-2 bg-gray-100 text-black rounded overflow-hidden"
@@ -775,107 +1177,207 @@ export default function NeuralNetworkBackground() {
                   className="flex-grow text-black bg-transparent focus:outline-none"
                 />
               </div>
+
+              <button
+                onClick={handleAddDegree}
+                className="mt-2 bg-white text-black px-4 py-2 rounded"
+              >
+                Add Degree
+              </button>
+
+              <div className="mt-4 text-white">
+                Added Degrees:
+                <div className="max-h-48 overflow-y-auto bg-gray-900 p-2 rounded" style={{ width: "300px" }}>
+                  {addedDegrees.map((item, index) => (
+                    <div
+                      key={index}
+                      className="mb-2 p-2 bg-gray-800 rounded flex items-center justify-between"
+                      style={{ wordBreak: "break-all", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                    >
+                      <span
+                        style={{ cursor: "pointer" }}
+                        onClick={() => handleEditDegree(index)}
+                      >
+                        {item.university}
+                      </span>
+                      <button
+                        onClick={() => handleRemoveDegree(index)}
+                        className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <button
                 onClick={handleSubmit}
-                className="mt-6 bg-purple-500 text-white px-5 py-2 rounded"
+                className="mt-6 bg-white text-black px-5 py-2 rounded"
               >
                 Continue
               </button>
             </>
           ) : step === 4 ? (
             <>
-              <label className="text-white mb-6 block text-center font-bold text-xl">
-                Certifications:
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Type:
               </label>
-              <div
-                className="flex flex-col space-y-2 mb-4"
-                style={{ width: "300px" }}
+              <select
+                className="px-4 py-2 rounded bg-white text-black text-center mb-3"
+                style={{ width: "250px" }}
+                value={currentType}
+                onChange={(e) => setCurrentType(e.target.value)}
               >
-                {certifications.map((certification, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between bg-purple-600 text-white rounded-full px-4 py-1"
-                  >
-                    <span>{certification.title} - {certification.issuer}</span>
-                    <button
-                      onClick={() => handleRemoveCertification(index)}
-                      className="ml-2 text-white bg-red-500 rounded-full w-4 h-4 flex items-center justify-center"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-                <input
-                  type="text"
-                  value={currentCertificationTitle}
-                  placeholder="Certification Title"
-                  onChange={(e) => setCurrentCertificationTitle(e.target.value)}
-                  className="px-3 py-2 rounded bg-white text-black focus:outline-none"
-                />
-                <input
-                  type="text"
-                  value={currentCertificationIssuer}
-                  placeholder="Issuer"
-                  onChange={(e) => setCurrentCertificationIssuer(e.target.value)}
-                  className="px-3 py-2 rounded bg-white text-black focus:outline-none"
-                />
-                <button
-                  onClick={handleAddCertification}
-                  className="mt-2 bg-purple-500 text-white px-4 py-2 rounded"
-                >
-                  Add Certification
-                </button>
-              </div>
-              <label className="text-white mb-6 block text-center font-bold text-xl">
-                Online Courses:
+                <option value="certification">Certification</option>
+                <option value="onlineCourse">Online Course</option>
+              </select>
+
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Title:
               </label>
-              <div
-                className="flex flex-col space-y-2"
-                style={{ width: "300px" }}
+              <input
+                type="text"
+                placeholder={currentType === "certification" ? "Certification Name" : "Course Name"}
+                value={currentCertificationTitle}
+                onChange={(e) => setCurrentCertificationTitle(e.target.value)}
+                className="px-4 py-2 rounded bg-white text-black text-center mb-3"
+                style={{ width: "250px" }}
+              />
+
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Issuer:
+              </label>
+              <input
+                type="text"
+                placeholder={currentType === "certification" ? "Issued By (Organization)" : "Platform (Website)"}
+                value={currentCertificationIssuer}
+                onChange={(e) => setCurrentCertificationIssuer(e.target.value)}
+                className="px-4 py-2 rounded bg-white text-black text-center mb-3"
+                style={{ width: "250px" }}
+              />
+
+              <button
+                onClick={handleAddCertification}
+                className="mt-2 bg-white text-black px-4 py-2 rounded"
               >
-                {onlineCourses.map((onlineCourse, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between bg-purple-600 text-white rounded-full px-4 py-1"
-                  >
-                    <span>{onlineCourse.name} - {onlineCourse.company}</span>
-                    <button
-                      onClick={() => handleRemoveOnlineCourse(index)}
-                      className="ml-2 text-white bg-red-500 rounded-full w-4 h-4 flex items-center justify-center"
+                Add Item
+              </button>
+
+              <div className="mt-4 text-white">
+                Added Items:
+                <div className="max-h-48 overflow-y-auto bg-gray-900 p-2 rounded" style={{ width: "300px" }}>
+                  {addedItems.map((item, index) => (
+                    <div
+                      key={index}
+                      className="mb-2 p-2 bg-gray-800 rounded flex items-center justify-between"
+                      style={{ wordBreak: "break-all", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                      onClick={() => handleEditItem(index)}
                     >
-                      ×
-                    </button>
-                  </div>
-                ))}
-                <input
-                  type="text"
-                  value={currentOnlineCourseName}
-                  placeholder="Course Name"
-                  onChange={(e) => setCurrentOnlineCourseName(e.target.value)}
-                  className="px-3 py-2 rounded bg-white text-black focus:outline-none"
-                />
-                <input
-                  type="text"
-                  value={currentOnlineCourseCompany}
-                  placeholder="Company"
-                  onChange={(e) => setCurrentOnlineCourseCompany(e.target.value)}
-                  className="px-3 py-2 rounded bg-white text-black focus:outline-none"
-                />
-                <button
-                  onClick={handleAddOnlineCourse}
-                  className="mt-2 bg-purple-500 text-white px-4 py-2 rounded"
-                >
-                  Add Online Course
-                </button>
+                      <span>
+                        {item.type === "certification"
+                          ? `${item.title} (Certification)`
+                          : `${item.title} (Online Course)`}
+                      </span>
+                      <button
+                        onClick={() => handleRemoveItem(index)}
+                        className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
+
               <button
                 onClick={handleSubmit}
-                className="mt-6 bg-purple-500 text-white px-5 py-2 rounded"
+                className="mt-6 bg-white text-black px-5 py-2 rounded"
               >
                 Continue
               </button>
             </>
           ) : step === 5 ? (
+            <>
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Company:
+              </label>
+              <input
+                type="text"
+                placeholder="Company Name"
+                value={workExperienceCompany}
+                onChange={(e) => setWorkExperienceCompany(e.target.value)}
+                className="px-4 py-2 rounded bg-white text-black text-center mb-3"
+                style={{ width: "250px" }}
+              />
+
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Title:
+              </label>
+              <input
+                type="text"
+                placeholder="Title"
+                value={workExperienceTitle}
+                onChange={(e) => setWorkExperienceTitle(e.target.value)}
+                className="px-4 py-2 rounded bg-white text-black text-center mb-3"
+                style={{ width: "250px" }}
+              />
+
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Description:
+              </label>
+              <textarea
+                placeholder="Description"
+                value={workExperienceDescription}
+                onChange={(e) => setWorkExperienceDescription(e.target.value)}
+                className="px-4 py-2 rounded bg-white text-black text-center mb-3"
+                style={{ width: "250px", height: "100px" }}
+              />
+
+              <button
+                onClick={handleAddWorkExperience}
+                className="mt-2 bg-white text-black px-4 py-2 rounded"
+              >
+                Add Work Experience
+              </button>
+
+              <div className="mt-4 text-white">
+                Added Work Experiences:
+                <div className="max-h-48 overflow-y-auto bg-gray-900 p-2 rounded" style={{ width: "300px" }}>
+                  {addedWorkExperiences.map((item, index) => (
+                    <div
+                      key={index}
+                      className="mb-2 p-2 bg-gray-800 rounded flex items-center justify-between"
+                      style={{ wordBreak: "break-all", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                    >
+                    <span
+                        style={{ cursor: "pointer" }}
+                        onClick={() => handleEditWorkExperience(index)}
+                      >
+                        {item.company} - {item.title}
+                      </span>
+                      <button
+                        onClick={() => handleRemoveWorkExperience(index)}
+                        className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={handleSubmit}
+                className="mt-6 bg-white text-black px-5 py-2 rounded"
+              >
+                Continue
+              </button>
+            </>
+          ) : step === 6 ? (
             <>
               <label className="text-white mb-6 block text-center font-bold text-xl">
                 Project File:
@@ -889,7 +1391,7 @@ export default function NeuralNetworkBackground() {
               <button
                 onClick={() => document.getElementById("projectInput").click()}
                 className="flex items-center justify-center px-4 py-2 mb-4 bg-purple-500 text-white rounded-full"
-                style={{ width: "160px", height: "40px" }}
+                style={{ width: "280px", height: "40px" }}
               >
                 <FaUpload className="mr-2" /> Upload Project
               </button>
@@ -903,14 +1405,207 @@ export default function NeuralNetworkBackground() {
                 className="px-6 py-3 rounded bg-white text-black text-center mb-4"
                 style={{ width: "300px", height: "150px" }}
               />
+
+              <button
+                onClick={handleAddProject}
+                className="mt-2 bg-white text-black px-4 py-2 rounded"
+              >
+                Add Project
+              </button>
+
+              <div className="mt-4 text-white">
+                Added Projects:
+                <div className="max-h-48 overflow-y-auto bg-gray-900 p-2 rounded" style={{ width: "300px" }}>
+                  {addedProjects.map((item, index) => (
+                    <div
+                      key={index}
+                      className="mb-2 p-2 bg-gray-800 rounded flex items-center justify-between"
+                      style={{ wordBreak: "break-all", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                    >
+                      <span
+                        style={{ cursor: "pointer" }}
+                        onClick={() => handleEditProject(index)}
+                      >
+                        {item.file.name}
+                      </span>
+                      <button
+                        onClick={() => handleRemoveProject(index)}
+                        className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-around w-full">
+                <button
+                  onClick={handleSubmit}
+                  className="mt-4 bg-white text-black px-4 py-2 rounded-full"
+                  style={{ width: "130px", height: "40px" }}
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  className="mt-4 bg-white text-black px-4 py-2 rounded-full"
+                  style={{ width: "130px", height: "40px" }}
+                >
+                  Continue
+                </button>
+              </div>
+            </>
+          ) : step === 7 ? (
+            <>
+              <label className="text-white mb-6 block text-center font-bold text-xl">
+                Preferred Learning Pace:
+              </label>
+              <select
+                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
+                style={{ width: "300px" }}
+                value={preferredLearningPace}
+                onChange={(e) => setPreferredLearningPace(e.target.value)}
+              >
+                <option value="">Select Learning Pace</option>
+                <option value="Fast-Paced">Fast-Paced</option>
+                <option value="Medium-Paced">Medium-Paced</option>
+                <option value="Slow-Paced">Slow-Paced</option>
+              </select>
+
+              <label className="text-white mb-6 block text-center font-bold text-xl">
+                Learning Commitment Level:
+              </label>
+              <select
+                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
+                style={{ width: "300px" }}
+                value={learningCommitment}
+                onChange={(e) => setLearningCommitment(e.target.value)}
+              >
+                <option value="">Select Commitment Level</option>
+                <option value="Casual">Casual</option>
+                <option value="Moderate">Moderate</option>
+                <option value="Intensive">Intensive</option>
+              </select>
+
               <button
                 onClick={handleSubmit}
-                className="mt-6 bg-purple-500 text-white px-5 py-2 rounded"
+                className="mt-6 bg-white text-black px-5 py-2 rounded"
               >
                 Continue
               </button>
             </>
-          ) : step === 6 ? (
+          ) : step === 8 ? (
+            <>
+              <label className="text-white mb-6 block text-center font-bold text-xl">
+                Preferred Learning Methods:
+              </label>
+              <div className="flex flex-col space-y-2 mb-4" style={{ width: "300px" }}>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    value="Video Tutorials & Lectures"
+                    checked={preferredLearningMethods.includes("Video Tutorials & Lectures")}
+                    onChange={(e) => togglePreferredLearningMethod(e.target.value)}
+                    className="mr-2"
+                  />
+                  Video Tutorials & Lectures
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    value="Text-Based Articles & PDFs"
+                    checked={preferredLearningMethods.includes("Text-Based Articles & PDFs")}
+                    onChange={(e) => togglePreferredLearningMethod(e.target.value)}
+                    className="mr-2"
+                  />
+                  Text-Based Articles & PDFs
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    value="Hands-on Projects & Case Studies"
+                    checked={preferredLearningMethods.includes("Hands-on Projects & Case Studies")}
+                    onChange={(e) => togglePreferredLearningMethod(e.target.value)}
+                    className="mr-2"
+                  />
+                  Hands-on Projects & Case Studies
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    value="Interactive Exercises & Quizzes"
+                    checked={preferredLearningMethods.includes("Interactive Exercises & Quizzes")}
+                    onChange={(e) => togglePreferredLearningMethod(e.target.value)}
+                    className="mr-2"
+                  />
+                  Interactive Exercises & Quizzes
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    value="One-on-One Coaching or Mentorship"
+                    checked={preferredLearningMethods.includes("One-on-One Coaching or Mentorship")}
+                    onChange={(e) => togglePreferredLearningMethod(e.target.value)}
+                    className="mr-2"
+                  />
+                  One-on-One Coaching or Mentorship
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    value="Live Webinars & Group Discussions"
+                    checked={preferredLearningMethods.includes("Live Webinars & Group Discussions")}
+                    onChange={(e) => togglePreferredLearningMethod(e.target.value)}
+                    className="mr-2"
+                  />
+                  Live Webinars & Group Discussions
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    value="Podcasts & Audio Lessons"
+                    checked={preferredLearningMethods.includes("Podcasts & Audio Lessons")}
+                    onChange={(e) => togglePreferredLearningMethod(e.target.value)}
+                    className="mr-2"
+                  />
+                  Podcasts & Audio Lessons
+                </label>
+              </div>
+
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Would you like to take a short quiz to fine-tune recommendations?
+              </label>
+              <div className="flex flex-col space-y-2 mb-4" style={{ width: "300px" }}>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="quizOption"
+                    value="yes"
+                    className="mr-2"
+                  />
+                  Yes, let’s do it!
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="quizOption"
+                    value="no"
+                    className="mr-2"
+                  />
+                  No, skip for now
+                </label>
+              </div>
+
+              <button
+                onClick={handleSubmit}
+                className="mt-6 bg-white text-black px-5 py-2 rounded"
+              >
+                Continue
+              </button>
+            </>
+          ) : step === 9 ? (
             <>
               <label className="text-white mb-6 block text-center font-bold text-xl">
                 Work Experience Title:
@@ -935,123 +1630,12 @@ export default function NeuralNetworkBackground() {
               />
               <button
                 onClick={handleSubmit}
-                className="mt-6 bg-purple-500 text-white px-5 py-2 rounded"
+                className="mt-6 bg-white text-black px-5 py-2 rounded"
               >
                 Continue
               </button>
             </>
-          ) : step === 7 ? (
-            <>
-              <label className="text-white mb-6 block text-center font-bold text-xl">
-                Preferred Learning Pace:
-              </label>
-              <div className="flex justify-around mb-4" style={{ width: "300px" }}>
-                <button
-                  onClick={() => setPreferredLearningPace("Fast")}
-                  className={
-                    preferredLearningPace === "Fast"
-                      ? "bg-purple-500 px-4 py-2 rounded"
-                      : "bg-gray-800 text-white px-4 py-2 rounded"
-                  }
-                >
-                  Fast
-                </button>
-                <button
-                  onClick={() => setPreferredLearningPace("Medium")}
-                  className={
-                    preferredLearningPace === "Medium"
-                      ? "bg-purple-500 px-4 py-2 rounded"
-                      : "bg-gray-800 text-white px-4 py-2 rounded"
-                  }
-                >
-                  Medium
-                </button>
-                <button
-                  onClick={() => setPreferredLearningPace("Slow")}
-                  className={
-                    preferredLearningPace === "Slow"
-                      ? "bg-purple-500 px-4 py-2 rounded"
-                      : "bg-gray-800 text-white px-4 py-2 rounded"
-                  }
-                >
-                  Slow
-                </button>
-              </div>
-              <button
-                onClick={handleSubmit}
-                className="mt-6 bg-purple-500 text-white px-5 py-2 rounded"
-              >
-                Continue
-              </button>
-            </>
-          ) : step === 8 ? (
-            <>
-              <label className="text-white mb-6 block text-center font-bold text-xl">
-                Preferred Learning Method:
-              </label>
-              <div
-                className="flex flex-col space-y-2 mb-4"
-                style={{ width: "300px" }}
-              >
-                <button
-                  onClick={() => togglePreferredLearningMethod("Hands-on Projects")}
-                  className={
-                    preferredLearningMethods.includes("Hands-on Projects")
-                      ? "bg-purple-500 px-4 py-2 rounded"
-                      : "bg-gray-800 text-white px-4 py-2 rounded"
-                  }
-                >
-                  Hands-on Projects
-                </button>
-                <button
-                  onClick={() => togglePreferredLearningMethod("Quizzes & MCQs")}
-                  className={
-                    preferredLearningMethods.includes("Quizzes & MCQs")
-                      ? "bg-purple-500 px-4 py-2 rounded"
-                      : "bg-gray-800 text-white px-4 py-2 rounded"
-                  }
-                >
-                  Quizzes & MCQs
-                </button>
-                <button
-                  onClick={() => togglePreferredLearningMethod("Flashcards")}
-                  className={
-                    preferredLearningMethods.includes("Flashcards")
-                      ? "bg-purple-500 px-4 py-2 rounded"
-                      : "bg-gray-800 text-white px-4 py-2 rounded"
-                  }
-                >
-                  Flashcards
-                </button>
-                <button
-                  onClick={() => togglePreferredLearningMethod("Reading-based learning")}
-                  className={
-                    preferredLearningMethods.includes("Reading-based learning")
-                      ? "bg-purple-500 px-4 py-2 rounded"
-                      : "bg-gray-800 text-white px-4 py-2 rounded"
-                  }
-                >
-                  Reading-based learning
-                </button>
-                <button
-                  onClick={() => togglePreferredLearningMethod("Videos")}
-                  className={
-                    preferredLearningMethods.includes("Videos")
-                      ? "bg-purple-500 px-4 py-2 rounded"
-                      : "bg-gray-800 text-white px-4 py-2 rounded"
-                  }
-                >
-                  Videos
-                </button>
-              </div>
-              <button
-                onClick={handleFinishStep7} // updated to animate node shrink as well
-                className="mt-6 bg-purple-500 text-white px-5 py-2 rounded"
-              >
-                Finish
-              </button>
-            </>
-          ) : step === 9 ? (
+          ) : step === 10 ? (
             <div
               ref={summaryContainerRef}
               id="summaryContainer"
@@ -1075,7 +1659,7 @@ export default function NeuralNetworkBackground() {
               </div>
               <div className="mb-4">
                 <label className="text-black font-bold text-xl">Transcript:</label>
-                <p className="text-black">{transcriptFile ? transcriptFile.name : "Not provided"}</p>
+                <p className="text-black">{transcriptFiles.length ? transcriptFiles.map(file => file.name).join(', ') : "Not provided"}</p>
               </div>
               <div className="mb-4">
                 <label className="text-black font-bold text-xl">Relevant Courses:</label>

@@ -15,7 +15,14 @@ import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRe
 import Link from 'next/link';
 
 // New CourseCard component
-const CourseCard = ({ reel, router }) => (
+interface Reel {
+  title: string;
+  videoId: string;
+  thumbnail: string;
+  url: string;
+}
+
+const CourseCard = ({ reel, router }: { reel: Reel; router: any }) => (
   <div className="bg-gray-800 p-6 rounded-2xl shadow-lg w-64 hover:scale-105 transition-transform duration-200">
     <h3 className="text-xl font-semibold text-white mb-3">{reel.title}</h3>
     {reel.thumbnail ? (
@@ -25,7 +32,12 @@ const CourseCard = ({ reel, router }) => (
 );
 
 // New StudyGroupCard component
-const StudyGroupCard = ({ friend, router }) => (
+interface Friend {
+  name: string;
+  commonGroups: string[];
+}
+
+const StudyGroupCard = ({ friend, router }: { friend: Friend; router: any }) => (
   <div className="bg-gray-800 p-6 rounded-2xl shadow-lg w-64 hover:scale-105 transition-transform duration-200">
     <h3 className="text-xl font-semibold text-white mb-3">
       <Link href={`/profile/${friend.name}`} className="hover:underline">
@@ -37,8 +49,8 @@ const StudyGroupCard = ({ friend, router }) => (
 );
 
 // New ParallaxSection component
-const ParallaxSection = ({ children }) => {
-  const ref = useRef(null);
+const ParallaxSection = ({ children }: { children: React.ReactNode }) => {
+  const ref = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState(0);
 
   useEffect(() => {
@@ -75,7 +87,13 @@ const ParallaxSection = ({ children }) => {
 };
 
 // New component for catalog item
-const CatalogItem = ({ item }) => (
+interface CatalogItemProps {
+  title: string;
+  type: string;
+  thumbnail: string;
+}
+
+const CatalogItem = ({ item }: { item: CatalogItemProps }) => (
   <div className="w-80 h-56 rounded-3xl shadow-xl overflow-hidden transition-transform duration-300 hover:scale-105 cursor-pointer">
     <img src={item.thumbnail} alt={item.title} className="w-full h-36 object-cover" />
     <div className="p-5 bg-gray-800">
@@ -88,7 +106,7 @@ const CatalogItem = ({ item }) => (
 export default function Home() {
   const router = useRouter();
   const [username, setUsername] = useState(''); // Placeholder for username
-  const [eduReels, setEduReels] = useState([]); // updated via API fetch
+  const [eduReels, setEduReels] = useState<Reel[]>([]); // updated via API fetch
   const [currentReelIndex, setCurrentReelIndex] = useState(0); // Index for the current EduReel
   const [showAssistant, setShowAssistant] = useState(false);
   const [assistantMessages, setAssistantMessages] = useState([
@@ -123,13 +141,15 @@ export default function Home() {
     { date: new Date(2025, 2, 6), title: 'Assignment 4', description: 'Description for Assignment 4' },
     { date: new Date(2025, 2, 10), title: 'Assignment 5', description: 'Description for Assignment 5' },
   ]);
-  const [friends, setFriends] = useState([
-    { name: 'Alice', commonGroups: ['AI Study Group', 'Python Enthusiasts'], lastMessage: "Hey, let's study tonight!" },
-    { name: 'Bob', commonGroups: ['Data Science Club'], lastMessage: "Did you finish the assignment?" },
-    { name: 'Charlie', commonGroups: ['AI Study Group'], lastMessage: "I need help with this." },
-    { name: 'David', commonGroups: [], lastMessage: "See you later!" },
-    { name: 'Eve', commonGroups: ['Python Enthusiasts', 'Data Science Club'], lastMessage: "New course available!" },
-  ]);
+  const [friends, setFriends] = useState<{ name: string; lastMessage?: string }[]>([]);
+  const [userId, setUserId] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("auth_user_id");
+      return stored ? parseInt(stored, 10) : 0;
+    }
+    return 0;
+  });
+  const API_BASE_URL = "http://localhost:8000";
   const [currentTime, setCurrentTime] = useState(new Date());
   // New state for ad carousel
   const carouselItems = [
@@ -145,7 +165,7 @@ export default function Home() {
   const [loadingReels, setLoadingReels] = useState(false);
   const [reelsError, setReelsError] = useState(null);
 
-  const threeRef = useRef(null);
+  const threeRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isReelMinimized, setIsReelMinimized] = useState(false);
 
@@ -310,7 +330,7 @@ export default function Home() {
       new THREE.Vector3(0, 1, 0),
       new THREE.Vector3(0, 1, 0),
     ];
-    const orbitingMolecules = [];
+    const orbitingMolecules: THREE.Mesh[] = []; // Explicitly typed as an array of THREE.Mesh
     const subGoals = [
       "Sub-goal 1",
       "Sub-goal 2",
@@ -346,7 +366,7 @@ export default function Home() {
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    const onMouseClick = (event) => {
+    const onMouseClick = (event: MouseEvent) => { // <-- Explicitly typed parameter
       // Adjust mouse coordinates to match the canvas size
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -409,34 +429,39 @@ export default function Home() {
     window.addEventListener('scroll', handleScroll);
 
     return () => {
-        window.removeEventListener('resize', handleResize);
-        window.removeEventListener('scroll', handleScroll);
-        renderer.domElement.removeEventListener('click', onMouseClick); // Remove event listener
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll);
+      renderer.domElement.removeEventListener('click', onMouseClick); // Remove event listener
 
-        // Dispose of Three.js objects to prevent memory leaks
-        scene.remove(mainMolecule);
-        mainGeometry.dispose();
-        mainMaterial.dispose();
+      // Dispose of Three.js objects to prevent memory leaks
+      scene.remove(mainMolecule);
+      mainGeometry.dispose();
+      mainMaterial.dispose();
 
-        orbitingMolecules.forEach((molecule, i) => {
-            scene.remove(molecule);
-            orbitingMolecules[i].geometry.dispose();
-            orbitingMolecules[i].material.dispose();
-        });
-
-        scene.remove(ambientLight);
-        scene.remove(directionalLight);
-
-        renderer.dispose();
-        if (threeRef.current) {
-            threeRef.current.removeChild(renderer.domElement);
-            threeRef.current.removeChild(labelRenderer.domElement); // Remove label renderer element
+      orbitingMolecules.forEach((molecule, i) => {
+        scene.remove(molecule);
+        molecule.geometry.dispose();
+        const material = molecule.material;
+        if (Array.isArray(material)) {
+          material.forEach(m => m.dispose());
+        } else {
+          material.dispose();
         }
+      });
+
+      scene.remove(ambientLight);
+      scene.remove(directionalLight);
+
+      renderer.dispose();
+      if (threeRef.current) {
+        threeRef.current.removeChild(renderer.domElement);
+        threeRef.current.removeChild(labelRenderer.domElement); // Remove label renderer element
+      }
     };
-}, []);
+  }, []);
 
   useEffect(() => {
-    const handleIframeMessage = (event) => {
+    const handleIframeMessage = (event: MessageEvent) => { // added MessageEvent type
       if (event.data === 'ended') {
         replayCurrentReel();
       }
@@ -458,13 +483,26 @@ export default function Home() {
     }
   }, []);
 
+  useEffect(() => {
+    if (userId) {
+      fetch(`${API_BASE_URL}/friends?user_id=${userId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.friends) {
+            setFriends(data.friends);
+          }
+        })
+        .catch(err => console.error("Error fetching friends:", err));
+    }
+  }, [userId]);
+
   const replayCurrentReel = () => {
-    if (iframeRef.current) {
+    if (iframeRef.current?.contentWindow) { // Added optional chaining to check for contentWindow
       iframeRef.current.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
     }
   };
 
-  const handleContinueLearning = (course) => {
+  const handleContinueLearning = (course: { title: string }) => { // Added type annotation for course parameter
     // Redirect to the course page
     router.push(`/course/${course.title}`);
   };
@@ -473,7 +511,7 @@ export default function Home() {
     setShowAssistant(!showAssistant);
   };
 
-  const handleAssistantMessage = (message) => {
+  const handleAssistantMessage = (message: string) => { // explicitly typed as string
     setAssistantMessages([...assistantMessages, { text: message, sender: "user" }]);
 
     // Simulate AI response after a short delay
@@ -517,22 +555,30 @@ export default function Home() {
     }, 1000);
   };
 
+  const fetchEduReels = () => {
+    // For now, reset to a test reel.
+    setEduReels([{
+      title: "Test Reel",
+      videoId: "3rOBx84g-VQ",
+      thumbnail: "",
+      url: "https://youtube.com/shorts/3rOBx84g-VQ?si=sZKdX2GBAybnEe6Y"
+    }]);
+  };
+
   const handleNextReel = () => {
     if (currentReelIndex === eduReels.length - 1) {
       fetchEduReels();
     } else {
       setCurrentReelIndex((prevIndex) => (prevIndex + 1) % eduReels.length);
     }
-    if (iframeRef.current) {
-      iframeRef.current.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-    }
+    // Use optional chaining to safely access contentWindow
+    iframeRef.current?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
   };
 
   const handlePrevReel = () => {
     setCurrentReelIndex((prevIndex) => (prevIndex - 1 + eduReels.length) % eduReels.length);
-    if (iframeRef.current) {
-      iframeRef.current.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-    }
+    // Use optional chaining to safely access contentWindow
+    iframeRef.current?.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -550,7 +596,7 @@ export default function Home() {
     setTouchStartX(null);
   };
 
-  const handleDateClick = (date) => {
+  const handleDateClick = (date: Date) => { // Added type annotation for date parameter
     const assignment = assignments.find(a => a.date.toDateString() === date.toDateString());
     if (assignment) {
       alert(`Title: ${assignment.title}\nDescription: ${assignment.description}`);
@@ -578,7 +624,7 @@ export default function Home() {
             Study Group
           </button>
           <button
-            onClick={() => router.push(`/profile/${username || 'defaultUser'}`)}
+            onClick={() => router.push('/myprofile')}
             className="px-4 py-2 text-lg font-semibold text-white hover:text-purple-400 transition-colors duration-200"
           >
             <FaUser className="mr-2 inline-block" /> {/* Add the icon here */}
@@ -721,8 +767,9 @@ export default function Home() {
                   className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-md focus:outline-none shadow-md"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      handleAssistantMessage(e.target.value);
-                      e.target.value = '';
+                      const target = e.target as HTMLInputElement; // Cast to HTMLInputElement
+                      handleAssistantMessage(target.value);
+                      target.value = '';
                     }
                   }}
                 />
@@ -783,13 +830,21 @@ export default function Home() {
                         {/* Placeholder for friend's profile picture */}
                       </div>
                       <div>
-                        <Link href={`/messenger/${friend.name}?lastMessage=${friend.lastMessage}`} className="font-medium hover:underline">
-                          {friend.name}
+                        <Link
+                          href={`/messenger/${friend.name || "friend"}?lastMessage=${friend.lastMessage || ""}`}
+                          className="font-medium hover:underline"
+                        >
+                          {friend.name || "My Friend"}
                         </Link>
-                        <div className="text-sm text-gray-400">{friend.lastMessage}</div>
+                        <div className="text-sm text-gray-400">
+                          {friend.lastMessage || "No recent message"}
+                        </div>
                       </div>
                     </div>
-                    <Link href={`/messenger/${friend.name}?lastMessage=${friend.lastMessage}`} className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded-full shadow-md">
+                    <Link
+                      href={`/messenger/${friend.name || "friend"}?lastMessage=${friend.lastMessage || ""}`}
+                      className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded-full shadow-md"
+                    >
                       Chat
                     </Link>
                   </div>
