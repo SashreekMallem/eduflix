@@ -5,19 +5,19 @@ import gsap from "gsap";
 import { FaUpload, FaLinkedin } from "react-icons/fa";
 import { useRouter } from 'next/navigation';
 
-interface Node {
-  id: number;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  size: number;
-  connectedTo: number[];
-  isStatic: boolean;
-}
-
 export default function NeuralNetworkBackground() {
   const [expandedNode, setExpandedNode] = useState<number | null>(null);
+  interface Node {
+    id: number;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    connectedTo: number[];
+    isStatic: boolean;
+    textPinned?: boolean; // Add this line
+  }
   
   const [nodes, setNodes] = useState<Node[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -83,7 +83,14 @@ export default function NeuralNetworkBackground() {
   const [currentStatus, setCurrentStatus] = useState(""); // New state for current status
   const [fieldOfStudy, setFieldOfStudy] = useState("");
   const [relevantCourses, setRelevantCourses] = useState<string[]>([]);
-  const [addedDegrees, setAddedDegrees] = useState([]);
+  interface Degree {
+    university: string;
+    degree: string;
+    fieldOfStudy: string;
+    relevantCourses: string[];
+  }
+
+  const [addedDegrees, setAddedDegrees] = useState<Degree[]>([]);
   const [proficiencyLevels, setProficiencyLevels] = useState({});
 
   const handleAddDegree = () => {
@@ -306,9 +313,9 @@ export default function NeuralNetworkBackground() {
     }));
 
     function updateConnections() {
-      for (let i = 0; i < nodes.length; i++) {
-          nodes[i].connectedTo = [];
-          for (let j = 0; j < nodes.length; j++) {
+      for (let i = 0; i < generatedNodes.length; i++) {
+        generatedNodes[i].connectedTo = [];
+        for (let j = 0; j < generatedNodes.length; j++) {
           if (i !== j) {
             const dist = Math.hypot(
               generatedNodes[i].x - generatedNodes[j].x,
@@ -325,7 +332,63 @@ export default function NeuralNetworkBackground() {
     updateConnections();
     setNodes(generatedNodes);
 
-    drawNetwork(ctx, canvas as HTMLCanvasElement, generatedNodes, generatedNodes, updateConnections);
+    function drawNetwork() {
+      if (ctx) {
+        if (ctx && canvas) {
+          ctx.clearRect(0, 0, (canvas as HTMLCanvasElement).width, (canvas as HTMLCanvasElement).height);
+        }
+      }
+
+      generatedNodes.forEach((node) => {
+        if (!ctx) return;
+        ctx.fillStyle = "rgba(147, 112, 219, 0.8)";
+        ctx.beginPath();
+
+        // Draw hexagon
+        const numberOfSides = 8;
+        const size = node.size;
+        ctx.moveTo(node.x + size * Math.cos(0), node.y + size * Math.sin(0));
+        for (let i = 1; i <= numberOfSides; i++) {
+          ctx.lineTo(node.x + size * Math.cos(i * 2 * Math.PI / numberOfSides), node.y + size * Math.sin(i * 2 * Math.PI / numberOfSides));
+        }
+
+        ctx.closePath();
+        ctx.fill();
+
+        if (!node.isStatic) {
+          node.x += node.vx;
+          node.y += node.vy;
+          if (canvas) {
+            if (node.x < 0 || node.x > (canvas as HTMLCanvasElement).width) node.vx *= -1;
+            if (node.y < 0 || node.y > (canvas as HTMLCanvasElement).height) node.vy *= -1;
+          }
+        }
+      });
+
+      for (let i = 0; i < generatedNodes.length; i++) {
+        for (const j of generatedNodes[i].connectedTo) {
+          const dist = Math.hypot(
+            generatedNodes[i].x - generatedNodes[j].x,
+            generatedNodes[i].y - generatedNodes[j].y
+          );
+          if (dist < 250) {
+            if (ctx) {
+              ctx.strokeStyle = `rgba(147, 112, 219, ${1 - dist / 250})`;
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(generatedNodes[i].x, generatedNodes[i].y);
+              ctx.lineTo(generatedNodes[j].x, generatedNodes[j].y);
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      updateConnections();
+      requestAnimationFrame(drawNetwork);
+    }
+
+    drawNetwork();
 
     const handleResize = () => {
       (canvas as HTMLCanvasElement).width = window.innerWidth;
@@ -336,63 +399,6 @@ export default function NeuralNetworkBackground() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  function drawNetwork(ctx: CanvasRenderingContext2D | null, canvas: HTMLCanvasElement | null, nodes: Node[], generatedNodes: Node[], updateConnections: () => void) {
-    if (ctx) {
-      if (ctx && canvas) {
-        ctx.clearRect(0, 0, (canvas as HTMLCanvasElement).width, (canvas as HTMLCanvasElement).height);
-      }
-    }
-
-    nodes.forEach((node) => {
-      if (!ctx) return;
-      ctx.fillStyle = "rgba(147, 112, 219, 0.8)";
-      ctx.beginPath();
-
-      // Draw hexagon
-      const numberOfSides = 8;
-      const size = node.size;
-      ctx.moveTo(node.x + size * Math.cos(0), node.y + size * Math.sin(0));
-      for (let i = 1; i <= numberOfSides; i++) {
-        ctx.lineTo(node.x + size * Math.cos(i * 2 * Math.PI / numberOfSides), node.y + size * Math.sin(i * 2 * Math.PI / numberOfSides));
-      }
-
-      ctx.closePath();
-      ctx.fill();
-
-      if (!node.isStatic) {
-        node.x += node.vx;
-        node.y += node.vy;
-        if (canvas) {
-          if (node.x < 0 || node.x > (canvas as HTMLCanvasElement).width) node.vx *= -1;
-          if (node.y < 0 || node.y > (canvas as HTMLCanvasElement).height) node.vy *= -1;
-        }
-      }
-      });
-    }
-
-    for (let i = 0; i < generatedNodes.length; i++) {
-      for (const j of generatedNodes[i].connectedTo) {
-        const dist = Math.hypot(
-          generatedNodes[i].x - generatedNodes[j].x,
-          generatedNodes[i].y - generatedNodes[j].y
-        );
-        if (dist < 250) {
-          if (ctx) {
-            ctx.strokeStyle = `rgba(147, 112, 219, ${1 - dist / 250})`;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(generatedNodes[i].x, generatedNodes[i].y);
-            ctx.lineTo(generatedNodes[j].x, generatedNodes[j].y);
-            ctx.stroke();
-          }
-        }
-      }
-    }
-
-    updateConnections();
-    requestAnimationFrame(() => drawNetwork(ctx, canvas, generatedNodes, updateConnections));
-  }
   
   // When no node is expanded and no animation is running, select the closest node to the center
   useEffect(() => {
@@ -454,7 +460,7 @@ export default function NeuralNetworkBackground() {
   };
 
   // When the form is submitted, animate the current node to shrink, then animate the next node.
-  const handleSubmit = (nodes: Node[]) => {
+  const handleSubmit = () => {
     if (isAnimating) return;
 
     gsap.to("#formContainer", {
@@ -474,7 +480,7 @@ export default function NeuralNetworkBackground() {
               shrinkingNode.isStatic = false;
               setExpandedNode(null);
               const nextNodeId = shrinkingNode.connectedTo.find(
-                (id: number) => {
+                (id) => {
                   const node = nodes.find((n) => n.id === id);
                   return node ? !node.isStatic : false;
                 }
@@ -607,12 +613,8 @@ export default function NeuralNetworkBackground() {
 
       gsap.fromTo(infoContainer, { opacity: 0 }, { opacity: 1, duration: 1 });
 
-      const button = infoContainer.querySelector('button');
-      if (button) {
-        button.addEventListener('click', () => {
-      const button = infoContainer.querySelector('button');
-      if (button) {
-        button.addEventListener('click', () => {
+      // Add event listener to save button
+      infoContainer.querySelector('button')?.addEventListener('click', () => {
         const inputs = infoContainer.querySelectorAll('input');
         setUsername(inputs[0].value);
         // Update other state variables similarly
@@ -697,12 +699,11 @@ export default function NeuralNetworkBackground() {
           const learningGoalsInput = document.getElementById('learningGoalsInput');
           const searchBarButton = document.getElementById('searchBarButton');
           let intervalId: NodeJS.Timeout;
-          if (learningGoalsInput) {
-            learningGoalsInput.addEventListener('keydown', (e) => {
-          learningGoalsInput.addEventListener('keydown', (e) => {
+
+          learningGoalsInput?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
-              const text = learningGoalsInput.value.trim();
+              const text = (learningGoalsInput as HTMLInputElement).value.trim();
               if (text) {
                 const availableNode = nodes.find(node => !node.isStatic && !node.textPinned);
                 if (availableNode) {
@@ -727,7 +728,7 @@ export default function NeuralNetworkBackground() {
                       textContainer.innerText = text;
                       document.body.appendChild(textContainer);
                       gsap.fromTo(textContainer, { opacity: 0 }, { opacity: 1, duration: 1 });
-                      learningGoalsInput.value = ''; // Clear the input field
+                      (learningGoalsInput as HTMLInputElement).value = ''; // Clear the input field
 
                       // Pin the text to the node
                       const updateTextPosition = () => {
@@ -743,50 +744,52 @@ export default function NeuralNetworkBackground() {
           });
 
           // Add event listener to the search bar button (learning goals button)
-          searchBarButton.addEventListener('click', async () => {
+          searchBarButton?.addEventListener('click', async () => {
             clearInterval(intervalId);
             gsap.to(searchBarContainer, {
               opacity: 0,
               duration: 1,
-              onComplete: async () => {
-                document.body.removeChild(searchBarContainer);
-                // Move the functionality of handleOnboardingSubmit here
-                if (!userId) {
-                  console.error("No valid user id available for onboarding.");
-                  return;
-                }
-                const formData = new FormData();
-                formData.append("user_id", userId); // Use the actual user id instead of "123"
-                formData.append("username", username);
-                if (resumeFile) formData.append("resume_file", resumeFile);
-                if (transcriptFiles.length) transcriptFiles.forEach(file => formData.append("transcript_files", file));
-                formData.append("university", university); // Append university
-                formData.append("degree", degree);         // Append degree
-                formData.append("relevant_courses", JSON.stringify(relevantCourses));
-                formData.append("certifications", JSON.stringify(certifications));
-                formData.append("online_courses", JSON.stringify(onlineCourses));
-                formData.append("work_experience_title", workExperienceTitle);
-                formData.append("work_experience_description", workExperienceDescription);
-                formData.append("preferred_learning_pace", preferredLearningPace);
-                formData.append("preferred_learning_methods", JSON.stringify(preferredLearningMethods));
-                if (projectFile) formData.append("project_file", projectFile);
-                formData.append("project_description", projectDescription);
-
-                try {
-                  const res = await fetch("http://localhost:8000/onboarding", {
-                    method: "POST",
-                    body: formData,
-                  });
-                  if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || "Onboarding submission failed");
+              onComplete: () => {
+                (async () => {
+                  document.body.removeChild(searchBarContainer);
+                  // Move the functionality of handleOnboardingSubmit here
+                  if (!userId) {
+                    console.error("No valid user id available for onboarding.");
+                    return;
                   }
-                  // On successful submission, redirect the user
-                  router.push("/home");
-                } catch (error: any) {
-                  console.error("Onboarding submission error:", error.message);
-                  // Optionally handle error state
-                }
+                  const formData = new FormData();
+                  formData.append("user_id", userId); // Use the actual user id instead of "123"
+                  formData.append("username", username);
+                  if (resumeFile) formData.append("resume_file", resumeFile);
+                  if (transcriptFiles.length) transcriptFiles.forEach(file => formData.append("transcript_files", file));
+                  formData.append("university", university); // Append university
+                  formData.append("degree", degree);         // Append degree
+                  formData.append("relevant_courses", JSON.stringify(relevantCourses));
+                  formData.append("certifications", JSON.stringify(certifications));
+                  formData.append("online_courses", JSON.stringify(onlineCourses));
+                  formData.append("work_experience_title", workExperienceTitle);
+                  formData.append("work_experience_description", workExperienceDescription);
+                  formData.append("preferred_learning_pace", preferredLearningPace);
+                  formData.append("preferred_learning_methods", JSON.stringify(preferredLearningMethods));
+                  if (projectFile) formData.append("project_file", projectFile);
+                  formData.append("project_description", projectDescription);
+
+                  try {
+                    const res = await fetch("http://localhost:8000/onboarding", {
+                      method: "POST",
+                      body: formData,
+                    });
+                    if (!res.ok) {
+                      const err = await res.json();
+                      throw new Error(err.detail || "Onboarding submission failed");
+                    }
+                    // On successful submission, redirect the user
+                    router.push("/home");
+                  } catch (error: any) {
+                    console.error("Onboarding submission error:", error.message);
+                    // Optionally handle error state
+                  }
+                })();
               }
             });
           });
@@ -794,7 +797,7 @@ export default function NeuralNetworkBackground() {
           // Prevent expanded nodes from passing through the search bar
           const preventNodeOverlap = () => {
             nodes.forEach(node => {
-              if (node.width > 4) {
+              if (node.size > 4) {
                 if (
                   node.x > centerX - 300 &&
                   node.x < centerX + 300 &&
@@ -878,7 +881,7 @@ export default function NeuralNetworkBackground() {
     }
   }, [step]);
 
-  const handleRemoveFile = (index, fileType) => {
+  const handleRemoveFile = (index: number, fileType: string) => {
     if (fileType === "resume") {
       setResumeFile(null);
     } else if (fileType === "transcript") {
@@ -886,7 +889,7 @@ export default function NeuralNetworkBackground() {
     }
   };
 
-  const handleEditDegree = (index) => {
+  const handleEditDegree = (index: number) => {
     const item = addedDegrees[index];
     setUniversity(item.university);
     setDegree(item.degree);
@@ -894,14 +897,20 @@ export default function NeuralNetworkBackground() {
     setRelevantCourses(item.relevantCourses);
   };
 
-  const handleEditWorkExperience = (index) => {
+  const handleEditWorkExperience = (index: number) => {
     const item = addedWorkExperiences[index];
     setWorkExperienceCompany(item.company);
     setWorkExperienceTitle(item.title);
     setWorkExperienceDescription(item.description);
   };
 
-  const togglePreferredLearningMethod = (method) => {
+  const handleRemoveWorkExperience = (index: number) => {
+    const newWorkExperiences = [...addedWorkExperiences];
+    newWorkExperiences.splice(index, 1);
+    setAddedWorkExperiences(newWorkExperiences);
+  };
+
+  const togglePreferredLearningMethod = (method: string) => {
     setPreferredLearningMethods((prevMethods) =>
       prevMethods.includes(method)
         ? prevMethods.filter((m) => m !== method)
@@ -948,7 +957,7 @@ export default function NeuralNetworkBackground() {
                 onChange={(e) => handleFileUpload(e, setResumeFile)}
               />
               <button
-                onClick={() => document.getElementById("resumeInput").click()}
+                onClick={() => document.getElementById("resumeInput")?.click()}
                 className="flex items-center justify-center px-4 py-2 mb-4 bg-purple-500 text-white rounded-full"
                 style={{ width: "280px", height: "40px" }}
               >
@@ -966,7 +975,7 @@ export default function NeuralNetworkBackground() {
                 onChange={(e) => handleMultipleFileUpload(e, setTranscriptFiles)}
               />
               <button
-                onClick={() => document.getElementById("transcriptInput").click()}
+                onClick={() => document.getElementById("transcriptInput")?.click()}
                 className="flex items-center justify-center px-4 py-2 mb-4 bg-purple-500 text-white rounded-full"
                 style={{ width: "280px", height: "40px" }}
               >
@@ -986,7 +995,7 @@ export default function NeuralNetworkBackground() {
 
               <div className="flex justify-around w-full">
                 <button
-                  onClick={() => handleSubmit(nodes)}
+                  onClick={handleSubmit}
                   className="mt-4 bg-white text-black px-4 py-2 rounded-full"
                   style={{ width: "130px", height: "40px" }}
                 >
@@ -1389,7 +1398,7 @@ export default function NeuralNetworkBackground() {
                 onChange={(e) => handleFileUpload(e, setProjectFile)}
               />
               <button
-                onClick={() => document.getElementById("projectInput").click()}
+                onClick={() => document.getElementById("projectInput")?.click()}
                 className="flex items-center justify-center px-4 py-2 mb-4 bg-purple-500 text-white rounded-full"
                 style={{ width: "280px", height: "40px" }}
               >

@@ -23,7 +23,7 @@ interface UserProfile {
   learning_goals?: string;
 }
 
-const SkillProgress = ({ skill, value }) => (
+const SkillProgress = ({ skill, value }: { skill: string; value: number }) => (
   <div className="w-24 h-24">
     <CircularProgressbar
       value={value}
@@ -38,7 +38,7 @@ const SkillProgress = ({ skill, value }) => (
   </div>
 );
 
-const ProjectCard = ({ project }) => (
+const ProjectCard = ({ project }: { project: string }) => (
   <div className="w-80 h-56 rounded-3xl shadow-xl overflow-hidden transition-transform duration-300 hover:scale-105 cursor-pointer">
     <img src="https://via.placeholder.com/300x150?text=Project+Thumbnail" alt={project} className="w-full h-36 object-cover" />
     <div className="p-5 bg-gray-800">
@@ -49,7 +49,7 @@ const ProjectCard = ({ project }) => (
 );
 
 export default function ProfilePage() {
-  const { username } = useParams();
+  const { username } = useParams() as { username: string };
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [error, setError] = useState("");
 
