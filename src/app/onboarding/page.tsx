@@ -93,6 +93,8 @@ export default function NeuralNetworkBackground() {
   const [addedDegrees, setAddedDegrees] = useState<Degree[]>([]);
   const [proficiencyLevels, setProficiencyLevels] = useState({});
   const [learningGoals, setLearningGoals] = useState<string[]>([]);
+  const [fullName, setFullName] = useState("");
+  const [dob, setDob] = useState("");
 
   const handleAddDegree = () => {
     if (university && degree && fieldOfStudy) {
@@ -694,7 +696,9 @@ const createRectangleWithNodes = () => {
                   <section class="mb-8">
                     <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Personal Details</h3>
                     <div class="ml-6">
-                      <p class="mb-2 text-lg"><strong>Full Name:</strong> ${username || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Full Name:</strong> ${fullName || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Username:</strong> ${username || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Date of Birth:</strong> ${dob || "Not provided"}</p>
                       <p class="mb-2 text-lg"><strong>Current Status:</strong> ${currentStatus || "Not provided"}</p>
                     </div>
                   </section>
@@ -710,6 +714,10 @@ const createRectangleWithNodes = () => {
                   <section class="mb-8">
                     <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Academic Information</h3>
                     <div class="ml-6">
+                      <p class="mb-2 text-lg"><strong>University Name(s):</strong> ${university || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Degree:</strong> ${degree || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Field of Study:</strong> ${fieldOfStudy || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Relevant Courses:</strong> ${relevantCourses.length ? relevantCourses.join(', ') : "Not provided"}</p>
                       ${addedDegrees.length ? addedDegrees.map(degree => `
                         <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
                           <p class="mb-2 text-lg"><strong>University / College:</strong> ${degree.university}</p>
@@ -755,12 +763,8 @@ const createRectangleWithNodes = () => {
                   <section class="mb-8">
                     <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Project Information</h3>
                     <div class="ml-6">
-                      ${addedProjects.length ? addedProjects.map(project => `
-                        <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                          <p class="mb-2 text-lg"><strong>Project File:</strong> ${project.file.name}</p>
-                          <p class="mb-2 text-lg"><strong>Project Description:</strong> ${project.description}</p>
-                        </div>
-                      `).join('') : "<p>Not provided</p>"}
+                      <p class="mb-2 text-lg"><strong>Project File:</strong> ${projectFile ? projectFile.name : "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Project Description:</strong> ${projectDescription || "Not provided"}</p>
                     </div>
                   </section>
 
@@ -786,6 +790,8 @@ const createRectangleWithNodes = () => {
                 }
                 const formData = new FormData();
                 formData.append("user_id", userId);
+                formData.append("full_name", fullName); // NEW
+                formData.append("date_of_birth", dob); // NEW
                 formData.append("username", username);
                 formData.append("current_status", currentStatus);
                 if (resumeFile) formData.append("resume_file", resumeFile);
@@ -1128,6 +1134,8 @@ const createRectangleWithNodes = () => {
               <input
                 type="text"
                 placeholder="Enter your Full Name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
                 className="px-6 py-3 rounded bg-white text-black text-center mb-4"
                 style={{ width: "300px" }}
               />
@@ -1149,6 +1157,8 @@ const createRectangleWithNodes = () => {
               </label>
               <input
                 type="date"
+                value={dob}
+                onChange={(e) => setDob(e.target.value)}
                 className="px-6 py-3 rounded bg-white text-black text-center mb-4"
                 style={{ width: "300px" }}
               />
