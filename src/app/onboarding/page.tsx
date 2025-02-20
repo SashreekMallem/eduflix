@@ -92,11 +92,18 @@ export default function NeuralNetworkBackground() {
 
   const [addedDegrees, setAddedDegrees] = useState<Degree[]>([]);
   const [proficiencyLevels, setProficiencyLevels] = useState({});
+  const [learningGoals, setLearningGoals] = useState<string[]>([]);
 
   const handleAddDegree = () => {
     if (university && degree && fieldOfStudy) {
       setAddedDegrees([
         ...addedDegrees,
+        {
+          university,
+          degree,
+          fieldOfStudy,
+          relevantCourses,
+        },
       ]);
       setUniversity("");
       setDegree("High School");
@@ -277,6 +284,10 @@ export default function NeuralNetworkBackground() {
   };
 
   // Add this helper function at the top of the component (after state declarations, for example)
+  const handleAddLearningGoal = (goal: string) => {
+    setLearningGoals((prevGoals) => [...prevGoals, goal]);
+  };
+
   const margin = 50;
   const getSafePosition = (pos: number, containerSize: number, totalSize: number) =>
     Math.min(Math.max(pos, containerSize / 2 + margin), totalSize - containerSize / 2 - margin);
@@ -513,309 +524,325 @@ export default function NeuralNetworkBackground() {
 
   const router = useRouter();
 
-  // Add this new function to create a rectangle with nodes in the center
-  const createRectangleWithNodes = () => {
+  // Add a new helper function near other helper functions:
+  const positionNodesForSummary = () => {
     const centerX = window.innerWidth / 2;
-    const rectWidth = 900; // Width to fit a form
-    const rectHeight = 800; // Height to fit a form
-    const nodesInRectangle = nodes.slice(0, 20); // Select the first 20 nodes for the rectangle
-  
+    const rectWidth = 900;
+    const rectHeight = 800;
+    const nodesInRectangle = nodes.slice(0, 20);
     nodesInRectangle.forEach((node, index) => {
-      node.isStatic = true;
-      let x, y;
-      if (index < 5) {
-        // Top side
-        x = centerX - rectWidth / 2 + (index % 5) * (rectWidth / 5);
-        y = window.innerHeight - rectHeight;
-      } else {
-        // Left and right sides
-        x = index % 2 === 0 ? centerX - rectWidth / 2 : centerX + rectWidth / 2;
-        y = window.innerHeight - rectHeight + (index % 10) * (rectHeight / 10);
-      }
-      gsap.to(node, {
-        x,
-        y,
-        duration: 1,
-        ease: "power2.inOut",
-        onUpdate: () => setNodes([...nodes]),
-      });
-    });
-
-    // Display the collected information in the rectangle
-    setTimeout(() => {
-      const infoContainer = document.createElement('div');
-      infoContainer.style.position = 'absolute';
-      infoContainer.style.left = `${centerX - rectWidth / 2}px`;
-      infoContainer.style.top = `${window.innerHeight - rectHeight}px`;
-      infoContainer.style.width = `${rectWidth}px`;
-      infoContainer.style.height = `${rectHeight}px`;
-      infoContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-      infoContainer.style.borderRadius = '10px';
-      infoContainer.style.padding = '20px';
-      infoContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
-      infoContainer.style.overflowY = 'auto';
-      infoContainer.style.zIndex = '1000';
-
-      infoContainer.innerHTML = `
-        <h2 class="text-black text-center text-2xl font-bold mb-6">Summary</h2>
-        <div class="mb-4">
-          <label class="text-black font-bold text-xl">Username:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${username || "Not provided"}" />
-        </div>
-        <div class="mb-4">
-          <label class="text-black font-bold text-xl">Resume:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${resumeFile ? resumeFile.name : "Not provided"}" />
-        </div>
-        <div class="mb-4">
-          <label class="text-black font-bold text-xl">Transcript:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${transcriptFiles.length ? transcriptFiles.map(file => file.name).join(', ') : "Not provided"}" />
-        </div>
-        <div class="mb-4">
-          <label class="text-black font-bold text-xl">Relevant Courses:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${relevantCourses.length ? relevantCourses.join(', ') : "None"}" />
-        </div>
-        <div class="mb-4">
-          <label class="text-black font-bold text-xl">Certifications:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${certifications.length ? certifications.map(c => `${c.title} (${c.issuer})`).join(', ') : "None"}" />
-        </div>
-        <div class="mb-4">
-          <label class="text-black font-bold text-xl">Online Courses:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${onlineCourses.length ? onlineCourses.map(c => `${c.name} (${c.company})`).join(', ') : "None"}" />
-        </div>
-        <div class="mb-4">
-          <label class="text-black font-bold text-xl">Project File:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${projectFile ? projectFile.name : "Not provided"}" />
-        </div>
-        <div class="mb-4">
-          <label class="text-black font-bold text-xl">Project Description:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${projectDescription || "Not provided"}" />
-        </div>
-        <div class="mb-4">
-          <label class="text-black font-bold text-xl">Work Experience Title:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${workExperienceTitle || "Not provided"}" />
-        </div>
-        <div class="mb-4">
-          <label class="text-black font-bold text-xl">Work Experience Description:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${workExperienceDescription || "Not provided"}" />
-        </div>
-        <div class="mb-4">
-          <label class="text-black font-bold text-xl">Preferred Learning Pace:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${preferredLearningPace || "Not provided"}" />
-        </div>
-        <div class="mb-4">
-          <label class="text-black font-bold text-xl">Preferred Learning Methods:</label>
-          <input type="text" class="text-black w-full px-3 py-2 rounded-md" value="${preferredLearningMethods.length ? preferredLearningMethods.join(', ') : "None"}" />
-        </div>
-        <button class="mt-6 bg-purple-500 text-white px-5 py-2 rounded">Save</button>
-      `;
-
-      document.body.appendChild(infoContainer);
-
-      gsap.fromTo(infoContainer, { opacity: 0 }, { opacity: 1, duration: 1 });
-
-      // Add event listener to save button
-      infoContainer.querySelector('button')?.addEventListener('click', () => {
-        const inputs = infoContainer.querySelectorAll('input');
-        setUsername(inputs[0].value);
-        // Update other state variables similarly
-        document.body.removeChild(infoContainer);
-
-        // Dismantle the rectangle and resume animation
-        nodesInRectangle.forEach((node) => {
-          node.isStatic = false;
-          gsap.to(node, {
-            x: Math.random() * window.innerWidth,
-            y: Math.random() * window.innerHeight,
+        node.isStatic = true;
+        let x, y;
+        if (index < 5) {
+            x = centerX - rectWidth / 2 + (index % 5) * (rectWidth / 5);
+            y = window.innerHeight - rectHeight;
+        } else {
+            x = index % 2 === 0 ? centerX - rectWidth / 2 : centerX + rectWidth / 2;
+            y = window.innerHeight - rectHeight + (index % 10) * (rectHeight / 10);
+        }
+        gsap.to(node, {
+            x,
+            y,
             duration: 1,
             ease: "power2.inOut",
             onUpdate: () => setNodes([...nodes]),
-          });
         });
-        setFormVisible(true);
+    });
+};
 
-        // Create a new rectangle in the size of a search bar like iPhone Dynamic Island
-        setTimeout(() => {
-          const searchBarContainer = document.createElement('div');
-          searchBarContainer.style.position = 'absolute';
-          searchBarContainer.style.left = `${centerX - 300}px`; // Increase width to double
-          searchBarContainer.style.top = '50px'; // Lower the search bar
-          searchBarContainer.style.width = '600px'; // Increase width to double
-          searchBarContainer.style.height = '50px';
-          searchBarContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Match background color
-          searchBarContainer.style.borderRadius = '25px';
-          searchBarContainer.style.padding = '10px';
-          searchBarContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
-          searchBarContainer.style.zIndex = '1000';
-          searchBarContainer.style.opacity = '0'; // Start with opacity 0
-
-          searchBarContainer.innerHTML = `
-            <div class="flex items-center w-full h-full">
-              <input type="text" id="learningGoalsInput" class="flex-grow h-full px-3 py-2 bg-transparent text-white placeholder-gray-400 rounded-md focus:outline-none" placeholder="Learning Goals..." />
-              <button id="searchBarButton" class="ml-2 p-2 bg-purple-500 hover:bg-purple-600 rounded-full">
-                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
-              </button>
-            </div>
-          `;
-
-          document.body.appendChild(searchBarContainer);
-
-          // Create a border with nodes for the search bar
-          const searchBarNodes = nodes.slice(20, 30); // Select the next 10 nodes for the search bar border
-          searchBarNodes.forEach((node, index) => {
-            let x, y;
-            if (index < 3) {
-              // Top side
-              x = centerX - 300 + (index % 3) * (600 / 3);
-              y = 50;
-            } else if (index < 6) {
-              // Bottom side
-              x = centerX - 300 + ((index - 3) % 3) * (600 / 3);
-              y = 100;
-            } else if (index < 8) {
-              // Left side
-              x = centerX - 300;
-              y = 50 + ((index - 6) % 2) * 50;
-            } else {
-              // Right side
-              x = centerX + 300;
-              y = 50 + ((index - 8) % 2) * 50;
-            }
-            gsap.to(node, {
-              x,
-              y,
-              duration: 1,
-              ease: "power2.inOut",
-              onUpdate: () => setNodes([...nodes]),
-              onComplete: () => {
-                // Fade in the search bar after the nodes create the border
-                gsap.to(searchBarContainer, { opacity: 1, duration: 1 });
-              },
-            });
-          });
-
-          // Add event listener to the input field
-          const learningGoalsInput = document.getElementById('learningGoalsInput');
-          const searchBarButton = document.getElementById('searchBarButton');
-          let intervalId: NodeJS.Timeout;
-
-          learningGoalsInput?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              const text = (learningGoalsInput as HTMLInputElement).value.trim();
-              if (text) {
-                const availableNode = nodes.find(node => !node.isStatic && !node.textPinned);
-                if (availableNode) {
-                  availableNode.textPinned = true;
-                  gsap.to(availableNode, {
-                    width: 100,
-                    height: 100,
-                    duration: 1,
-                    ease: "power2.inOut",
-                    onUpdate: () => setNodes([...nodes]),
-                    onComplete: () => {
-                      const textContainer = document.createElement('div');
-                      textContainer.style.position = 'absolute';
-                      textContainer.style.left = `${availableNode.x}px`;
-                      textContainer.style.top = `${availableNode.y}px`;
-                      textContainer.style.transform = 'translate(-50%, -50%)';
-                      textContainer.style.color = 'white';
-                      textContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                      textContainer.style.padding = '10px';
-                      textContainer.style.borderRadius = '10px';
-                      textContainer.style.zIndex = '1000';
-                      textContainer.innerText = text;
-                      document.body.appendChild(textContainer);
-                      gsap.fromTo(textContainer, { opacity: 0 }, { opacity: 1, duration: 1 });
-                      (learningGoalsInput as HTMLInputElement).value = ''; // Clear the input field
-
-                      // Pin the text to the node
-                      const updateTextPosition = () => {
-                        textContainer.style.left = `${availableNode.x}px`;
-                        textContainer.style.top = `${availableNode.y}px`;
-                      };
-                      intervalId = setInterval(updateTextPosition, 16);
-                    },
-                  });
-                }
-              }
-            }
-          });
-
-          // Add event listener to the search bar button (learning goals button)
-          searchBarButton?.addEventListener('click', async () => {
-            clearInterval(intervalId);
-            gsap.to(searchBarContainer, {
-              opacity: 0,
-              duration: 1,
-              onComplete: () => {
-                (async () => {
-                  document.body.removeChild(searchBarContainer);
-                  // Move the functionality of handleOnboardingSubmit here
-                  if (!userId) {
-                    console.error("No valid user id available for onboarding.");
-                    return;
-                  }
-                  const formData = new FormData();
-                  formData.append("user_id", userId); // Use the actual user id instead of "123"
-                  formData.append("username", username);
-                  if (resumeFile) formData.append("resume_file", resumeFile);
-                  if (transcriptFiles.length) transcriptFiles.forEach(file => formData.append("transcript_files", file));
-                  formData.append("university", university); // Append university
-                  formData.append("degree", degree);         // Append degree
-                  formData.append("relevant_courses", JSON.stringify(relevantCourses));
-                  formData.append("certifications", JSON.stringify(certifications));
-                  formData.append("online_courses", JSON.stringify(onlineCourses));
-                  formData.append("work_experience_title", workExperienceTitle);
-                  formData.append("work_experience_description", workExperienceDescription);
-                  formData.append("preferred_learning_pace", preferredLearningPace);
-                  formData.append("preferred_learning_methods", JSON.stringify(preferredLearningMethods));
-                  if (projectFile) formData.append("project_file", projectFile);
-                  formData.append("project_description", projectDescription);
-
-                  try {
-                    const res = await fetch("http://localhost:8000/onboarding", {
-                      method: "POST",
-                      body: formData,
-                    });
-                    if (!res.ok) {
-                      const err = await res.json();
-                      throw new Error(err.detail || "Onboarding submission failed");
-                    }
-                    // On successful submission, redirect the user
-                    router.push("/home");
-                  } catch (error: any) {
-                    console.error("Onboarding submission error:", error.message);
-                    // Optionally handle error state
-                  }
-                })();
-              }
-            });
-          });
-
-          // Prevent expanded nodes from passing through the search bar
-          const preventNodeOverlap = () => {
-            nodes.forEach(node => {
-              if (node.size > 4) {
-                if (
-                  node.x > centerX - 300 &&
-                  node.x < centerX + 300 &&
-                  node.y > 50 &&
-                  node.y < 100
-                ) {
-                  node.vx *= -1;
-                  node.vy *= -1;
-                }
-              }
-            });
-          };
-
-          setInterval(preventNodeOverlap, 16);
-        }, 2000); // Delay to allow nodes to resume animation
+// Modify createRectangleWithNodes:
+const createRectangleWithNodes = () => {
+    const centerX = window.innerWidth / 2;
+    const rectWidth = 900; // For summary form
+    const rectHeight = 800;
+    
+    // --- Removed rectangle formation code here ---
+    // const nodesInRectangle = nodes.slice(0, 20);
+    // nodesInRectangle.forEach(...);
+    
+    // Directly create the search bar container:
+    setTimeout(() => {
+      const searchBarContainer = document.createElement('div');
+      searchBarContainer.style.position = 'absolute';
+      searchBarContainer.style.left = `${centerX - 300}px`;
+      searchBarContainer.style.top = '50px';
+      searchBarContainer.style.width = '600px';
+      searchBarContainer.style.height = '50px';
+      searchBarContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      searchBarContainer.style.borderRadius = '25px';
+      searchBarContainer.style.padding = '10px';
+      searchBarContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
+      searchBarContainer.style.zIndex = '1000';
+      searchBarContainer.style.opacity = '0';
+  
+      searchBarContainer.innerHTML = `
+        <div class="flex items-center w-full h-full">
+          <input type="text" id="learningGoalsInput" class="flex-grow h-full px-3 py-2 bg-transparent text-white placeholder-gray-400 rounded-md focus:outline-none" placeholder="Learning Goals..." />
+          <button id="searchBarButton" class="ml-2 p-2 bg-purple-500 hover:bg-purple-600 rounded-full">
+            <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+          </button>
+        </div>
+      `;
+      document.body.appendChild(searchBarContainer);
+      const searchBarNodes = nodes.slice(20, 30);
+      searchBarNodes.forEach((node, index) => {
+        let x, y;
+        if (index < 3) {
+          x = centerX - 300 + (index % 3) * (600 / 3);
+          y = 50;
+        } else if (index < 6) {
+          x = centerX - 300 + ((index - 3) % 3) * (600 / 3);
+          y = 100;
+        } else if (index < 8) {
+          x = centerX - 300;
+          y = 50 + ((index - 6) % 2) * 50;
+        } else {
+          x = centerX + 300;
+          y = 50 + ((index - 8) % 2) * 50;
+        }
+        gsap.to(node, {
+          x,
+          y,
+          duration: 1,
+          ease: "power2.inOut",
+          onUpdate: () => setNodes([...nodes]),
+          onComplete: () => {
+            gsap.to(searchBarContainer, { opacity: 1, duration: 1 });
+          },
+        });
       });
-    }, 2000); // Delay to allow nodes to form the rectangle and additional 1 second delay
-  };
+  
+      const learningGoalsInput = document.getElementById('learningGoalsInput');
+      const searchBarButton = document.getElementById('searchBarButton');
+      let intervalId: NodeJS.Timeout;
+      learningGoalsInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const text = (learningGoalsInput as HTMLInputElement).value.trim();
+          if (text) {
+            handleAddLearningGoal(text);
+            const availableNode = nodes.find(node => !node.isStatic && !node.textPinned);
+            if (availableNode) {
+              availableNode.textPinned = true;
+              gsap.to(availableNode, {
+                width: 100,
+                height: 100,
+                duration: 1,
+                ease: "power2.inOut",
+                onUpdate: () => setNodes([...nodes]),
+                onComplete: () => {
+                  const textContainer = document.createElement('div');
+                  // Add class for later removal
+                  textContainer.classList.add("learning-goals-tag");
+                  textContainer.style.position = 'absolute';
+                  textContainer.style.left = `${availableNode.x}px`;
+                  textContainer.style.top = `${availableNode.y}px`;
+                  textContainer.style.transform = 'translate(-50%, -50%)';
+                  textContainer.style.color = 'white';
+                  textContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                  textContainer.style.padding = '10px';
+                  textContainer.style.borderRadius = '10px';
+                  textContainer.style.zIndex = '1000';
+                  textContainer.innerText = text;
+                  document.body.appendChild(textContainer);
+                  gsap.fromTo(textContainer, { opacity: 0 }, { opacity: 1, duration: 1 });
+                  (learningGoalsInput as HTMLInputElement).value = '';
+                  const updateTextPosition = () => {
+                    textContainer.style.left = `${availableNode.x}px`;
+                    textContainer.style.top = `${availableNode.y}px`;
+                  };
+                  intervalId = setInterval(updateTextPosition, 16);
+                },
+              });
+            }
+          }
+        }
+      });
+  
+      searchBarButton?.addEventListener('click', async () => {
+        clearInterval(intervalId);
+        // Remove all learning goals tag elements
+        document.querySelectorAll('.learning-goals-tag').forEach(tag => tag.remove());
+        gsap.to(searchBarContainer, {
+          opacity: 0,
+          duration: 1,
+          onComplete: () => {
+            document.body.removeChild(searchBarContainer);
+            // Position nodes in a rectangle then display the summary form
+            positionNodesForSummary();
+            setTimeout(() => {
+              const infoContainer = document.createElement('div');
+              infoContainer.id = "infoContainer";
+              infoContainer.style.position = 'absolute';
+              infoContainer.style.left = `${centerX - rectWidth / 2}px`;
+              infoContainer.style.top = `${window.innerHeight - rectHeight}px`;
+              infoContainer.style.width = `${rectWidth}px`;
+              infoContainer.style.height = `${rectHeight}px`;
+              // Set background to transparent as requested
+              infoContainer.style.backgroundColor = 'transparent';
+              infoContainer.style.borderRadius = '10px';
+              infoContainer.style.padding = '20px';
+              infoContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
+              infoContainer.style.overflowY = 'auto';
+              infoContainer.style.zIndex = '1000';
+              infoContainer.innerHTML = `
+                <div style="font-family: 'Arial', sans-serif; color: #e0e0e0; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">
+                  <h2 class="text-center text-3xl font-bold mb-8" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Final Summary</h2>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Personal Details</h3>
+                    <div class="ml-6">
+                      <p class="mb-2 text-lg"><strong>Full Name:</strong> ${username || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Current Status:</strong> ${currentStatus || "Not provided"}</p>
+                    </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Documents</h3>
+                    <div class="ml-6">
+                      <p class="mb-2 text-lg"><strong>Resume:</strong> ${resumeFile ? resumeFile.name : "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Transcripts:</strong> ${transcriptFiles.length ? transcriptFiles.map(file => file.name).join(', ') : "Not provided"}</p>
+                    </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Academic Information</h3>
+                    <div class="ml-6">
+                      ${addedDegrees.length ? addedDegrees.map(degree => `
+                        <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                          <p class="mb-2 text-lg"><strong>University / College:</strong> ${degree.university}</p>
+                          <p class="mb-2 text-lg"><strong>Degree:</strong> ${degree.degree}</p>
+                          <p class="mb-2 text-lg"><strong>Field of Study:</strong> ${degree.fieldOfStudy}</p>
+                          <p class="mb-2 text-lg"><strong>Relevant Courses:</strong> ${degree.relevantCourses.join(', ')}</p>
+                        </div>
+                      `).join('') : "<p>Not provided</p>"}
+                    </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Certifications / Online Courses</h3>
+                    <div class="ml-6">
+                      ${addedItems.length ? addedItems.map(item => `
+                        <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                          <p class="mb-2 text-lg"><strong>Type:</strong> ${item.type}</p>
+                          <p class="mb-2 text-lg"><strong>Title:</strong> ${item.title || "N/A"}</p>
+                          <p class="mb-2 text-lg"><strong>Issuer:</strong> ${item.issuer}</p>
+                          ${item.verificationLink ? `<p class="mb-2 text-lg"><strong>Link:</strong> ${item.verificationLink}</p>` : ""}
+                        </div>
+                      `).join('') : "<p>Not provided</p>"}
+                    </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Work Experience</h3>
+                    <div class="ml-6">
+                      ${addedWorkExperiences.length ? addedWorkExperiences.map(exp => `
+                        <div class="mb-4 p-4 border border-white rounded-md">
+                          <div class="flex justify-between items-center mb-3">
+                            <strong style="margin-right: 10px;">Company:</strong> <span>${exp.company}</span>
+                            <strong style="margin-right: 10px;">Title:</strong> <span>${exp.title}</span>
+                          </div>
+                          <div class="p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                            <p>${exp.description}</p>
+                          </div>
+                        </div>
+                      `).join('') : "<p>Not provided</p>"}
+                    </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Project Information</h3>
+                    <div class="ml-6">
+                      ${addedProjects.length ? addedProjects.map(project => `
+                        <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                          <p class="mb-2 text-lg"><strong>Project File:</strong> ${project.file.name}</p>
+                          <p class="mb-2 text-lg"><strong>Project Description:</strong> ${project.description}</p>
+                        </div>
+                      `).join('') : "<p>Not provided</p>"}
+                    </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Learning Preferences and Goals</h3>
+                    <div class="ml-6">
+                      <p class="mb-2 text-lg"><strong>Preferred Learning Pace:</strong> ${preferredLearningPace || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Learning Commitment Level:</strong> ${learningCommitment || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Preferred Learning Methods:</strong> ${preferredLearningMethods.length ? preferredLearningMethods.join(', ') : "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Learning Goals:</strong> ${learningGoalsRef.current.length ? learningGoalsRef.current.join(', ') : "Not provided"}</p>
+                    </div>
+                  </section>
+
+                  <button class="w-full mt-6 bg-purple-500 text-white px-5 py-3 rounded-md font-semibold hover:bg-purple-700 transition duration-300" style="font-weight: bold;">Save</button>
+                </div>
+              `;
+              document.body.appendChild(infoContainer);
+              gsap.fromTo(infoContainer, { opacity: 0 }, { opacity: 1, duration: 1 });
+              infoContainer.querySelector('button')?.addEventListener('click', async () => {
+                if (!userId) {
+                  console.error("No valid user id available for onboarding.");
+                  return;
+                }
+                const formData = new FormData();
+                formData.append("user_id", userId);
+                formData.append("username", username);
+                formData.append("current_status", currentStatus);
+                if (resumeFile) formData.append("resume_file", resumeFile);
+                if (transcriptFiles.length) {
+                  transcriptFiles.forEach(file => formData.append("transcript_files", file));
+                }
+                formData.append("university", university);
+                formData.append("degree", degree);
+                formData.append("field_of_study", fieldOfStudy);
+                formData.append("relevant_courses", JSON.stringify(relevantCourses));
+                formData.append("added_degrees", JSON.stringify(addedDegrees));
+                formData.append("certifications", JSON.stringify(addedItems));
+                formData.append("work_experience", JSON.stringify(addedWorkExperiences));
+                formData.append("preferred_learning_pace", preferredLearningPace);
+                formData.append("learning_commitment", learningCommitment);
+                formData.append("preferred_learning_methods", JSON.stringify(preferredLearningMethods));
+                formData.append("learning_goals", JSON.stringify(learningGoals));
+                if (projectFile) formData.append("project_file", projectFile);
+                formData.append("project_description", projectDescription);
+              
+                try {
+                  const res = await fetch("http://localhost:8000/onboarding", {
+                    method: "POST",
+                    body: formData,
+                  });
+                  if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Onboarding submission failed");
+                  }
+                  router.push("/home");
+                } catch (error: any) {
+                  console.error("Onboarding submission error:", error.message);
+                }
+              });
+            }, 1000);
+          }
+        });
+      });
+  
+      const preventNodeOverlap = () => {
+        nodes.forEach(node => {
+          if (node.size > 4) {
+            if (
+              node.x > centerX - 300 &&
+              node.x < centerX + 300 &&
+              node.y > 50 &&
+              node.y < 100
+            ) {
+              node.vx *= -1;
+              node.vy *= -1;
+            }
+          }
+        });
+      };
+      setInterval(preventNodeOverlap, 16);
+    }, 2000);
+};
 
   // Update the handleFinishStep7 function to call createRectangleWithNodes after 3 seconds
   const handleFinishStep7 = () => {
@@ -917,6 +944,52 @@ export default function NeuralNetworkBackground() {
         : [...prevMethods, method]
     );
   };
+
+  // Add handler to edit a given section by setting form step accordingly
+  const handleEditSection = (section: string) => {
+    switch(section) {
+      case "personalDetails":
+        setStep(2);
+        break;
+      case "documents":
+        setStep(1);
+        break;
+      case "academicInformation":
+        setStep(3);
+        break;
+      case "certifications":
+        setStep(4);
+        break;
+      case "workExperience":
+        setStep(5);
+        break;
+      case "projectInformation":
+        setStep(6);
+        break;
+      case "learningPreferences":
+        setStep(7);
+        break;
+      default:
+        break;
+    }
+    // Remove the summary container from DOM if it exists.
+    const infoContainer = document.getElementById("infoContainer");
+    if (infoContainer) infoContainer.remove();
+  };
+
+  // Expose the handler globally so that inline onclick in summary HTML can call it
+  useEffect(() => {
+    (window as any).handleEditSection = handleEditSection;
+  }, [handleEditSection]);
+
+  // Modify createRectangleWithNodes:
+  // Removed duplicate createRectangleWithNodes function
+
+  // Add below other state declarations:
+  const learningGoalsRef = useRef<string[]>([]);
+  useEffect(() => {
+    learningGoalsRef.current = learningGoals;
+  }, [learningGoals]);
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-gray-900 to-black">
@@ -1608,116 +1681,13 @@ export default function NeuralNetworkBackground() {
               </div>
 
               <button
-                onClick={handleSubmit}
+                onClick={handleFinishStep7} // changed from handleSubmit to handleFinishStep7
                 className="mt-6 bg-white text-black px-5 py-2 rounded"
               >
                 Continue
               </button>
             </>
-          ) : step === 9 ? (
-            <>
-              <label className="text-white mb-6 block text-center font-bold text-xl">
-                Work Experience Title:
-              </label>
-              <input
-                type="text"
-                placeholder="Enter your work experience title"
-                value={workExperienceTitle}
-                onChange={(e) => setWorkExperienceTitle(e.target.value)}
-                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
-                style={{ width: "300px" }}
-              />
-              <label className="text-white mb-6 block text-center font-bold text-xl">
-                Work Experience Description:
-              </label>
-              <textarea
-                placeholder="Enter your work experience description"
-                value={workExperienceDescription}
-                onChange={(e) => setWorkExperienceDescription(e.target.value)}
-                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
-                style={{ width: "300px", height: "150px" }}
-              />
-              <button
-                onClick={handleSubmit}
-                className="mt-6 bg-white text-black px-5 py-2 rounded"
-              >
-                Continue
-              </button>
-            </>
-          ) : step === 10 ? (
-            <div
-              ref={summaryContainerRef}
-              id="summaryContainer"
-              className="bg-white rounded-lg p-8 shadow-lg max-w-md w-full"
-              style={{
-                // Initial state for animation:
-                opacity: 0,
-                transform: "translateY(50px)",
-              }}
-            >
-              <h2 className="text-black text-center text-2xl font-bold mb-6">
-                Summary
-              </h2>
-              <div className="mb-4">
-                <label className="text-black font-bold text-xl">Username:</label>
-                <p className="text-black">{username || "Not provided"}</p>
-              </div>
-              <div className="mb-4">
-                <label className="text-black font-bold text-xl">Resume:</label>
-                <p className="text-black">{resumeFile ? resumeFile.name : "Not provided"}</p>
-              </div>
-              <div className="mb-4">
-                <label className="text-black font-bold text-xl">Transcript:</label>
-                <p className="text-black">{transcriptFiles.length ? transcriptFiles.map(file => file.name).join(', ') : "Not provided"}</p>
-              </div>
-              <div className="mb-4">
-                <label className="text-black font-bold text-xl">Relevant Courses:</label>
-                <p className="text-black">
-                  {relevantCourses.length ? relevantCourses.join(', ') : "None"}
-                </p>
-              </div>
-              <div className="mb-4">
-                <label className="text-black font-bold text-xl">Certifications:</label>
-                <p className="text-black">
-                  {certifications.length
-                    ? certifications.map(c => `${c.title} (${c.issuer})`).join(', ')
-                    : "None"}
-                </p>
-              </div>
-              <div className="mb-4">
-                <label className="text-black font-bold text-xl">Online Courses:</label>
-                <p className="text-black">
-                  {onlineCourses.length
-                    ? onlineCourses.map(c => `${c.name} (${c.company})`).join(', ')
-                    : "None"}
-                </p>
-              </div>
-              <div className="mb-4">
-                <label className="text-black font-bold text-xl">Work Experience Title:</label>
-                <p className="text-black">{workExperienceTitle || "Not provided"}</p>
-              </div>
-              <div className="mb-4">
-                <label className="text-black font-bold text-xl">Work Experience Description:</label>
-                <p className="text-black">{workExperienceDescription || "Not provided"}</p>
-              </div>
-              <div className="mb-4">
-                <label className="text-black font-bold text-xl">Preferred Learning Pace:</label>
-                <p className="text-black">{preferredLearningPace || "Not provided"}</p>
-              </div>
-              <div className="mb-4">
-                <label className="text-black font-bold text-xl">Preferred Learning Methods:</label>
-                <p className="text-black">
-                  {preferredLearningMethods.length ? preferredLearningMethods.join(', ') : "None"}
-                </p>
-              </div>
-              <button
-                onClick={() => alert("Submitted!")}
-                className="mt-6 bg-purple-500 text-white px-5 py-2 rounded"
-              >
-                Submit Final Form
-              </button>
-            </div>
-          ) : null}
+          ) : null }
         </div>
       )}
     </div>
