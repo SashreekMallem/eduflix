@@ -7,24 +7,23 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './calendar-theme.css'; // Import custom calendar theme
 import * as THREE from 'three';
-import { FontLoader } from 'three/examples/jsm/loaders/FontLoader'; // Import FontLoader
-import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry'; // Import TextGeometry
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer'; // Import CSS2DRenderer and CSS2DObject
 import Link from 'next/link';
+import gsap from 'gsap';
+import LlamaChat from '@/components/LlamaChat';
 
 // New CourseCard component
 interface Reel {
   title: string;
   videoId: string;
   thumbnail: string;
-  url: string;
 }
 
 const CourseCard = ({ reel, router }: { reel: Reel; router: any }) => (
-  <div className="bg-gray-800 p-6 rounded-2xl shadow-lg w-64 hover:scale-105 transition-transform duration-200">
-    <h3 className="text-xl font-semibold text-white mb-3">{reel.title}</h3>
+  <div className="bg-white p-6 rounded-2xl shadow-lg w-64 hover:scale-105 transition-transform duration-200 border border-gray-200">
+    <h3 className="text-xl font-semibold text-gray-800 mb-3">{reel.title}</h3>
     {reel.thumbnail ? (
       <img src={reel.thumbnail} alt={reel.title} className="mb-4 rounded-lg" />
     ) : null}
@@ -38,13 +37,13 @@ interface Friend {
 }
 
 const StudyGroupCard = ({ friend, router }: { friend: Friend; router: any }) => (
-  <div className="bg-gray-800 p-6 rounded-2xl shadow-lg w-64 hover:scale-105 transition-transform duration-200">
-    <h3 className="text-xl font-semibold text-white mb-3">
+  <div className="bg-white p-6 rounded-2xl shadow-lg w-64 hover:scale-105 transition-transform duration-200 border border-gray-200">
+    <h3 className="text-xl font-semibold text-gray-800 mb-3">
       <Link href={`/profile/${friend.name}`} className="hover:underline">
         {friend.name}
       </Link>
     </h3>
-    <p className="text-gray-300">Common Groups: {friend.commonGroups.join(', ')}</p>
+    <p className="text-gray-500">Common Groups: {friend.commonGroups.join(', ')}</p>
   </div>
 );
 
@@ -96,9 +95,9 @@ interface CatalogItemProps {
 const CatalogItem = ({ item }: { item: CatalogItemProps }) => (
   <div className="w-80 h-56 rounded-3xl shadow-xl overflow-hidden transition-transform duration-300 hover:scale-105 cursor-pointer">
     <img src={item.thumbnail} alt={item.title} className="w-full h-36 object-cover" />
-    <div className="p-5 bg-gray-800">
-      <h3 className="text-xl font-semibold text-white truncate">{item.title}</h3>
-      <p className="text-gray-400 text-sm truncate">{item.type}</p>
+    <div className="p-5 bg-white">
+      <h3 className="text-xl font-semibold text-gray-800 truncate">{item.title}</h3>
+      <p className="text-gray-500 text-sm truncate">{item.type}</p>
     </div>
   </div>
 );
@@ -110,7 +109,7 @@ export default function Home() {
   const [currentReelIndex, setCurrentReelIndex] = useState(0); // Index for the current EduReel
   const [showAssistant, setShowAssistant] = useState(false);
   const [assistantMessages, setAssistantMessages] = useState([
-    { text: "Hello! I'm Flix AI, your personal learning assistant. How can I help you today?", sender: "ai" }
+    { text: "Hello! I'm NJAN, your personal learning assistant. How can I help you today?", sender: "ai" }
   ]);
   const [eduNews, setEduNews] = useState([
     "EduFlix launches new AI-powered personalized learning pathways!",
@@ -128,7 +127,7 @@ export default function Home() {
     { name: 'Alice', points: 1200 },
     { name: 'Bob', points: 1100 },
     { name: 'Charlie', points: 1050 },
-    { name: 'David', points: 1000 },
+    { name: 'David', points: 0 },
     { name: 'Eve', points: 950 },
   ]);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -265,17 +264,36 @@ export default function Home() {
     // Clear container to avoid duplicate 3D labels and renderers on remount
     if (threeRef.current) {
       threeRef.current.innerHTML = "";
+      // Revert to original dimensions (w-96 h-96 ~ 384px x 384px) and relative positioning
+      threeRef.current.style.width = "420px";
+      threeRef.current.style.height = "420px";
+      threeRef.current.style.position = "fixed";
+      threeRef.current.style.top = "10rem"; // adjust as needed
+      threeRef.current.style.left = "5rem"; // adjust as needed
+      threeRef.current.style.zIndex = "0";
     }
     
-    // Initialize Three.js scene with lights for realism
+    // Initialize Three.js scene with adjusted camera clipping remains
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      384 / 384,
+      0.1,
+      5000
+    );
+    // Optionally increase camera z to get a full view of the model
+    camera.position.z = 7; // adjust upward if needed
+    
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(400, 400);
+    renderer.setSize(384, 384);
+    // Improve quality by matching device pixel ratio and using tone mapping.
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.toneMapping = THREE.ReinhardToneMapping;
+    renderer.toneMappingExposure = 1.5;
     if (threeRef.current) {
         threeRef.current.appendChild(renderer.domElement);
     }
-
+    
     // Initialize CSS2DRenderer for labels
     const labelRenderer = new CSS2DRenderer();
     labelRenderer.setSize(400, 400);
@@ -287,33 +305,102 @@ export default function Home() {
     }
 
     // Set up lights for a premium metallic look
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Fully bright ambient light
     scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
     directionalLight.position.set(5, 5, 5);
     scene.add(directionalLight);
 
-    // Create main molecule with Dodecahedron geometry and premium material
-    const mainGeometry = new THREE.DodecahedronGeometry(1.3, 0);
-    const mainMaterial = new THREE.MeshStandardMaterial({ color: 0x9f7aea, metalness: 0.8, roughness: 0.2 });
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.8); // Add a second directional light
+    directionalLight2.position.set(-5, -5, 5);
+    scene.add(directionalLight2);
+
+    const directionalLight3 = new THREE.DirectionalLight(0xffffff, 0.6); // Add a third directional light
+    directionalLight3.position.set(0, 0, -5);
+    scene.add(directionalLight3);
+
+    // Additional point light for extra brightness and highlights
+    const pointLight = new THREE.PointLight(0xffffff, 1.5);
+    pointLight.position.set(0, 0, 7);
+    scene.add(pointLight);
+
+    // Helper function: creates a text sprite from a canvas texture
+    // Updated createTextSprite with padding and background
+    // Updated createTextSprite: use devicePixelRatio to boost resolution
+    // Updated createTextSprite for even higher resolution
+    function createTextSprite(message: string, parameters = {}) {
+      const fontface = parameters.fontface || "Arial";
+      const fontsize = parameters.fontsize || 36;
+      const fontStyle = parameters.fontStyle || "bold";
+      const textColor = parameters.fillStyle || "#FFA500"; // Use orange for high contrast
+      const ratio = window.devicePixelRatio || 1;
+      const scaleFactor = 2; // Additional scale for boosted resolution
+      
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d")!;
+      context.font = `${fontStyle} ${fontsize}px ${fontface}`;
+      const textWidth = context.measureText(message).width;
+      
+      // Set canvas size based on exact text dimensions
+      canvas.width = textWidth * ratio * scaleFactor;
+      canvas.height = fontsize * 1.4 * ratio * scaleFactor;
+      context.scale(ratio * scaleFactor, ratio * scaleFactor);
+      
+      // Setup for 3D bold effect: add shadow and stroke for sharp borders
+      context.font = `${fontStyle} ${fontsize}px ${fontface}`;
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.lineJoin = "round"; 
+      // Shadow settings: simulates a 3D look
+      context.shadowColor = "rgba(0,0,0,0.8)";
+      context.shadowOffsetX = 2;
+      context.shadowOffsetY = 2;
+      context.shadowBlur = 2;
+      
+      // Stroke settings for sharp borders
+      context.strokeStyle = "black";
+      context.lineWidth = 2;
+      context.strokeText(message, textWidth / 2, fontsize * 0.7);
+      
+      // Fill text on top
+      context.fillStyle = textColor;
+      context.fillText(message, textWidth / 2, fontsize * 0.7);
+      
+      const texture = new THREE.CanvasTexture(canvas);
+      // Use NearestFilter for crisp edges
+      texture.minFilter = THREE.NearestFilter;
+      texture.magFilter = THREE.NearestFilter;
+      texture.generateMipmaps = false;
+      
+      const spriteMaterial = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        opacity: 1,
+        color: 0xffffff // full brightness
+      });
+      
+      const sprite = new THREE.Sprite(spriteMaterial);
+      sprite.scale.set(textWidth * 0.008, fontsize * 1.4 * 0.008, 1);
+      return sprite;
+    }
+
+    // Create main molecule with sprite label instead of CSS2DObject
+    const mainGeometry = new THREE.DodecahedronGeometry(1.7, 0); // radius increased from 1.3 to 1.7
+    const mainMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0a0a0a,       // Very dark gray
+      metalness: 1.0,
+      roughness: 0.2,
+    });
     const mainMolecule = new THREE.Mesh(mainGeometry, mainMaterial);
-    mainMolecule.userData = { goal: "Career Goal" }; // Attach career goal data
+    mainMolecule.userData = { goal: "Career as Software Engineer" };
     scene.add(mainMolecule);
 
-    // Add label for the main molecule
-    const mainLabelDiv = document.createElement('div');
-    mainLabelDiv.className = 'label';
-    mainLabelDiv.textContent = 'Career Goal';
-    mainLabelDiv.style.marginTop = '5rem'; // Move label further below the molecule
-    mainLabelDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Add black transparent background
-    mainLabelDiv.style.padding = '5px'; // Add padding for better readability
-    mainLabelDiv.style.borderRadius = '5px'; // Add border radius for rounded corners
-    mainLabelDiv.style.fontSize = '0.8rem'; // Make font smaller
-    const mainLabel = new CSS2DObject(mainLabelDiv);
-    mainLabel.renderOrder = 1; // Ensure the label is rendered after the molecule
-    mainMolecule.add(mainLabel);
+    // Remove previous DOM label code and add sprite label:
+    const goalSprite = createTextSprite("Career as Software Engineer", { fontsize: 36, fillStyle: "white" });
+    goalSprite.position.set(0, -1.8, 0); // adjust position relative to the molecule
+    mainMolecule.add(goalSprite);
 
-    // Create orbiting molecules without rings or texts
+    // For orbiting molecules, add sprite labels instead of CSS2DObject:
     const orbitPositions = [
       new THREE.Vector3(-2.5, 0, 0),
       new THREE.Vector3(2.5, 0, 0),
@@ -331,36 +418,71 @@ export default function Home() {
       new THREE.Vector3(0, 1, 0),
     ];
     const orbitingMolecules: THREE.Mesh[] = []; // Explicitly typed as an array of THREE.Mesh
-    const subGoals = [
-      "Sub-goal 1",
-      "Sub-goal 2",
-      "Sub-goal 3",
-      "Sub-goal 4",
-      "Sub-goal 5",
-      "Sub-goal 6",
+    const chapters = [
+      {
+        title: "Programming Basics",
+        lessons: ["Variables", "Control Structures", "Functions", "Data Types"]
+      },
+      {
+        title: "Data Structures",
+        lessons: ["Arrays", "Linked Lists", "Stacks", "Queues"]
+      },
+      {
+        title: "Algorithms",
+        lessons: ["Sorting", "Searching", "Graph Algorithms", "Dynamic Programming"]
+      },
+      {
+        title: "Web Development",
+        lessons: ["HTML & CSS", "JavaScript", "Frontend Frameworks", "Backend Development"]
+      },
+      {
+        title: "Software Engineering",
+        lessons: ["Version Control", "Software Design Patterns", "Testing", "DevOps"]
+      },
+      {
+        title: "Advanced Topics",
+        lessons: ["Cloud Computing", "Mobile Development", "AI & Machine Learning", "Cybersecurity"]
+      }
     ];
 
-    for (let i = 0; i < 6; i++) {
-      const orbitGeometry = new THREE.IcosahedronGeometry(0.4, 0);
-      const orbitMaterial = new THREE.MeshStandardMaterial({ color: 0xede9fe, metalness: 0.7, roughness: 0.3, emissive: 0x111111 });
+    for (let i = 0; i < chapters.length; i++) {
+      // Keep mini molecule size as before
+      const orbitGeometry = new THREE.IcosahedronGeometry(0.35, 0); // Increase mini molecule size from 0.25 to 0.35
+      const orbitMaterial = new THREE.MeshStandardMaterial({
+        color: 0x8A2BE2, // Now blue-violet instead of black
+        metalness: 0.7,
+        roughness: 0.3,
+        emissive: 0x111111,
+      });
       const orbitMolecule = new THREE.Mesh(orbitGeometry, orbitMaterial);
-      orbitMolecule.userData = { subGoal: subGoals[i] }; // Attach sub-goal data
+      orbitMolecule.userData = { chapter: chapters[i].title, lessons: chapters[i].lessons }; // Attach chapter data
       orbitingMolecules.push(orbitMolecule);
       scene.add(orbitMolecule);
 
-      // Add label for each orbiting molecule
-      const labelDiv = document.createElement('div');
-      labelDiv.className = 'label';
-      labelDiv.textContent = subGoals[i];
-      labelDiv.style.marginTop = '3rem'; // Move label below the molecule
-      labelDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Add black transparent background
-      labelDiv.style.padding = '5px'; // Add padding for better readability
-      labelDiv.style.borderRadius = '5px'; // Add border radius for rounded corners
-      labelDiv.style.fontSize = '0.8rem'; // Make font smaller
-      const label = new CSS2DObject(labelDiv);
-      label.renderOrder = 1; // Ensure the label is rendered after the molecule
-      orbitMolecule.add(label);
+      // Remove CSS2D label code and add sprite text
+      const chapterSprite = createTextSprite(chapters[i].title, { fontsize: 28, fillStyle: "white" });
+      chapterSprite.position.set(0, -0.5, 0); // adjust for proper placement
+      orbitMolecule.add(chapterSprite);
     }
+
+    // Molecule formation effect on fresh page load
+    gsap.from(mainMolecule.scale, {
+      x: 0,
+      y: 0,
+      z: 0,
+      duration: 1.5,
+      ease: "back.out(1.7)"
+    });
+    orbitingMolecules.forEach((molecule, index) => {
+      gsap.from(molecule.scale, {
+        x: 0,
+        y: 0,
+        z: 0,
+        duration: 1.5,
+        ease: "back.out(1.7)",
+        delay: index * 0.2
+      });
+    });
 
     // Add event listener for molecule clicks
     const raycaster = new THREE.Raycaster();
@@ -376,47 +498,201 @@ export default function Home() {
       const intersects = raycaster.intersectObjects([mainMolecule, ...orbitingMolecules]);
       if (intersects.length > 0) {
         const clickedMolecule = intersects[0].object;
-        if (clickedMolecule.userData.goal) {
-          alert(`You clicked on: ${clickedMolecule.userData.goal}`);
-        } else if (clickedMolecule.userData.subGoal) {
-          alert(`You clicked on: ${clickedMolecule.userData.subGoal}`);
+        if (clickedMolecule.userData.chapter) {
+          animateToMainGoal(clickedMolecule);
         }
       }
     };
 
     renderer.domElement.addEventListener('click', onMouseClick);
 
-    camera.position.z = 5;
+    // Right after creating the goalSprite and each orbiting subGoalSprite,
+    // store their original scale:
+    goalSprite.userData.baseScale = goalSprite.scale.clone();
+    orbitingMolecules.forEach((molecule) => {
+      // Assuming each child sprite is the label
+      molecule.children.forEach((child) => {
+        if (child instanceof THREE.Sprite) {
+          child.userData.baseScale = child.scale.clone();
+        }
+      });
+    });
 
+    const animateToMainGoal = (clickedMolecule: THREE.Object3D) => {
+      // 1. Animate the clicked subgoal to center and scale it up
+      gsap.to(clickedMolecule.position, {
+        x: 0,
+        y: 0,
+        z: 0,
+        duration: 1.5,
+        ease: "power2.inOut"
+      });
+      gsap.to(clickedMolecule.scale, {
+        x: 1,
+        y: 1,
+        z: 1,
+        duration: 1.5,
+        ease: "power2.inOut"
+      });
+    
+      // 2. Animate the main career goal to shrink and move to a corner
+      gsap.to(mainMolecule.position, {
+        x: -5,
+        y: -5,
+        z: 0,
+        duration: 1.5,
+        ease: "power2.inOut"
+      });
+      gsap.to(mainMolecule.scale, {
+        x: 0.5,
+        y: 0.5,
+        z: 0.5,
+        duration: 1.5,
+        ease: "power2.inOut"
+      });
+    
+      // 3. Animate out the other orbiting molecules
+      orbitingMolecules.forEach(molecule => {
+        if (molecule !== clickedMolecule) {
+          gsap.to(molecule.scale, {
+            x: 0,
+            y: 0,
+            z: 0,
+            duration: 0.75,
+            ease: "power2.inOut",
+            onComplete: () => {
+              scene.remove(molecule);
+            }
+          });
+        }
+      });
+    
+      // After animations complete:
+      setTimeout(() => {
+        // Remove all other orbiting molecules from the array
+        orbitingMolecules.forEach(molecule => {
+          if (molecule !== clickedMolecule) {
+            scene.remove(molecule);
+          }
+        });
+        orbitingMolecules.length = 0;
+        orbitingMolecules.push(clickedMolecule);
+    
+        // 4. Create new sub–subgoal molecules (from clickedMolecule.userData.lessons)
+        const lessons = clickedMolecule.userData.lessons;
+        const newSubGoals: THREE.Mesh[] = [];
+        for (let i = 0; i < lessons.length; i++) {
+          const lessonGeometry = new THREE.IcosahedronGeometry(0.35, 0);
+          const lessonMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8A2BE2,
+            metalness: 0.7,
+            roughness: 0.3,
+            emissive: 0x111111,
+          });
+          const subGoal = new THREE.Mesh(lessonGeometry, lessonMaterial);
+          subGoal.userData = { lesson: lessons[i] };
+    
+          // Position sub–subgoals in a circle around the centered subgoal (radius 2)
+          const angle = (i / lessons.length) * Math.PI * 2;
+          // Randomize initial positions
+          const randomRadius = 2 + Math.random() * 1; // Vary the radius
+          const x = Math.cos(angle) * randomRadius;
+          const y = Math.sin(angle) * randomRadius;
+          subGoal.position.set(x, y, 0);
+    
+          // Add a sprite label for the lesson
+          const subGoalLabel = createTextSprite(lessons[i], { fontsize: 28, fillStyle: "white" });
+          subGoalLabel.position.set(0, -0.5, 0);
+          subGoal.add(subGoalLabel);
+    
+          // Add sub–subgoal as a child of the centered subgoal so they revolve together
+          clickedMolecule.add(subGoal);
+          newSubGoals.push(subGoal);
+    
+          // Animate the sub-subgoals to their final positions
+          gsap.fromTo(subGoal.position,
+            { // Start from a random position
+              x: Math.random() * 4 - 2,
+              y: Math.random() * 4 - 2,
+              z: Math.random() * 4 - 2
+            },
+            { // Animate to the calculated position
+              x: Math.cos(angle) * randomRadius,
+              y: Math.sin(angle) * randomRadius,
+              z: 0,
+              duration: 1.5,
+              ease: "power2.out",
+            }
+          );
+        }
+        // Update orbitingMolecules reference if needed
+        orbitingMolecules.length = 0;
+        orbitingMolecules.push(clickedMolecule, ...newSubGoals);
+      }, 1500);
+    };
+    
     const animate = () => {
       requestAnimationFrame(animate);
-      
+    
+      // Rotate molecules as before
       mainMolecule.rotation.x += 0.01;
       mainMolecule.rotation.y += 0.02;
       mainMolecule.rotation.z += 0.015;
-      
+    
+      // Rotate the centered molecule
+      if (orbitingMolecules.length > 0) {
+        orbitingMolecules[0].rotation.x += 0.01;
+        orbitingMolecules[0].rotation.y += 0.02;
+        orbitingMolecules[0].rotation.z += 0.015;
+      }
+    
       const angle = Date.now() * 0.0003;
-      orbitingMolecules.forEach((molecule, i) => {
+      orbitingMolecules.slice(1).forEach((molecule, i) => { // Start from index 1 to exclude the centered molecule
         molecule.rotation.x += 0.02;
         molecule.rotation.y += 0.015;
         molecule.rotation.z += 0.025;
-        
-        const pos = orbitPositions[i].clone();
-        const dynamicAxis = orbitAxes[i].clone().applyAxisAngle(new THREE.Vector3(1, 0, 0), Math.sin(angle * 0.5 + i));
+    
+        const pos = orbitPositions[i % orbitPositions.length].clone();
+        const dynamicAxis = orbitAxes[i % orbitAxes.length].clone().applyAxisAngle(new THREE.Vector3(1, 0, 0), Math.sin(angle * 0.5 + i));
         pos.applyAxisAngle(dynamicAxis, angle);
         molecule.position.copy(pos);
       });
+    
+      // New: update labels based on distance to camera
+      const updateLabelScale = (sprite: THREE.Sprite) => {
+        const worldPos = new THREE.Vector3();
+        sprite.getWorldPosition(worldPos);
+        const d = camera.position.distanceTo(worldPos);
+        // Define near and far distances and desired scales
+        const near = 3, far = 10;
+        const maxScale = 1.5, minScale = 0.3;
+        let factor = d <= near ? maxScale : d >= far ? minScale : maxScale - ((maxScale - minScale) * ((d - near) / (far - near)));
+        if (sprite.userData.baseScale) {
+          sprite.scale.copy(sprite.userData.baseScale.clone().multiplyScalar(factor));
+        }
+      };
+    
+      // Update main molecule label
+      updateLabelScale(goalSprite);
+      // Update orbiting molecules labels
+      orbitingMolecules.forEach((molecule) => {
+        molecule.children.forEach((child) => {
+          if (child instanceof THREE.Sprite) {
+            updateLabelScale(child);
+          }
+        });
+      });
+    
       renderer.render(scene, camera);
-      labelRenderer.render(scene, camera); // Render labels
+      labelRenderer.render(scene, camera);
     };
-
+    
     animate();
 
     const handleResize = () => {
-        camera.aspect = 1;
-        camera.updateProjectionMatrix();
-        renderer.setSize(400, 400);
-        labelRenderer.setSize(400, 400); // Update label renderer size
+        // Maintain the fixed canvas size or update as desired
+        renderer.setSize(384, 384);
+        labelRenderer.setSize(384, 384);
     };
 
     window.addEventListener('resize', handleResize);
@@ -511,48 +787,36 @@ export default function Home() {
     setShowAssistant(!showAssistant);
   };
 
-  const handleAssistantMessage = (message: string) => { // explicitly typed as string
+  // Update the assistant message handler to use full backend URL and add logging for debugging
+  const handleAssistantMessage = (message: string) => {
     setAssistantMessages([...assistantMessages, { text: message, sender: "user" }]);
-
-    // Simulate AI response after a short delay
-    setTimeout(() => {
-      // Basic AI logic (replace with actual AI integration)
-      let aiResponse = "";
-      const lowerCaseMessage = message.toLowerCase();
-
-      if (lowerCaseMessage.includes("help")) {
-        aiResponse = "I can help you with course recommendations, study tips, and more! Just ask!";
-      } else if (lowerCaseMessage.includes("recommend course")) {
-        aiResponse = "Based on your profile, I recommend the 'AI for Beginners' course. It's a great starting point!";
-      } else if (lowerCaseMessage.includes("change pace")) {
-        aiResponse = "I've adjusted your learning pace to 'Medium' based on your recent activity. Let me know if it's too fast or slow!";
-      } else if (lowerCaseMessage.includes("study tips")) {
-        aiResponse = "Here's a study tip: Try the Pomodoro Technique for focused learning sessions!";
-      } else if (lowerCaseMessage.includes("what is eduflix")) {
-        aiResponse = "EduFlix is your personalized learning platform, designed to make education engaging and effective!";
-      } else if (lowerCaseMessage.includes("find study group") || lowerCaseMessage.includes("take me to study group")) {
-        aiResponse = "Navigating to the Study Group...";
-        router.push('/study-group');
-      } else if (lowerCaseMessage.includes("how to code")) {
-        aiResponse = "Coding is fun! I recommend starting with Python. It's beginner-friendly and versatile.";
-      } else if (lowerCaseMessage.includes("best way to learn")) {
-        aiResponse = "The best way to learn is through a combination of theory and practice. Try hands-on projects!";
-      } else if (lowerCaseMessage.includes("career advice")) {
-        aiResponse = "Based on your skills, a career in Data Science or AI Engineering would be a great fit!";
-      } else if (lowerCaseMessage.includes("motivate me")) {
-        aiResponse = "You've got this! Remember, every step you take is a step closer to your goals. Keep learning and growing!";
-      } else if (lowerCaseMessage.includes("take me to profile")) {
-        aiResponse = "Navigating to your Profile...";
-        router.push(`/profile/${username || 'defaultUser'}`);
-      } else if (lowerCaseMessage.includes("take me to friends") || lowerCaseMessage.includes("take me to edu network")) {
-        aiResponse = "Navigating to your Edu Network...";
-        router.push('/friends');
-      } else {
-        aiResponse = "I'm still learning. Can you please be more specific?";
-      }
-
-      setAssistantMessages(prevMessages => [...prevMessages, { text: aiResponse, sender: "ai" }]);
-    }, 1000);
+    // Call Llama chat API using the full URL
+    fetch(`${API_BASE_URL}/chat/llama-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ prompt: message })
+    })
+      .then((res) => {
+        console.log("Response status:", res.status);
+        if (!res.ok) {
+          throw new Error("Network response was not ok: " + res.statusText);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        console.log("Received data:", data);
+        setAssistantMessages((prevMessages) => [
+          ...prevMessages,
+          { text: data.response, sender: "ai" }
+        ]);
+      })
+      .catch((err) => {
+        console.error("Error fetching chatbot response:", err);
+        setAssistantMessages((prevMessages) => [
+          ...prevMessages,
+          { text: "Error: " + err, sender: "ai" }
+        ]);
+      });
   };
 
   const fetchEduReels = () => {
@@ -606,26 +870,28 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-gray-900 to-black text-white overflow-hidden">
-      <header className="flex justify-between items-center p-6 bg-gray-900 bg-opacity-70 shadow-lg fixed top-0 left-0 right-0 z-50">
-        <h1 className="text-4xl font-extrabold text-purple-400">EduFlix</h1>
+    <div className="flex flex-col min-h-screen bg-gray-50 text-gray-800 overflow-hidden">
+      <header className="flex justify-between items-center p-6 bg-white bg-opacity-70 backdrop-blur-md shadow-lg fixed top-0 left-0 right-0 z-50">
+        <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700">
+          EduFlix AI
+        </h1>
         <div className="flex-grow mx-4">
           <input
             type="text"
             placeholder="Search courses..."
-            className="w-full px-4 py-2 bg-gray-800 text-white rounded-full focus:outline-none shadow-md"
+            className="w-full px-4 py-2 bg-gray-100 text-gray-800 rounded-full focus:outline-none shadow-md"
           />
         </div>
         <nav className="flex space-x-4">
           <button
             onClick={() => router.push('/study-group')}
-            className="px-4 py-2 text-lg font-semibold text-white hover:text-purple-400 transition-colors duration-200"
+            className="px-4 py-2 text-lg font-semibold text-gray-800 hover:text-purple-400 transition-colors duration-200"
           >
             Study Group
           </button>
           <button
             onClick={() => router.push('/myprofile')}
-            className="px-4 py-2 text-lg font-semibold text-white hover:text-purple-400 transition-colors duration-200"
+            className="px-4 py-2 text-lg font-semibold text-gray-800 hover:text-purple-400 transition-colors duration-200"
           >
             <FaUser className="mr-2 inline-block" /> {/* Add the icon here */}
             Profile
@@ -637,7 +903,7 @@ export default function Home() {
           <h3 className="text-2xl font-bold mb-4 text-center text-purple-400 font-sans">
             {/* Leaderboard */}
           </h3>
-          <div className="bg-gray-800 bg-opacity-70 backdrop-blur-lg rounded-lg p-6 shadow-lg">
+          <div className="bg-white bg-opacity-70 backdrop-blur-lg rounded-lg p-6 shadow-lg">
             {leaderboard.map((user, index) => (
               <div key={index} className="mb-4 flex items-center">
                 <span className="w-8 text-center">
@@ -656,8 +922,8 @@ export default function Home() {
                     value={(user.points / maxPoints) * 100}
                     text={`${user.points}`}
                     styles={buildStyles({
-                      textColor: '#fff',
-                      trailColor: '#4a5568',
+                      textColor: '#6b7280',
+                      trailColor: '#e5e7eb',
                       pathColor: '#9f7aea',
                     })}
                   />
@@ -668,13 +934,13 @@ export default function Home() {
         </aside>
         {/* EduReels section */}
         <aside className={`w-60 mt-0 relative ${isReelMinimized ? 'h-16 transform fixed right-0 bottom-1/2 -translate-y-1/2' : 'h-[650px]'}`}>
-          <div className="absolute top-0 left-0 w-full h-16 bg-gray-900 border border-gray-700 p-4 text-white text-center font-bold text-2xl z-10 cursor-pointer flex items-center justify-center rounded-t-lg"
+          <div className="absolute top-0 left-0 w-full h-16 bg-gray-100 border border-gray-200 p-4 text-gray-800 text-center font-bold text-2xl z-10 cursor-pointer flex items-center justify-center rounded-t-lg"
             onClick={toggleReelMinimize}
           >
             {isReelMinimized ? 'EduReels' : 'EduReels'}
           </div>
           <div 
-            className={`relative w-full ${isReelMinimized ? 'h-16' : 'h-full'} overflow-hidden border border-gray-700 rounded-lg shadow-lg`}
+            className={`relative w-full ${isReelMinimized ? 'h-16' : 'h-full'} overflow-hidden border border-gray-200 rounded-lg shadow-lg`}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
@@ -717,7 +983,7 @@ export default function Home() {
         </aside>
       </main>
       {/* Content Catalog Section */}
-      <section className="p-10 bg-gray-900 bg-opacity-70 shadow-lg rounded-3xl mb-8 ml-24">
+      <section className="p-10 bg-white bg-opacity-70 shadow-lg rounded-3xl mb-8 ml-24">
         <h2 className="text-4xl font-bold text-purple-400 mb-8">Explore Our Catalog</h2>
         <div className="flex overflow-x-auto space-x-8">
           {contentCatalog.slice(0, 5).map((item, index) => (
@@ -743,9 +1009,13 @@ export default function Home() {
       <div className="fixed bottom-64 left-4 hover:scale-110 transition-transform z-50">
         <button
           onClick={handleAssistantToggle}
-          className="p-4 bg-purple-600 hover:bg-purple-700 rounded-full shadow-lg"
+          className="w-16 h-16 flex items-center justify-center bg-purple-600 hover:bg-purple-700 rounded-full shadow-lg"
         >
-          {showAssistant ? <FaTimes className="text-white h-6 w-6" /> : <span className="text-white">Flix</span>}
+          {showAssistant ? (
+            <FaTimes className="text-white h-6 w-6" />
+          ) : (
+            <span className="text-white text-base">NJAN</span>
+          )}
         </button>
         {showAssistant && (
           <div className="absolute bottom-full left-0 mb-4 bg-gray-900 bg-opacity-90 rounded-lg shadow-lg w-80 z-50 flex flex-col">

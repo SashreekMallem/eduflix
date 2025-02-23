@@ -7,21 +7,35 @@ import 'react-circular-progressbar/dist/styles.css';
 
 interface Profile {
   user_id: string;
+  full_name: string;
+  date_of_birth: string;
   username: string;
+  current_status: string;
+  resume_filename: string;
+  transcript_filenames: string[]; // updated to an array
   university: string;
   degree: string;
-  resume_filename: string;
-  transcript_filename: string;
+  field_of_study: string;
   relevant_courses: string[];
-  certifications: { title: string; issuer: string }[];
-  online_courses: { name: string; company: string }[];
-  work_experience_title: string;
-  work_experience_description: string;
+  added_degrees: {
+    university: string;
+    degree: string;
+    field_of_study: string;
+    relevant_courses: string[];
+  }[];
+  certifications: { type: string; title?: string; name?: string; issuer: string; verificationLink?: string }[];
+  online_courses: { name: string; issuer: string }[];
+  work_experience: {
+    company: string;
+    title: string;
+    description: string;
+  }[];
   preferred_learning_pace: string;
+  learning_commitment: string;
   preferred_learning_methods: string[];
+  learning_goals: string[];
   project_file: string;
   project_description: string;
-  learning_goals: string;
 }
 
 const SkillProgress = ({ skill, value }: { skill: string; value: number }) => (
@@ -79,12 +93,16 @@ export default function ProfilePage() {
       <div className="container mx-auto p-8">
         {/* 1. Hero Section (Profile Overview) */}
         <section className="bg-gray-800 bg-opacity-20 backdrop-blur-md rounded-3xl p-6 mb-8 shadow-lg border border-gray-700">
-          {/* Profile & Quick Stats */}
           <div className="flex items-center mb-4">
             <div className="w-32 h-32 bg-gray-300 rounded-full mr-6 flex-shrink-0"></div>
             <div>
-              <h1 className="text-4xl font-bold">{profile.username}</h1>
-              <p className="text-gray-400 text-lg">Good Evening, {profile.username}! Ready to conquer the next challenge?</p>
+              <h1 className="text-4xl font-bold">{profile.full_name}</h1>
+              <p className="text-gray-400 text-lg">
+                {profile.current_status} • {profile.date_of_birth}
+              </p>
+              <p className="text-gray-400 text-lg">
+                Welcome {profile.username}, ready to conquer the next challenge?
+              </p>
               <div className="mt-2">
                 <span className="text-yellow-400 mr-2">
                   <FaCrown className="inline-block mr-1" /> Elite Learner Badge
@@ -111,13 +129,25 @@ export default function ProfilePage() {
               <FaRocket className="inline-block mr-1" /> Suggested Next Course: Deep Learning with TensorFlow
             </p>
           </div>
+          <div className="mt-4">
+            <p className="text-gray-400">
+              Transcript Files: {(profile.transcript_filenames ?? []).length ? profile.transcript_filenames.join(', ') : "None"}
+            </p>
+          </div>
         </section>
 
         {/* 2. Education Section */}
         <section className="bg-gray-800 bg-opacity-20 backdrop-blur-md rounded-3xl p-6 mb-8 shadow-lg border border-gray-700">
           <h2 className="text-3xl font-bold mb-6">Education</h2>
-          <p className="text-gray-400"><strong>University:</strong> {profile.university || "Not provided"}</p>
-          <p className="text-gray-400"><strong>Degree:</strong> {profile.degree || "Not provided"}</p>
+          <p className="text-gray-400">
+            <strong>University:</strong> {profile.university || "Not provided"}
+          </p>
+          <p className="text-gray-400">
+            <strong>Degree:</strong> {profile.degree || "Not provided"}
+          </p>
+          <p className="text-gray-400">
+            <strong>Field of Study:</strong> {profile.field_of_study || "Not provided"}
+          </p>
           <div>
             <h3 className="text-xl font-semibold mb-2">Relevant Courses</h3>
             {profile.relevant_courses && profile.relevant_courses.length > 0 ? (
@@ -128,6 +158,23 @@ export default function ProfilePage() {
               </ul>
             ) : (
               <p className="text-gray-500">No relevant courses added yet.</p>
+            )}
+          </div>
+          <div className="mt-4">
+            <h3 className="text-xl font-semibold mb-2">Degrees Added</h3>
+            {profile.added_degrees && profile.added_degrees.length > 0 ? (
+              profile.added_degrees.map((deg, idx) => (
+                <div key={idx} className="mb-3 p-3 bg-gray-700 rounded">
+                  <p className="text-gray-300"><strong>Institution:</strong> {deg.university}</p>
+                  <p className="text-gray-300"><strong>Degree:</strong> {deg.degree}</p>
+                  <p className="text-gray-300"><strong>Field:</strong> {deg.field_of_study}</p>
+                  <p className="text-gray-300">
+                    <strong>Courses:</strong> {(deg.relevant_courses ?? []).join(', ')}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500">No added degrees.</p>
             )}
           </div>
         </section>
@@ -142,7 +189,7 @@ export default function ProfilePage() {
           </div>
           <div className="mb-4">
             <p className="text-gray-400">Total Hours: 98h ⏳</p>
-            <p className="text-gray-400">Current Weekly Average: 15h 📈</p>
+            <p className="text-gray-400">Weekly Average: 15h 📈</p>
           </div>
           <div>
             <h3 className="text-xl font-semibold mb-2">Certification Showcase</h3>
@@ -161,15 +208,28 @@ export default function ProfilePage() {
         {/* 4. Work Experience Section */}
         <section className="bg-gray-800 bg-opacity-20 backdrop-blur-md rounded-3xl p-6 mb-8 shadow-lg border border-gray-700">
           <h2 className="text-3xl font-bold mb-6">Work Experience</h2>
-          <p className="text-gray-400"><strong>Title:</strong> {profile.work_experience_title || "Not provided"}</p>
-          <p className="text-gray-400"><strong>Description:</strong> {profile.work_experience_description || "Not provided"}</p>
+          {profile.work_experience && profile.work_experience.length > 0 ? (
+            profile.work_experience.map((exp, index) => (
+              <div key={index} className="mb-4 p-4 bg-gray-700 rounded">
+                <p className="text-gray-300"><strong>Company:</strong> {exp.company}</p>
+                <p className="text-gray-300"><strong>Title:</strong> {exp.title}</p>
+                <p className="text-gray-300"><strong>Description:</strong> {exp.description}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500">No work experience provided.</p>
+          )}
         </section>
 
         {/* 5. Projects Section */}
         <section className="bg-gray-800 bg-opacity-20 backdrop-blur-md rounded-3xl p-6 mb-8 shadow-lg border border-gray-700">
           <h2 className="text-3xl font-bold mb-6">Projects</h2>
-          <p className="text-gray-400"><strong>File:</strong> {profile.project_file || "Not provided"}</p>
-          <p className="text-gray-400"><strong>Description:</strong> {profile.project_description || "Not provided"}</p>
+          <p className="text-gray-400">
+            <strong>File:</strong> {profile.project_file || "Not provided"}
+          </p>
+          <p className="text-gray-400">
+            <strong>Description:</strong> {profile.project_description || "Not provided"}
+          </p>
         </section>
 
         {/* 6. Personalized Learning Insights */}
@@ -191,9 +251,13 @@ export default function ProfilePage() {
             <h3 className="text-xl font-semibold mb-2">Preferred Learning Pace</h3>
             <p className="text-gray-400">{profile.preferred_learning_pace || "Not provided"}</p>
           </div>
+          <div className="mb-4">
+            <h3 className="text-xl font-semibold mb-2">Learning Commitment</h3>
+            <p className="text-gray-400">{profile.learning_commitment || "Not provided"}</p>
+          </div>
           <div>
             <h3 className="text-xl font-semibold mb-2">Learning Goals</h3>
-            <p className="text-gray-400">{profile.learning_goals || "Not provided"}</p>
+            <p className="text-gray-400">{profile.learning_goals && profile.learning_goals.length ? profile.learning_goals.join(', ') : "Not provided"}</p>
           </div>
         </section>
       </div>
