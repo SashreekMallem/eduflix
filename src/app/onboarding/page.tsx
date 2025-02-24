@@ -792,7 +792,12 @@ const createRectangleWithNodes = () => {
 
   // Update the handleFinishStep7 function to call createRectangleWithNodes after 3 seconds
   const handleFinishStep7 = () => {
-    if (!expandedNode) return;
+    // If no node is expanded, simply move to step 8
+    if (!expandedNode) {
+      setStep(8);
+      setTimeout(createRectangleWithNodes, 3000);
+      return;
+    }
     gsap.to("#formContainer", {
       duration: 0.5,
       opacity: 0,
@@ -943,7 +948,69 @@ const createRectangleWithNodes = () => {
   // Wrap existing handleSubmit to first validate required fields
   const handleSubmitWrapper = () => {
     if (validateStep()) {
-      handleSubmit();
+      if (step === 7) {
+        handleFinalSubmit();
+      } else {
+        handleSubmit();
+      }
+    }
+  };
+
+  const handleFinalSubmit = async () => {
+    if (!validateStep()) return;
+
+    // Prepare form data
+    const formData = new FormData();
+    formData.append("user_id", userId);
+    formData.append("full_name", fullName);
+    formData.append("date_of_birth", dateOfBirth);
+    formData.append("username", username);
+    formData.append("current_status", currentStatus);
+    if (resumeFile) formData.append("resume_file", resumeFile);
+    transcriptFiles.forEach((file, index) => formData.append(`transcript_files[${index}]`, file));
+    formData.append("university", university);
+    formData.append("degree", degree);
+    formData.append("field_of_study", fieldOfStudy);
+    formData.append("relevant_courses", JSON.stringify(relevantCourses));
+    formData.append("added_degrees", JSON.stringify(addedDegrees));
+    formData.append("certifications", JSON.stringify(certifications));
+    formData.append("online_courses", JSON.stringify(onlineCourses));
+    formData.append("work_experience", JSON.stringify(addedWorkExperiences));
+    formData.append("preferred_learning_pace", preferredLearningPace);
+    formData.append("learning_commitment", learningCommitment);
+    formData.append("preferred_learning_methods", JSON.stringify(preferredLearningMethods));
+    formData.append("learning_goals", JSON.stringify(learningGoals));
+    if (projectFile) formData.append("project_file", projectFile);
+    formData.append("project_description", projectDescription);
+
+    try {
+      // Send onboarding details to backend
+      const response = await fetch("/onboarding", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to submit onboarding details");
+      }
+
+      // Extract skills from the provided text
+      const text = `${fieldOfStudy} ${relevantCourses.join(" ")} ${addedDegrees.map(degree => degree.fieldOfStudy).join(" ")} ${certifications.map(cert => cert.title).join(" ")} ${onlineCourses.map(course => course.name).join(" ")} ${addedWorkExperiences.map(exp => exp.description).join(" ")} ${projectDescription}`;
+      const skillResponse = await fetch("/extract-and-store-skills", {
+        method: "POST",
+        body: new URLSearchParams({ user_id: userId, text }),
+      });
+
+      if (!skillResponse.ok) {
+        throw new Error("Failed to extract and store skills");
+      }
+
+      // Handle successful submission
+      alert("Onboarding completed successfully!");
+      router.push("/home");
+    } catch (error) {
+      console.error("Error during final submit:", error);
+      alert("An error occurred during submission. Please try again.");
     }
   };
 
