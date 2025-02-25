@@ -717,22 +717,18 @@ const createRectangleWithNodes = () => {
                       ${addedDegrees.length 
                         ? addedDegrees.map(degree => `
                           <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                            <p class="mb-2 text-lg"><strong>University / College:</strong> ${degree.university || "Not provided"}</p>
-                            <p class="mb-2 text-lg"><strong>Degree:</strong> ${degree.degree || "Not provided"}</p>
-                            <p class="mb-2 text-lg"><strong>Field of Study:</strong> ${degree.field_of_study || "Not provided"}</p>
-                            <p class="mb-2 text-lg"><strong>Relevant Courses:</strong> ${
-                              degree.relevant_courses && degree.relevant_courses.length
-                                ? degree.relevant_courses.join(', ')
-                                : "Not provided"
+                            <p class="mb-2 text-lg"><strong>Institution:</strong> ${degree.university}</p>
+                            <p class="mb-2 text-lg"><strong>Degree:</strong> ${degree.degree}</p>
+                            <p class="mb-2 text-lg"><strong>Field:</strong> ${degree.field_of_study}</p>
+                            <p class="mb-2 text-lg"><strong>Courses:</strong> ${
+                              degree.relevant_courses && degree.relevant_courses.length 
+                                ? degree.relevant_courses.join(', ') 
+                                : "None"
                             }</p>
                           </div>
                         `).join('')
-                        : `<div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                          <p class="mb-2 text-lg"><strong>University Name(s):</strong> ${university || "Not provided"}</p>
-                          <p class="mb-2 text-lg"><strong>Degree:</strong> ${degree || "Not provided"}</p>
-                          <p class="mb-2 text-lg"><strong>Field of Study:</strong> ${fieldOfStudy || "Not provided"}</p>
-                          <p class="mb-2 text-lg"><strong>Relevant Courses:</strong> ${relevantCourses.length ? relevantCourses.join(', ') : "Not provided"}</p>
-                        </div>`}
+                        : "<p>No degrees added yet.</p>"
+                      }
                     </div>
                   </section>
 
@@ -784,6 +780,10 @@ const createRectangleWithNodes = () => {
                         `
                       }
                     </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Learning Preferences and Goals</h3>
                   </section>
 
                   <section class="mb-8">

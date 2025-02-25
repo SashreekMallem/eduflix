@@ -1,5 +1,5 @@
 "use client";
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { FaCrown, FaMedal, FaTrophy, FaDownload, FaLock, FaRocket, FaUniversity, FaBook, FaCertificate, FaBriefcase, FaProjectDiagram } from 'react-icons/fa';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
@@ -9,9 +9,7 @@ interface UserProfile {
   username: string;
   resume_file?: string;
   transcript_file?: string;
-  university?: string;
-  degree?: string;
-  relevant_courses: string[];
+  education: { university: string; degree: string; field_of_study: string; relevant_courses: string[] }[];
   certifications: { title: string; issuer: string }[];
   online_courses: { name: string; platform: string }[];
   work_experience_title?: string;
@@ -21,6 +19,7 @@ interface UserProfile {
   project_file?: string;
   project_description?: string;
   learning_goals?: string;
+  extracted_skills: string[];
 }
 
 const SkillProgress = ({ skill, value }: { skill: string; value: number }) => (
@@ -50,6 +49,7 @@ const ProjectCard = ({ project }: { project: string }) => (
 
 export default function ProfilePage() {
   const { username } = useParams() as { username: string };
+  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [error, setError] = useState("");
 
@@ -65,10 +65,12 @@ export default function ProfilePage() {
       const data = await res.json();
       setProfile({
         ...data,
+        education: data.education || [],
         relevant_courses: data.relevant_courses || [],
         certifications: data.certifications || [],
         online_courses: data.online_courses || [],
         preferred_learning_methods: data.preferred_learning_methods || [],
+        extracted_skills: data.extracted_skills || [],
       });
     } catch (err) {
       console.error("Error fetching profile:", err);
@@ -82,7 +84,12 @@ export default function ProfilePage() {
   return (
     <div className="bg-[#0B0F19] text-white min-h-screen font-poppins">
       <header className="bg-[#121826] p-6 shadow-lg">
-        <h1 className="text-3xl font-bold">Profile</h1>
+        <h1
+          className="text-3xl font-bold cursor-pointer"
+          onClick={() => router.push('/home')}
+        >
+          Edu Profile
+        </h1>
       </header>
       <div className="container mx-auto p-8">
         {/* 1. Hero Section (Profile Overview) */}
@@ -124,29 +131,31 @@ export default function ProfilePage() {
         {/* 2. Education Section */}
         <section className="bg-gray-800 bg-opacity-20 backdrop-blur-md rounded-3xl p-6 mb-8 shadow-lg border border-gray-700">
           <h2 className="text-3xl font-bold mb-6">Education</h2>
-          <p className="text-gray-400"><strong>University:</strong> {profile.university || "Not provided"}</p>
-          <p className="text-gray-400"><strong>Degree:</strong> {profile.degree || "Not provided"}</p>
-          <div>
-            <h3 className="text-xl font-semibold mb-2">Relevant Courses</h3>
-            {profile.relevant_courses && profile.relevant_courses.length > 0 ? (
-              <ul className="list-disc list-inside">
-                {profile.relevant_courses.map((course, index) => (
-                  <li key={index} className="text-gray-400">{course}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-500">No relevant courses added yet.</p>
-            )}
-          </div>
+          {profile.education && profile.education.length > 0 ? (
+            profile.education.map((degree, index) => (
+              <div key={index} className="mb-4">
+                <p className="text-gray-400"><strong>Institution:</strong> {degree.university}</p>
+                <p className="text-gray-400"><strong>Degree:</strong> {degree.degree}</p>
+                <p className="text-gray-400"><strong>Field of Study:</strong> {degree.field_of_study}</p>
+                <p className="text-gray-400"><strong>Courses:</strong> {degree.relevant_courses.join(', ') || "None"}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500">No degrees added yet.</p>
+          )}
         </section>
 
         {/* 3. Skill Strengths & Learning Breakdown */}
         <section className="bg-gray-800 bg-opacity-20 backdrop-blur-md rounded-3xl p-6 mb-8 shadow-lg border border-gray-700">
           <h2 className="text-3xl font-bold mb-6">Skill Strengths & Learning Breakdown</h2>
           <div className="flex justify-around mb-6">
-            <SkillProgress skill="Python" value={90} />
-            <SkillProgress skill="Machine Learning" value={75} />
-            <SkillProgress skill="Deep Learning" value={60} />
+            {profile.extracted_skills && profile.extracted_skills.length > 0 ? (
+              profile.extracted_skills.map((skill, index) => (
+                <SkillProgress key={index} skill={skill} value={Math.floor(Math.random() * 100)} />
+              ))
+            ) : (
+              <p className="text-gray-500">No skills extracted yet.</p>
+            )}
           </div>
           <div className="mb-4">
             <p className="text-gray-400">Total Hours: 98h ⏳</p>

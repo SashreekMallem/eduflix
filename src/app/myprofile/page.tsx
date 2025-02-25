@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FaCrown, FaMedal, FaTrophy, FaDownload, FaLock, FaRocket } from 'react-icons/fa';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
@@ -36,6 +36,7 @@ interface Profile {
   learning_goals: string[];
   project_file: string;
   project_description: string;
+  extracted_skills: string[];
 }
 
 const SkillProgress = ({ skill, value }: { skill: string; value: number }) => (
@@ -64,6 +65,7 @@ const ProjectCard = ({ project }: { project: string }) => (
 );
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState("");
 
@@ -88,7 +90,12 @@ export default function ProfilePage() {
   return (
     <div className="bg-[#0B0F19] text-white min-h-screen font-poppins">
       <header className="bg-[#121826] p-6 shadow-lg">
-        <h1 className="text-3xl font-bold">My Profile</h1>
+        <h1
+          className="text-3xl font-bold cursor-pointer"
+          onClick={() => router.push('/home')}
+        >
+          Edu Profile
+        </h1>
       </header>
       <div className="container mx-auto p-8">
         {/* 1. Hero Section (Profile Overview) */}
@@ -139,53 +146,31 @@ export default function ProfilePage() {
         {/* 2. Education Section */}
         <section className="bg-gray-800 bg-opacity-20 backdrop-blur-md rounded-3xl p-6 mb-8 shadow-lg border border-gray-700">
           <h2 className="text-3xl font-bold mb-6">Education</h2>
-          <p className="text-gray-400">
-            <strong>University:</strong> {profile.university || "Not provided"}
-          </p>
-          <p className="text-gray-400">
-            <strong>Degree:</strong> {profile.degree || "Not provided"}
-          </p>
-          <p className="text-gray-400">
-            <strong>Field of Study:</strong> {profile.field_of_study || "Not provided"}
-          </p>
-          <div>
-            <h3 className="text-xl font-semibold mb-2">Relevant Courses</h3>
-            {profile.relevant_courses && profile.relevant_courses.length > 0 ? (
-              <ul className="list-disc list-inside">
-                {profile.relevant_courses.map((course, index) => (
-                  <li key={index} className="text-gray-400">{course}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-500">No relevant courses added yet.</p>
-            )}
-          </div>
-          <div className="mt-4">
-            <h3 className="text-xl font-semibold mb-2">Degrees Added</h3>
-            {profile.added_degrees && profile.added_degrees.length > 0 ? (
-              profile.added_degrees.map((deg, idx) => (
-                <div key={idx} className="mb-3 p-3 bg-gray-700 rounded">
-                  <p className="text-gray-300"><strong>Institution:</strong> {deg.university}</p>
-                  <p className="text-gray-300"><strong>Degree:</strong> {deg.degree}</p>
-                  <p className="text-gray-300"><strong>Field:</strong> {deg.field_of_study}</p>
-                  <p className="text-gray-300">
-                    <strong>Courses:</strong> {(deg.relevant_courses ?? []).join(', ')}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500">No added degrees.</p>
-            )}
-          </div>
+          {profile.added_degrees && profile.added_degrees.length > 0 ? (
+            profile.added_degrees.map((degree, index) => (
+              <div key={index} className="mb-4">
+                <p className="text-gray-400"><strong>Institution:</strong> {degree.university}</p>
+                <p className="text-gray-400"><strong>Degree:</strong> {degree.degree}</p>
+                <p className="text-gray-400"><strong>Field of Study:</strong> {degree.field_of_study}</p>
+                <p className="text-gray-400"><strong>Courses:</strong> {degree.relevant_courses.join(', ') || "None"}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500">No degrees added yet.</p>
+          )}
         </section>
 
         {/* 3. Skill Strengths & Learning Breakdown */}
         <section className="bg-gray-800 bg-opacity-20 backdrop-blur-md rounded-3xl p-6 mb-8 shadow-lg border border-gray-700">
           <h2 className="text-3xl font-bold mb-6">Skill Strengths & Learning Breakdown</h2>
           <div className="flex justify-around mb-6">
-            <SkillProgress skill="Python" value={90} />
-            <SkillProgress skill="Machine Learning" value={75} />
-            <SkillProgress skill="Deep Learning" value={60} />
+            {profile.extracted_skills && profile.extracted_skills.length > 0 ? (
+              profile.extracted_skills.map((skill, index) => (
+                <SkillProgress key={index} skill={skill} value={Math.floor(Math.random() * 100)} />
+              ))
+            ) : (
+              <p className="text-gray-500">No skills extracted yet.</p>
+            )}
           </div>
           <div className="mb-4">
             <p className="text-gray-400">Total Hours: 98h ⏳</p>
