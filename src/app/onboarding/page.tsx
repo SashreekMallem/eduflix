@@ -4,15 +4,15 @@ import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import gsap from "gsap";
 import { FaUpload, FaLinkedin } from "react-icons/fa";
 import { useRouter } from 'next/navigation';
-import 'react-tooltip/dist/react-tooltip.css';
-import { Tooltip } from "react-tooltip"; // Updated import
 
 export default function NeuralNetworkBackground() {
+  const [expandedNode, setExpandedNode] = useState<number | null>(null);
   interface Node {
     id: number;
     x: number;
     y: number;
     vx: number;
+    vy: number;
     size: number;
     connectedTo: number[];
     isStatic: boolean;
@@ -24,7 +24,6 @@ export default function NeuralNetworkBackground() {
   const [username, setUsername] = useState("");
   const [formVisible, setFormVisible] = useState(true);
   const [step, setStep] = useState(1);
-  const [expandedNode, setExpandedNode] = useState<number | null>(null); // NEW state added
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [transcriptFiles, setTranscriptFiles] = useState<File[]>([]);
@@ -87,18 +86,26 @@ export default function NeuralNetworkBackground() {
   interface Degree {
     university: string;
     degree: string;
-    fieldOfStudy: string;
-    relevantCourses: string[];
+    field_of_study: string;
+    relevant_courses: string[];
   }
 
   const [addedDegrees, setAddedDegrees] = useState<Degree[]>([]);
   const [proficiencyLevels, setProficiencyLevels] = useState({});
   const [learningGoals, setLearningGoals] = useState<string[]>([]);
+  const [fullName, setFullName] = useState("");
+  const [dob, setDob] = useState("");
 
   const handleAddDegree = () => {
     if (university && degree && fieldOfStudy) {
       setAddedDegrees([
         ...addedDegrees,
+        {
+          university,
+          degree,
+          field_of_study: fieldOfStudy,
+          relevant_courses: relevantCourses,
+        },
       ]);
       setUniversity("");
       setDegree("High School");
@@ -279,6 +286,10 @@ export default function NeuralNetworkBackground() {
   };
 
   // Add this helper function at the top of the component (after state declarations, for example)
+  const handleAddLearningGoal = (goal: string) => {
+    setLearningGoals((prevGoals) => [...prevGoals, goal]);
+  };
+
   const margin = 50;
   const getSafePosition = (pos: number, containerSize: number, totalSize: number) =>
     Math.min(Math.max(pos, containerSize / 2 + margin), totalSize - containerSize / 2 - margin);
@@ -613,8 +624,7 @@ const createRectangleWithNodes = () => {
           e.preventDefault();
           const text = (learningGoalsInput as HTMLInputElement).value.trim();
           if (text) {
-            // Update learningGoals state
-            setLearningGoals(prev => [...prev, text]);
+            handleAddLearningGoal(text);
             const availableNode = nodes.find(node => !node.isStatic && !node.textPinned);
             if (availableNode) {
               availableNode.textPinned = true;
@@ -666,105 +676,176 @@ const createRectangleWithNodes = () => {
             positionNodesForSummary();
             setTimeout(() => {
               const infoContainer = document.createElement('div');
+              infoContainer.id = "infoContainer";
               infoContainer.style.position = 'absolute';
               infoContainer.style.left = `${centerX - rectWidth / 2}px`;
               infoContainer.style.top = `${window.innerHeight - rectHeight}px`;
               infoContainer.style.width = `${rectWidth}px`;
               infoContainer.style.height = `${rectHeight}px`;
-              infoContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+              // Set background to transparent as requested
+              infoContainer.style.backgroundColor = 'transparent';
               infoContainer.style.borderRadius = '10px';
               infoContainer.style.padding = '20px';
               infoContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
               infoContainer.style.overflowY = 'auto';
               infoContainer.style.zIndex = '1000';
               infoContainer.innerHTML = `
-                <h2 class="text-black text-center text-2xl font-bold mb-6">Final Summary</h2>
-                <!-- Personal Info -->
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Full Name:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${username || "Not provided"}" readonly />
+                <div style="font-family: 'Arial', sans-serif; color: #e0e0e0; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">
+                  <h2 class="text-center text-3xl font-bold mb-8" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Final Summary</h2>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Personal Details</h3>
+                    <div class="ml-6">
+                      <p class="mb-2 text-lg"><strong>Full Name:</strong> ${fullName || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Username:</strong> ${username || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Date of Birth:</strong> ${dob || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Current Status:</strong> ${currentStatus || "Not provided"}</p>
+                    </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Documents</h3>
+                    <div class="ml-6">
+                      <p class="mb-2 text-lg"><strong>Resume:</strong> ${resumeFile ? resumeFile.name : "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Transcripts:</strong> ${transcriptFiles.length ? transcriptFiles.map(file => file.name).join(', ') : "Not provided"}</p>
+                    </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Academic Information</h3>
+                    <div class="ml-6">
+                      ${addedDegrees.length 
+                        ? addedDegrees.map(degree => `
+                          <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                            <p class="mb-2 text-lg"><strong>University / College:</strong> ${degree.university || "Not provided"}</p>
+                            <p class="mb-2 text-lg"><strong>Degree:</strong> ${degree.degree || "Not provided"}</p>
+                            <p class="mb-2 text-lg"><strong>Field of Study:</strong> ${degree.field_of_study || "Not provided"}</p>
+                            <p class="mb-2 text-lg"><strong>Relevant Courses:</strong> ${
+                              degree.relevant_courses && degree.relevant_courses.length
+                                ? degree.relevant_courses.join(', ')
+                                : "Not provided"
+                            }</p>
+                          </div>
+                        `).join('')
+                        : `<div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                          <p class="mb-2 text-lg"><strong>University Name(s):</strong> ${university || "Not provided"}</p>
+                          <p class="mb-2 text-lg"><strong>Degree:</strong> ${degree || "Not provided"}</p>
+                          <p class="mb-2 text-lg"><strong>Field of Study:</strong> ${fieldOfStudy || "Not provided"}</p>
+                          <p class="mb-2 text-lg"><strong>Relevant Courses:</strong> ${relevantCourses.length ? relevantCourses.join(', ') : "Not provided"}</p>
+                        </div>`}
+                    </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Certifications / Online Courses</h3>
+                    <div class="ml-6">
+                      ${addedItems.length ? addedItems.map(item => `
+                        <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                          <p class="mb-2 text-lg"><strong>Type:</strong> ${item.type}</p>
+                          <p class="mb-2 text-lg"><strong>Title:</strong> ${item.title || "N/A"}</p>
+                          <p class="mb-2 text-lg"><strong>Issuer:</strong> ${item.issuer}</p>
+                          ${item.verificationLink ? `<p class="mb-2 text-lg"><strong>Link:</strong> ${item.verificationLink}</p>` : ""}
+                        </div>
+                      `).join('') : "<p>Not provided</p>"}
+                    </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Work Experience</h3>
+                    <div class="ml-6">
+                      ${addedWorkExperiences.length ? addedWorkExperiences.map(exp => `
+                        <div class="mb-4 p-4 border border-white rounded-md">
+                          <div class="flex justify-between items-center mb-3">
+                            <strong style="margin-right: 10px;">Company:</strong> <span>${exp.company}</span>
+                            <strong style="margin-right: 10px;">Title:</strong> <span>${exp.title}</span>
+                          </div>
+                          <div class="p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                            <p>${exp.description}</p>
+                          </div>
+                        </div>
+                      `).join('') : "<p>Not provided</p>"}
+                    </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Project Information</h3>
+                    <div class="ml-6">
+                      ${
+                        addedProjects.length
+                        ? addedProjects.map(project => `
+                          <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                            <p class="mb-2 text-lg"><strong>Project File:</strong> ${project.file.name}</p>
+                            <p class="mb-2 text-lg"><strong>Project Description:</strong> ${project.description}</p>
+                          </div>
+                        `).join('')
+                        : `
+                          <p class="mb-2 text-lg"><strong>Project File:</strong> ${projectFile ? projectFile.name : "Not provided"}</p>
+                          <p class="mb-2 text-lg"><strong>Project Description:</strong> ${projectDescription || "Not provided"}</p>
+                        `
+                      }
+                    </div>
+                  </section>
+
+                  <section class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Learning Preferences and Goals</h3>
+                    <div class="ml-6">
+                      <p class="mb-2 text-lg"><strong>Preferred Learning Pace:</strong> ${preferredLearningPace || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Learning Commitment Level:</strong> ${learningCommitment || "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Preferred Learning Methods:</strong> ${preferredLearningMethods.length ? preferredLearningMethods.join(', ') : "Not provided"}</p>
+                      <p class="mb-2 text-lg"><strong>Learning Goals:</strong> ${learningGoalsRef.current.length ? learningGoalsRef.current.join(', ') : "Not provided"}</p>
+                    </div>
+                  </section>
+
+                  <button class="w-full mt-6 bg-purple-500 text-white px-5 py-3 rounded-md font-semibold hover:bg-purple-700 transition duration-300" style="font-weight: bold;">Save</button>
                 </div>
-                <!-- Documents -->
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Resume:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${resumeFile ? resumeFile.name : "Not provided"}" readonly />
-                </div>
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Transcripts:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${
-                    transcriptFiles.length ? transcriptFiles.map(file => file.name).join(', ') : "Not provided"
-                  }" readonly />
-                </div>
-                <!-- Academic Info -->
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">University / College:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${university || "Not provided"}" readonly />
-                </div>
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Degree:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${degree || "Not provided"}" readonly />
-                </div>
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Field of Study:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${fieldOfStudy || "Not provided"}" readonly />
-                </div>
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Relevant Courses:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${
-                    relevantCourses.length ? relevantCourses.join(', ') : "Not provided"
-                  }" readonly />
-                </div>
-                <!-- Certifications / Online Courses -->
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Certifications/Online Courses:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${
-                    addedItems.length ? addedItems.map(item => item.title || "N/A").join(', ') : "Not provided"
-                  }" readonly />
-                </div>
-                <!-- Work Experience -->
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Work Experience:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${
-                    addedWorkExperiences.length ? addedWorkExperiences.map(exp => exp.title).join(', ') : "Not provided"
-                  }" readonly />
-                </div>
-                <!-- Project -->
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Project File:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${projectFile ? projectFile.name : "Not provided"}" readonly />
-                </div>
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Project Description:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${projectDescription || "Not provided"}" readonly />
-                </div>
-                <!-- Learning Preferences -->
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Preferred Learning Pace:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${preferredLearningPace || "Not provided"}" readonly />
-                </div>
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Learning Commitment Level:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${learningCommitment || "Not provided"}" readonly />
-                </div>
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Preferred Learning Methods:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${
-                    preferredLearningMethods.length ? preferredLearningMethods.join(', ') : "Not provided"
-                  }" readonly />
-                </div>
-                <!-- Learning Goals -->
-                <div class="mb-4">
-                  <label class="text-black font-bold text-xl">Learning Goals:</label>
-                  <input type="text" class="w-full px-3 py-2 rounded" value="${
-                    learningGoals.length ? learningGoals.join(', ') : "Not provided"
-                  }" readonly />
-                </div>
-                <button class="mt-6 bg-purple-500 text-white px-5 py-2 rounded">Save</button>
               `;
               document.body.appendChild(infoContainer);
               gsap.fromTo(infoContainer, { opacity: 0 }, { opacity: 1, duration: 1 });
-              infoContainer.querySelector('button')?.addEventListener('click', () => {
-                // ...handle save and animate nodes back...
+              infoContainer.querySelector('button')?.addEventListener('click', async () => {
+                if (!userId) {
+                  console.error("No valid user id available for onboarding.");
+                  return;
+                }
+                const formData = new FormData();
+                formData.append("user_id", userId);
+                formData.append("full_name", fullName); // Collected from Step 2 (Personal Details)
+                formData.append("date_of_birth", dob);  // Collected from Step 2 (Personal Details)
+                formData.append("username", username);   // Collected from Step 2 (Personal Details)
+                formData.append("current_status", currentStatus); // Collected from Step 2 (Personal Details)
+                if (resumeFile) formData.append("resume_file", resumeFile); // Step 1 (Documents)
+                if (transcriptFiles.length) {
+                  transcriptFiles.forEach(file => formData.append("transcript_files", file)); // Step 1 (Documents)
+                }
+                formData.append("university", university); // Displayed from Step 3 but final education is in added_degrees
+                formData.append("degree", degree);           // Displayed from Step 3 but final education is in added_degrees
+                formData.append("field_of_study", fieldOfStudy); // Step 3 (Academic Information)
+                formData.append("relevant_courses", JSON.stringify(relevantCourses)); // Step 3 (Academic Information)
+                formData.append("added_degrees", JSON.stringify(addedDegrees)); // Final education info as collected in Step 3 (combined in added_degrees)
+                formData.append("certifications", JSON.stringify(addedItems)); // Step 4 (Certifications / Online Courses)
+                formData.append("online_courses", JSON.stringify(onlineCourses || [])); // Step 4 (Certifications / Online Courses)
+                formData.append("work_experience", JSON.stringify(addedWorkExperiences)); // Step 5 (Work Experience)
+                formData.append("preferred_learning_pace", preferredLearningPace); // Step 7 (Learning Preferences)
+                formData.append("learning_commitment", learningCommitment); // Step 7 (Learning Preferences)
+                formData.append("preferred_learning_methods", JSON.stringify(preferredLearningMethods)); // Step 8 (Learning Preferences)
+                formData.append("learning_goals", JSON.stringify(learningGoals)); // Collected from the Learning Goals Search Bar (after Step 8)
+                if (projectFile) formData.append("project_file", projectFile); // Step 6 (Project Information)
+                formData.append("project_description", projectDescription); // Step 6 (Project Information)
+              
+                try {
+                  const res = await fetch("http://localhost:8000/onboarding", {
+                    method: "POST",
+                    body: formData,
+                  });
+                  if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "Onboarding submission failed");
+                  }
+                  // Remove the summary container before routing
+                  infoContainer.remove();
+                  router.push("/home");
+                } catch (error: any) {
+                  console.error("Onboarding submission error:", error.message);
+                }
               });
             }, 1000);
           }
@@ -792,12 +873,7 @@ const createRectangleWithNodes = () => {
 
   // Update the handleFinishStep7 function to call createRectangleWithNodes after 3 seconds
   const handleFinishStep7 = () => {
-    // If no node is expanded, simply move to step 8
-    if (!expandedNode) {
-      setStep(8);
-      setTimeout(createRectangleWithNodes, 3000);
-      return;
-    }
+    if (!expandedNode) return;
     gsap.to("#formContainer", {
       duration: 0.5,
       opacity: 0,
@@ -871,8 +947,8 @@ const createRectangleWithNodes = () => {
     const item = addedDegrees[index];
     setUniversity(item.university);
     setDegree(item.degree);
-    setFieldOfStudy(item.fieldOfStudy);
-    setRelevantCourses(item.relevantCourses);
+    setFieldOfStudy(item.field_of_study);
+    setRelevantCourses(item.relevant_courses);
   };
 
   const handleEditWorkExperience = (index: number) => {
@@ -896,123 +972,51 @@ const createRectangleWithNodes = () => {
     );
   };
 
-  // Add new state for form errors
-  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
-
-  // Create a helper function to validate required fields per step
-  const validateStep = (): boolean => {
-    let errors: { [key: string]: string } = {};
-
-    // Step 2: Full Name and Username required
-    if (step === 2) {
-      // Assume the Full Name input value is stored in a ref or state; if not, use DOM lookup.
-      if (!username.trim()) {
-        errors.username = "Username is required";
-      }
-      // For example, if you store full name value in a variable 'fullName'
-      const fullNameInput = (document.querySelector('input[placeholder="Enter your Full Name"]') as HTMLInputElement)?.value;
-      if (!fullNameInput || !fullNameInput.trim()) {
-        errors.fullName = "Full Name is required";
-      }
+  // Add handler to edit a given section by setting form step accordingly
+  const handleEditSection = (section: string) => {
+    switch(section) {
+      case "personalDetails":
+        setStep(2);
+        break;
+      case "documents":
+        setStep(1);
+        break;
+      case "academicInformation":
+        setStep(3);
+        break;
+      case "certifications":
+        setStep(4);
+        break;
+      case "workExperience":
+        setStep(5);
+        break;
+      case "projectInformation":
+        setStep(6);
+        break;
+      case "learningPreferences":
+        setStep(7);
+        break;
+      default:
+        break;
     }
-
-    // Step 3: Degree and Field of Study required
-    if (step === 3) {
-      if (!degree.trim()) {
-        errors.degree = "Degree is required";
-      }
-      if (!fieldOfStudy.trim()) {
-        errors.fieldOfStudy = "Field of Study is required";
-      }
-    }
-
-    // Step 4: At least one Certification or Online Course is required
-    if (step === 4 && addedItems.length === 0) {
-      errors.certifications = "At least one certification or online course is required";
-    }
-
-    // Step 5: Work Experience required
-    if (step === 5 && addedWorkExperiences.length === 0) {
-      errors.workExperience = "Work Experience is required";
-    }
-
-    // Step 7: Learning Goals required
-    if (step === 7 && learningGoals.length === 0) {
-      errors.learningGoals = "Learning Goals are required";
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    // Remove the summary container from DOM if it exists.
+    const infoContainer = document.getElementById("infoContainer");
+    if (infoContainer) infoContainer.remove();
   };
 
-  // Wrap existing handleSubmit to first validate required fields
-  const handleSubmitWrapper = () => {
-    if (validateStep()) {
-      if (step === 7) {
-        handleFinalSubmit();
-      } else {
-        handleSubmit();
-      }
-    }
-  };
+  // Expose the handler globally so that inline onclick in summary HTML can call it
+  useEffect(() => {
+    (window as any).handleEditSection = handleEditSection;
+  }, [handleEditSection]);
 
-  const handleFinalSubmit = async () => {
-    if (!validateStep()) return;
+  // Modify createRectangleWithNodes:
+  // Removed duplicate createRectangleWithNodes function
 
-    // Prepare form data
-    const formData = new FormData();
-    formData.append("user_id", userId);
-    formData.append("full_name", fullName);
-    formData.append("date_of_birth", dateOfBirth);
-    formData.append("username", username);
-    formData.append("current_status", currentStatus);
-    if (resumeFile) formData.append("resume_file", resumeFile);
-    transcriptFiles.forEach((file, index) => formData.append(`transcript_files[${index}]`, file));
-    formData.append("university", university);
-    formData.append("degree", degree);
-    formData.append("field_of_study", fieldOfStudy);
-    formData.append("relevant_courses", JSON.stringify(relevantCourses));
-    formData.append("added_degrees", JSON.stringify(addedDegrees));
-    formData.append("certifications", JSON.stringify(certifications));
-    formData.append("online_courses", JSON.stringify(onlineCourses));
-    formData.append("work_experience", JSON.stringify(addedWorkExperiences));
-    formData.append("preferred_learning_pace", preferredLearningPace);
-    formData.append("learning_commitment", learningCommitment);
-    formData.append("preferred_learning_methods", JSON.stringify(preferredLearningMethods));
-    formData.append("learning_goals", JSON.stringify(learningGoals));
-    if (projectFile) formData.append("project_file", projectFile);
-    formData.append("project_description", projectDescription);
-
-    try {
-      // Send onboarding details to backend
-      const response = await fetch("/onboarding", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to submit onboarding details");
-      }
-
-      // Extract skills from the provided text
-      const text = `${fieldOfStudy} ${relevantCourses.join(" ")} ${addedDegrees.map(degree => degree.fieldOfStudy).join(" ")} ${certifications.map(cert => cert.title).join(" ")} ${onlineCourses.map(course => course.name).join(" ")} ${addedWorkExperiences.map(exp => exp.description).join(" ")} ${projectDescription}`;
-      const skillResponse = await fetch("/extract-and-store-skills", {
-        method: "POST",
-        body: new URLSearchParams({ user_id: userId, text }),
-      });
-
-      if (!skillResponse.ok) {
-        throw new Error("Failed to extract and store skills");
-      }
-
-      // Handle successful submission
-      alert("Onboarding completed successfully!");
-      router.push("/home");
-    } catch (error) {
-      console.error("Error during final submit:", error);
-      alert("An error occurred during submission. Please try again.");
-    }
-  };
+  // Add below other state declarations:
+  const learningGoalsRef = useRef<string[]>([]);
+  useEffect(() => {
+    learningGoalsRef.current = learningGoals;
+  }, [learningGoals]);
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-gray-900 to-black">
@@ -1091,14 +1095,14 @@ const createRectangleWithNodes = () => {
 
               <div className="flex justify-around w-full">
                 <button
-                  onClick={handleSubmitWrapper}
+                  onClick={handleSubmit}
                   className="mt-4 bg-white text-black px-4 py-2 rounded-full"
                   style={{ width: "130px", height: "40px" }}
                 >
                   Skip
                 </button>
                 <button
-                  onClick={handleSubmitWrapper}
+                  onClick={handleSubmit}
                   className="mt-4 bg-white text-black px-4 py-2 rounded-full"
                   style={{ width: "130px", height: "40px" }}
                 >
@@ -1147,54 +1151,35 @@ const createRectangleWithNodes = () => {
             <>
               <label className="text-white mb-2 block text-center font-bold text-xl">
                 Full Name:
-                <span
-                  className="ml-2 text-blue-300 cursor-help"
-                  data-tooltip-id="my-tooltip"
-                  data-tooltip-content="Enter your full legal name as it appears on official documents."
-                >
-                  &#9432;
-                </span>
               </label>
               <input
                 type="text"
                 placeholder="Enter your Full Name"
-                className="px-6 py-3 rounded bg-white text-black text-center mb-1"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
                 style={{ width: "300px" }}
               />
-              {formErrors.fullName && <p className="text-red-500 text-sm text-center">{formErrors.fullName}</p>}
 
               <label className="text-white mb-2 block text-center font-bold text-xl">
                 Username:
-                <span
-                  className="ml-2 text-blue-300 cursor-help"
-                  data-tooltip-id="my-tooltip"
-                  data-tooltip-content="Choose a unique username for your profile. It will be visible to other users."
-                >
-                  &#9432;
-                </span>
               </label>
               <input
                 type="text"
                 placeholder="Enter your Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="px-6 py-3 rounded bg-white text-black text-center mb-1"
+                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
                 style={{ width: "300px" }}
               />
-              {formErrors.username && <p className="text-red-500 text-sm text-center">{formErrors.username}</p>}
 
               <label className="text-white mb-2 block text-center font-bold text-xl">
                 Date of Birth:
-                <span
-                  className="ml-2 text-blue-300 cursor-help"
-                  data-tooltip-id="my-tooltip"
-                  data-tooltip-content="This helps us provide age-appropriate content and recommendations."
-                >
-                  &#9432;
-                </span>
               </label>
               <input
                 type="date"
+                value={dob}
+                onChange={(e) => setDob(e.target.value)}
                 className="px-6 py-3 rounded bg-white text-black text-center mb-4"
                 style={{ width: "300px" }}
               />
@@ -1226,7 +1211,7 @@ const createRectangleWithNodes = () => {
               )}
 
               <button
-                onClick={handleSubmitWrapper}
+                onClick={handleSubmit}
                 className="mt-6 bg-white text-black px-5 py-2 rounded"
               >
                 Continue
@@ -1248,13 +1233,6 @@ const createRectangleWithNodes = () => {
 
               <label className="text-white mb-2 block text-center font-bold text-xl">
                 Degree:
-                <span
-                  className="ml-2 text-blue-300 cursor-help"
-                  data-tooltip-id="my-tooltip"
-                  data-tooltip-content="Select the highest degree you have completed or are currently pursuing."
-                >
-                  &#9432;
-                </span>
               </label>
               <select
                 className="px-6 py-3 rounded bg-white text-black text-center mb-4"
@@ -1268,17 +1246,9 @@ const createRectangleWithNodes = () => {
                 <option>PhD</option>
                 <option>Diploma</option>
               </select>
-              {formErrors.degree && <p className="text-red-500 text-sm text-center">{formErrors.degree}</p>}
 
               <label className="text-white mb-2 block text-center font-bold text-xl">
                 Field of Study (Degree In):
-                <span
-                  className="ml-2 text-blue-300 cursor-help"
-                  data-tooltip-id="my-tooltip"
-                  data-tooltip-content="Specify your major or primary field of study. E.g., Computer Science, Business Administration."
-                >
-                  &#9432;
-                </span>
               </label>
               <input
                 type="text"
@@ -1288,7 +1258,6 @@ const createRectangleWithNodes = () => {
                 className="px-6 py-3 rounded bg-white text-black text-center mb-4"
                 style={{ width: "300px" }}
               />
-              {formErrors.fieldOfStudy && <p className="text-red-500 text-sm text-center">{formErrors.fieldOfStudy}</p>}
 
               <label className="text-white mb-2 block text-center font-bold text-xl">
                 Relevant Courses Completed:
@@ -1357,7 +1326,7 @@ const createRectangleWithNodes = () => {
               </div>
 
               <button
-                onClick={handleSubmitWrapper}
+                onClick={handleSubmit}
                 className="mt-6 bg-white text-black px-5 py-2 rounded"
               >
                 Continue
@@ -1435,10 +1404,9 @@ const createRectangleWithNodes = () => {
                   ))}
                 </div>
               </div>
-              {formErrors.certifications && <p className="text-red-500 text-sm text-center">{formErrors.certifications}</p>}
 
               <button
-                onClick={handleSubmitWrapper}
+                onClick={handleSubmit}
                 className="mt-6 bg-white text-black px-5 py-2 rounded"
               >
                 Continue
@@ -1514,10 +1482,9 @@ const createRectangleWithNodes = () => {
                   ))}
                 </div>
               </div>
-              {formErrors.workExperience && <p className="text-red-500 text-sm text-center">{formErrors.workExperience}</p>}
 
               <button
-                onClick={handleSubmitWrapper}
+                onClick={handleSubmit}
                 className="mt-6 bg-white text-black px-5 py-2 rounded"
               >
                 Continue
@@ -1543,13 +1510,6 @@ const createRectangleWithNodes = () => {
               </button>
               <label className="text-white mb-6 block text-center font-bold text-xl">
                 Project Description:
-                <span
-                  className="ml-2 text-blue-300 cursor-help"
-                  data-tooltip-id="my-tooltip"
-                  data-tooltip-content="Describe your project’s objective, technologies used, and outcomes."
-                >
-                  &#9432;
-                </span>
               </label>
               <textarea
                 placeholder="Enter your project description"
@@ -1595,14 +1555,14 @@ const createRectangleWithNodes = () => {
 
               <div className="flex justify-around w-full">
                 <button
-                  onClick={handleSubmitWrapper}
+                  onClick={handleSubmit}
                   className="mt-4 bg-white text-black px-4 py-2 rounded-full"
                   style={{ width: "130px", height: "40px" }}
                 >
                   Skip
                 </button>
                 <button
-                  onClick={handleSubmitWrapper}
+                  onClick={handleSubmit}
                   className="mt-4 bg-white text-black px-4 py-2 rounded-full"
                   style={{ width: "130px", height: "40px" }}
                 >
@@ -1614,13 +1574,6 @@ const createRectangleWithNodes = () => {
             <>
               <label className="text-white mb-6 block text-center font-bold text-xl">
                 Preferred Learning Pace:
-                <span
-                  className="ml-2 text-blue-300 cursor-help"
-                  data-tooltip-id="my-tooltip"
-                  data-tooltip-content="Choose a pace that matches your availability and learning style."
-                >
-                  &#9432;
-                </span>
               </label>
               <select
                 className="px-6 py-3 rounded bg-white text-black text-center mb-4"
@@ -1636,13 +1589,6 @@ const createRectangleWithNodes = () => {
 
               <label className="text-white mb-6 block text-center font-bold text-xl">
                 Learning Commitment Level:
-                <span
-                  className="ml-2 text-blue-300 cursor-help"
-                  data-tooltip-id="my-tooltip"
-                  data-tooltip-content="Estimate how many hours you can dedicate weekly to learning."
-                >
-                  &#9432;
-                </span>
               </label>
               <select
                 className="px-6 py-3 rounded bg-white text-black text-center mb-4"
@@ -1657,7 +1603,7 @@ const createRectangleWithNodes = () => {
               </select>
 
               <button
-                onClick={handleSubmitWrapper}
+                onClick={handleSubmit}
                 className="mt-6 bg-white text-black px-5 py-2 rounded"
               >
                 Continue
@@ -1775,8 +1721,6 @@ const createRectangleWithNodes = () => {
           ) : null }
         </div>
       )}
-      {/* Render Tooltip component */}
-      <Tooltip id="my-tooltip" place="top" effect="solid" />
     </div>
   );
 }

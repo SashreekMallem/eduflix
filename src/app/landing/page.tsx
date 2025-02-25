@@ -120,11 +120,6 @@ export default function LandingPage() {
           </div>
           <nav className="ml-4 flex-1">
             <ul className="flex space-x-4 justify-center">
-              <li>
-                <Link href="/education">
-                  <a className="text-gray-700 hover:text-gray-900">Education</a>
-                </Link>
-              </li>
               {sections.map((section) => (
                 <li key={section.id}>
                   <a
