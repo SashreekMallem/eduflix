@@ -1,0 +1,628 @@
+{
+    "Extracted Skills": {
+        "Technical Skills": [
+            {
+                "name": "Python",
+                "proficiency": 85.0,
+                "weighted_proficiency": 85.0
+            },
+            {
+                "name": "SQL",
+                "proficiency": 88.0,
+                "weighted_proficiency": 88.0
+            },
+            {
+                "name": "AI Frameworks & Computer Vision",
+                "proficiency": 90.0,
+                "weighted_proficiency": 90.0
+            },
+            {
+                "name": "RESTful APIs",
+                "proficiency": 75.0,
+                "weighted_proficiency": 75.0
+            },
+            {
+                "name": "SQLite",
+                "proficiency": 70.0,
+                "weighted_proficiency": 70.0
+            },
+            {
+                "name": "Predictive Models",
+                "proficiency": 94.0,
+                "weighted_proficiency": 94.0
+            },
+            {
+                "name": "Anomaly Detection",
+                "proficiency": 85.0,
+                "weighted_proficiency": 85.0
+            },
+            {
+                "name": "Sensor Fusion",
+                "proficiency": 75.0,
+                "weighted_proficiency": 75.0
+            },
+            {
+                "name": "mmWave Radars",
+                "proficiency": 70.0,
+                "weighted_proficiency": 70.0
+            },
+            {
+                "name": "Drones",
+                "proficiency": 80.0,
+                "weighted_proficiency": 80.0
+            }
+        ],
+        "Soft Skills": [
+            {
+                "name": "Strategic Communication",
+                "proficiency": 80.0,
+                "weighted_proficiency": 80.0
+            },
+            {
+                "name": "Creative Problem-Solving",
+                "proficiency": 85.0,
+                "weighted_proficiency": 85.0
+            },
+            {
+                "name": "Adaptability",
+                "proficiency": 80.0,
+                "weighted_proficiency": 80.0
+            },
+            {
+                "name": "Interpersonal Skills",
+                "proficiency": 75.0,
+                "weighted_proficiency": 75.0
+            },
+            {
+                "name": "Attention to Detail",
+                "proficiency": 80.0,
+                "weighted_proficiency": 80.0
+            },
+            {
+                "name": "Data Driven Decision-Making",
+                "proficiency": 94.0,
+                "weighted_proficiency": 94.0
+            }
+        ],
+        "Tools & Frameworks": [
+            {
+                "name": "JIRA",
+                "proficiency": 75.0,
+                "weighted_proficiency": 75.0
+            },
+            {
+                "name": "SAP ERP (MM, SD)",
+                "proficiency": 90.0,
+                "weighted_proficiency": 90.0
+            },
+            {
+                "name": "Power BI",
+                "proficiency": 94.0,
+                "weighted_proficiency": 94.0
+            },
+            {
+                "name": "Microsoft Office Suite (Excel, PowerPoint, Project)",
+                "proficiency": 80.0,
+                "weighted_proficiency": 80.0
+            }
+        ],
+        "Certifications": [
+            {
+                "name": "Certified Associate in Project Management",
+                "credibility": "High",
+                "reputation_score": 90,
+                "certification_level": "Intermediate",
+                "proficiency": 98.5,
+                "weighted_proficiency": 98.5
+            },
+            {
+                "name": "Lean Six Sigma Green Belt",
+                "credibility": "High",
+                "reputation_score": 88,
+                "certification_level": "Intermediate",
+                "proficiency": 96.5,
+                "weighted_proficiency": 96.5
+            },
+            {
+                "name": "Google Project Management: Professional Certificate",
+                "credibility": "High",
+                "reputation_score": 85,
+                "certification_level": "Intermediate",
+                "proficiency": 93.5,
+                "weighted_proficiency": 93.5
+            },
+            {
+                "name": "Google Agile Project Management Certificate",
+                "credibility": "High",
+                "reputation_score": 85,
+                "certification_level": "Intermediate",
+                "proficiency": 93.5,
+                "weighted_proficiency": 93.5
+            },
+            {
+                "name": "IBM Introduction to Agile Development and Scrum",
+                "credibility": "Medium",
+                "reputation_score": 80,
+                "certification_level": "Basic",
+                "proficiency": 87.5,
+                "weighted_proficiency": 87.5
+            },
+            {
+                "name": "IBM Product Manager Professional",
+                "credibility": "Medium",
+                "reputation_score": 82,
+                "certification_level": "Intermediate",
+                "proficiency": 90.5,
+                "weighted_proficiency": 90.5
+            }
+        ],
+        "Industry Knowledge": [
+            {
+                "name": "Supply Chain Management",
+                "proficiency": 100.0,
+                "weighted_proficiency": 100.0
+            },
+            {
+                "name": "Financial Analysis",
+                "proficiency": 88.0,
+                "weighted_proficiency": 88.0
+            },
+            {
+                "name": "Project Management",
+                "proficiency": 100.0,
+                "weighted_proficiency": 100.0
+            },
+            {
+                "name": "Process Improvement",
+                "proficiency": 100.0,
+                "weighted_proficiency": 100.0
+            },
+            {
+                "name": "Leadership",
+                "proficiency": 94.0,
+                "weighted_proficiency": 94.0
+            },
+            {
+                "name": "Product Management",
+                "proficiency": 89.0,
+                "weighted_proficiency": 89.0
+            }
+        ]
+    },
+    "Impact Statements": {
+        "Impact Statements": [
+            {
+                "statement": "Boosted overall project efficiency by 10% through resource alignment and timeline coordination.",
+                "impact_area": "Project Management Efficiency",
+                "impact_level": "Low",
+                "affected_skills": [
+                    "Project Management",
+                    "Resource Planning"
+                ],
+                "boost": 5
+            },
+            {
+                "statement": "Achieved a 12% reduction in material costs while ensuring timely components delivery.",
+                "impact_area": "Cost Optimization",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Supply Chain Management",
+                    "Cost Optimization"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Enhanced performance metrics by 20% through data analysis using SQL and Power BI.",
+                "impact_area": "Performance Metrics Enhancement",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Power BI",
+                    "Data Analysis",
+                    "SQL"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Improved budget accuracy by 15%, introducing advanced cost-tracking procedures.",
+                "impact_area": "Financial Management",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Project Management",
+                    "Financial Analysis"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Improved data-driven sourcing decisions by 20% and supplier KPI tracking efficiency by 17%.",
+                "impact_area": "Supply Chain Optimization",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Supply Chain Management",
+                    "Data Driven Decision-Making"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Reduced excess stock by 18% and improved cash flow by 12% through SAP ERP implementation.",
+                "impact_area": "Inventory Management",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "SAP ERP",
+                    "Supply Chain Management"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Reduced delivery times by 10% and boosted on-time order fulfillment by 12%.",
+                "impact_area": "Logistics Optimization",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Supply Chain Management",
+                    "Logistics"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Cut costs by 15% and mitigated supply chain risks through procurement negotiations.",
+                "impact_area": "Cost Optimization",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Supply Chain Management",
+                    "Negotiation"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Decreased stockouts by 14% and improved production planning accuracy.",
+                "impact_area": "Demand Forecasting",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Supply Chain Management",
+                    "Predictive Models"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Boosted supply planning efficiency and enhanced resource allocation accuracy by 20%.",
+                "impact_area": "Resource Management",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Supply Chain Management",
+                    "Resource Planning"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Reduced overall risk by 20% through risk assessments and mitigation strategies.",
+                "impact_area": "Risk Management",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Risk Management",
+                    "Project Management"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Decreased unforeseen costs by 12% with cost tracking during ERP implementation.",
+                "impact_area": "Cost Management",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "ERP Implementation",
+                    "Cost Optimization"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Amplified system reliability by 18% and aligning with supply chain requirements.",
+                "impact_area": "System Reliability",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "ERP Implementation",
+                    "Supply Chain Management"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Skyrocketed productivity by 13% and accelerating project delivery.",
+                "impact_area": "Productivity Enhancement",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Process Improvement",
+                    "Project Management"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Dropped defect rates by 15% and amplifying product yield by 12%.",
+                "impact_area": "Quality Control",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Process Improvement",
+                    "Quality Assurance"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Lowered inventory holding costs by 25% and surging material turnover by 30%.",
+                "impact_area": "Inventory Management",
+                "impact_level": "High",
+                "affected_skills": [
+                    "Supply Chain Management",
+                    "Cost Optimization"
+                ],
+                "boost": 15
+            },
+            {
+                "statement": "Resulted in a 10% market share increase through market research and feature prioritization.",
+                "impact_area": "Market Expansion",
+                "impact_level": "Low",
+                "affected_skills": [
+                    "Market Research",
+                    "Product Management"
+                ],
+                "boost": 5
+            },
+            {
+                "statement": "Cutting energy consumption by 12% and lowering the carbon footprint by 8%.",
+                "impact_area": "Sustainability",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Process Improvement",
+                    "Sustainability"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Reducing project turnaround time by 15% through cross-functional team collaboration.",
+                "impact_area": "Project Management",
+                "impact_level": "Medium",
+                "affected_skills": [
+                    "Project Management",
+                    "Leadership"
+                ],
+                "boost": 10
+            },
+            {
+                "statement": "Reducing material wastage by 8% through strategic buy decisions.",
+                "impact_area": "Resource Optimization",
+                "impact_level": "Low",
+                "affected_skills": [
+                    "Supply Chain Management",
+                    "Strategic Planning"
+                ],
+                "boost": 5
+            }
+        ]
+    },
+    "Scoring Inputs": {
+        "Degrees & Courses": [
+            {
+                "degree": "Micro Masters in Supply Chain Management",
+                "institution": "Massachusetts Institute of Technology (MITx)",
+                "relevance": "High",
+                "level": "Micro Masters",
+                "specialized_coursework": [
+                    "Supply Chain Fundamentals",
+                    "Design",
+                    "Analytics",
+                    "Dynamics",
+                    "Technology and Systems Integration"
+                ]
+            },
+            {
+                "degree": "Masters in Engineering Management",
+                "institution": "University of Maryland Baltimore County",
+                "relevance": "Medium",
+                "level": "Master\u2019s",
+                "specialized_coursework": [
+                    "Financial Management",
+                    "Engineering Law and Ethics",
+                    "Strategic Planning",
+                    "Leading Teams and Organizations"
+                ]
+            },
+            {
+                "degree": "Post-Baccalaureate Certificate in Project Management",
+                "institution": "University of Maryland Baltimore County",
+                "relevance": "High",
+                "level": "Post-Baccalaureate Certificate",
+                "specialized_coursework": [
+                    "Leadership and Communications",
+                    "Project Management",
+                    "Leadership in Global Virtual Teams"
+                ]
+            },
+            {
+                "degree": "Bachelor of Technology in Mechanical Engineering",
+                "institution": "Chaitanya Bharathi Institute of Technology",
+                "relevance": "Medium",
+                "level": "Bachelor\u2019s",
+                "specialized_coursework": [
+                    "Principles of Entrepreneurship",
+                    "Production and Operations Management",
+                    "Supply Chain Management",
+                    "Product Design and Process Planning",
+                    "Operations Research",
+                    "Engineering Economics",
+                    "Renewable Energy Sources"
+                ]
+            }
+        ],
+        "Work Experience": [
+            {
+                "role": "Project Management Consultant",
+                "company": "Johns Hopkins Hospital",
+                "duration": "Jan 2024 \u2013 May 2024",
+                "seniority": "Senior-level",
+                "industry_relevance": "Top-tier",
+                "impact_statements": [
+                    "Boosted overall project efficiency by 10% through resource alignment and timeline coordination.",
+                    "Achieved a 12% reduction in material costs while ensuring timely components delivery.",
+                    "Enhanced performance metrics by 20% through data analysis using SQL and Power BI.",
+                    "Improved budget accuracy by 15%, introducing advanced cost-tracking procedures."
+                ],
+                "adjustments": {
+                    "seniority_boost": 20,
+                    "top_company_boost": 15,
+                    "high_relevance_boost": 25
+                },
+                "adjusted_score": 115.0
+            },
+            {
+                "role": "Supply Chain Management Intern",
+                "company": "Tata Consultancy Services",
+                "duration": "Feb 2022 - Nov 2022",
+                "seniority": "Intern",
+                "industry_relevance": "High",
+                "impact_statements": [
+                    "Improved data-driven sourcing decisions by 20% and supplier KPI tracking efficiency by 17%.",
+                    "Reduced excess stock by 18% and improved cash flow by 12% through SAP ERP implementation.",
+                    "Reduced delivery times by 10% and boosted on-time order fulfillment by 12%.",
+                    "Cut costs by 15% and mitigated supply chain risks through procurement negotiations.",
+                    "Decreased stockouts by 14% and improved production planning accuracy."
+                ],
+                "adjustments": {
+                    "high_relevance_boost": 25
+                },
+                "adjusted_score": 143.75
+            },
+            {
+                "role": "Project Management Intern",
+                "company": "Foray Software Pvt Ltd",
+                "duration": "Jul 2021 - Dec 2021",
+                "seniority": "Intern",
+                "industry_relevance": "Medium",
+                "impact_statements": [
+                    "Boosted supply planning efficiency and enhanced resource allocation accuracy by 20%.",
+                    "Reduced overall risk by 20% through risk assessments and mitigation strategies.",
+                    "Decreased unforeseen costs by 12% with cost tracking during ERP implementation.",
+                    "Amplified system reliability by 18% and aligning with supply chain requirements.",
+                    "Skyrocketed productivity by 13% and accelerating project delivery."
+                ],
+                "adjustments": {
+                    "medium_relevance_boost": 15
+                },
+                "adjusted_score": 100
+            },
+            {
+                "role": "Product Management Intern",
+                "company": "Bhagavati Aerobriks Industries Pvt Ltd",
+                "duration": "Feb 2021 \u2013 Jun 2021",
+                "seniority": "Intern",
+                "industry_relevance": "Medium",
+                "impact_statements": [
+                    "Dropped defect rates by 15% and amplifying product yield by 12%.",
+                    "Lowered inventory holding costs by 25% and surging material turnover by 30%.",
+                    "Resulted in a 10% market share increase through market research and feature prioritization.",
+                    "Cutting energy consumption by 12% and lowering the carbon footprint by 8%.",
+                    "Reducing project turnaround time by 15% through cross-functional team collaboration."
+                ],
+                "adjustments": {
+                    "medium_relevance_boost": 15
+                },
+                "adjusted_score": 100
+            }
+        ],
+        "Projects": [
+            {
+                "title": "Highway Speeding Enforcement System",
+                "tools_used": [
+                    "Drones",
+                    "IoT",
+                    "Predictive Modeling",
+                    "Anomaly Detection",
+                    "Real-time Data Analytics"
+                ],
+                "complexity": "High",
+                "impact": "Enhance road safety through AI-driven traffic violation detection."
+            },
+            {
+                "title": "AI-Driven Surveillance System",
+                "tools_used": [
+                    "IoT",
+                    "Computer Vision"
+                ],
+                "complexity": "High",
+                "impact": "Enhance real-time monitoring and security coverage."
+            },
+            {
+                "title": "Food Spoilage Detection System",
+                "tools_used": [
+                    "AI",
+                    "Sensors",
+                    "Machine Learning Workflows",
+                    "Data Visualization Dashboards"
+                ],
+                "complexity": "High",
+                "impact": "Improve operational insights through real-time spoilage detection."
+            },
+            {
+                "title": "Fabrication of Vehicle External Airbag System",
+                "tools_used": [
+                    "Sensors",
+                    "Microcontroller Integration"
+                ],
+                "complexity": "Medium",
+                "impact": "Minimize collision impact through innovative design."
+            }
+        ],
+        "Certifications": [
+            {
+                "name": "Certified Associate in Project Management",
+                "credibility": "High",
+                "reputation_score": 85.0,
+                "certification_level": "Basic",
+                "proficiency": 85.0
+            },
+            {
+                "name": "Lean Six Sigma Green Belt",
+                "credibility": "High",
+                "reputation_score": 85.0,
+                "certification_level": "Intermediate",
+                "proficiency": 85.0
+            },
+            {
+                "name": "Google Project Management: Professional Certificate",
+                "credibility": "High",
+                "reputation_score": 85.0,
+                "certification_level": "Intermediate",
+                "proficiency": 85.0
+            },
+            {
+                "name": "Google Agile Project Management Certificate",
+                "credibility": "High",
+                "reputation_score": 85.0,
+                "certification_level": "Basic",
+                "proficiency": 85.0
+            },
+            {
+                "name": "IBM Introduction to Agile Development and Scrum",
+                "credibility": "Medium",
+                "reputation_score": 75.0,
+                "certification_level": "Basic",
+                "proficiency": 75.0
+            },
+            {
+                "name": "IBM Product Manager Professional",
+                "credibility": "High",
+                "reputation_score": 85.0,
+                "certification_level": "Intermediate",
+                "proficiency": 85.0
+            }
+        ],
+        "Online Courses": [
+            {
+                "name": "MITx Supply Chain Management",
+                "level": "Advanced"
+            }
+        ]
+    },
+    "Adjusted Weights": {
+        "degrees_courses": 0.25,
+        "work_experience": 0.3,
+        "projects": 0.2,
+        "certifications": 0.1,
+        "online_courses": 0.15
+    },
+    "Final Score": 86.75
+}
