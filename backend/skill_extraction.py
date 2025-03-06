@@ -684,90 +684,93 @@ def calculate_final_score(extracted_skills):
 
 # Example Text for Testing
 example_text = """
-SASHREEK MALLEM
-+1 352 658 5683 | smallem1@umbc.edu | www.linkedin.com/in/Sashreekmallem/
-
+PUSHPANJALI DIVI
++1 352 204 6244 | divi.p@ufl.edu | linkedin.com/in/pushpanjalidivi/
 EDUCATION
- 
-Micro Masters in Supply Chain Management	Jun 2023 – Dec 2024
-Massachusetts Institute of Technology (MITx)	
-Focused on Supply Chain Fundamentals, Design, Analytics, Dynamics, Technology and Systems Integration.
-
-Masters in Engineering Management	Jan 2023 – Dec 2024
-University of Maryland Baltimore County	
-Specialized in Financial Management, Engineering Law and Ethics, Strategic Planning, Leading Teams and Organizations.
-
-Post-Baccalaureate Certificate in Project Management	Jan 2023 – Dec 2024
-University of Maryland Baltimore County	
-Advanced Training in Leadership and Communications, Project Management, Leadership in Global Virtual Teams.
-
-Bachelor of Technology in Mechanical Engineering	Jul 2018 – Jul 2022
-Chaitanya Bharathi Institute of Technology	
-Focused on Principles of Entrepreneurship, Production and Operations Management, Supply Chain Management, Product Design and Process Planning, Operations Research, Engineering Economics, Renewable Energy Sources.
+University of Florida, Gainesville, FL Masters in Computer Science Aug 2022 – Dec 2023
+GPA - 3.7
+Coursework: Advanced Data Structures, Analysis of Algorithms, Database Management Systems, Software Engineering, Math for
+Intelligent Systems, Distributed Operating System Principles, Machine Learning, Advanced Blockchain, Designing Integrated
+Media Environments
+G. Narayanamma Institute of Technology and Science, Hyderabad Bachelors in Computer Science Jul 2018 – July 2022
+GPA - 4.0
 SKILLS
-Product Management: Product Roadmap Development, User Stories, Requirement Documentation, Go-to-Market Strategies
-Supply Chain Management:  Supply Chain Planning, Risk Management, Vendor Management, End-to-End Life Cycle Management, Demand Forecasting, Warehouse Management Systems (WMS), Demand-Supply Analysis
-Management: Financial Analysis, Project Scheduling, Resource Planning, KPI Tracking
-Process Improvement: Continuous Improvement (Kaizen), Process Optimization, Root Cause Analysis (RCA), Data Analysis
-Leadership: Cross-functional Collaboration, Stakeholder Engagement, Sourcing Strategies, Cost Optimization
-Software Proficiency: JIRA, SAP ERP (MM, SD), Power BI, Microsoft Office Suite (Excel, PowerPoint, Project)
-Technical skills: AI frameworks & Computer Vision (YOLO, Deepstream, CUDA), Python, RESTful APIs, SQLite, predictive models, Anomaly Detection
-Hardware Proficiency: Sensor Fusion, mmWave Radars, Drones
-Soft Skills: Strategic Communication, Creative Problem-Solving, Adaptability, Interpersonal Skills, Attention to Detail, Data Driven Decision-Making 
-
+Languages: C, C++, C#, Java, Python, Kotlin, Rust, MA TLAB, SQL, JavaScript, HTML, CSS, Typescript, GO
+Frameworks and Libraries: .NET Core, Bootstrap, Spring Boot, ReactJS, NodeJS, Django, Flask, Flutter, Figma, REST API, D3.js
+Big Data & ML: Spark, Hadoop, Hive, Statistics, ML models, Numpy, Pandas, Beautiful Soup, Sklearn Libraries, Web Scraping
+DevOps and Cloud: Ansible, Docker, Jenkins, Kubernetes, Terraform, AWS
+Tools and Utilities: Splunk, Postman, Wireshark, Prometheus, OpenCV , GitHub & Bitbucket
 PROFESSIONAL EXPERIENCE
-
-Johns Hopkins Hospital | Project Management Consultant 	Jan 2024 – May 2024
-•	Crafted project requirements documentation, including Project charters, scope statements, requirements, and WBS, aligning objectives and deliverables for a $7.5M HVAC system upgrade.
-•	Pruned project schedules using MS Project, boosting overall project efficiency by 10% through resource alignment and timeline coordination.
-•	Negotiated supplier contracts, achieving a 12% reduction in material costs while ensuring timely components delivery to meet project milestones.
-•	Developed detailed product roadmaps and user stories to ensure seamless alignment between technical teams and stakeholders.
-•	Conducted data analysis using SQL and Power BI to provide actionable insights, enhancing performance metrics by 20%.
-•	Improved budget accuracy by 15%, introducing advanced cost-tracking procedures to minimize financial discrepancies.
-
-Tata Consultancy Services | Supply Chain Management Intern	Feb 2022 - Nov 2022
-•	Performed supplier pricing, and capacity analyses using Power BI, engineering performance dashboards that improved data-driven sourcing decisions by 20% and supplier KPI tracking efficiency by 17%.
-•	Implemented and calibrated SAP ERP (MM) for supply planning and material management, reducing excess stock by 18% and improving cash flow by 12%.
-•	Optimized order-to-cash workflows in SAP SD, reducing delivery times by 10% and boosting on-time order fulfillment by 12%.
-•	Assessed supplier capabilities and led procurement negotiations in SAP MM, cutting costs by 15% and mitigating supply chain risks.
-•	Refined demand forecasting models, decreasing stockouts by 14% and improving production planning accuracy
-Foray Software Pvt Ltd | Project Management Intern	Jul 2021 - Dec 2021
-•	Conducted supply chain analysis using 'what-if' scenarios to predict disruptions, enabling proactive demand adjustments and mitigating material shortages.
-•	Led SAP ERP-driven process improvement initiatives, boosting supply planning efficiency and enhancing resource allocation accuracy by 20%, ensuring timely project completion.
-•	Executed risk evaluations, reducing overall risk by 20% through risk assessments and mitigation strategies.
-•	Administered financial oversight during ERP implementation, decreasing unforeseen costs by 12% with cost tracking.
-•	Designed SAP ERP test plans, amplified system reliability by 18% and aligning with supply chain requirements.
-•	Refined ERP project management workflows, skyrocketed productivity by 13% and accelerating project delivery.
-
-Bhagavati Aerobriks Indsutires Pvt Ltd | Product Management Intern	Feb 2021 – Jun 2021
-•	Conceptualized key innovations in AAC product development, hiking production efficiency and product quality while advancing sustainable building materials.
-•	Leveraged Statistical Process Control techniques, dropping defect rates by 15% and amplifying product yield by 12%.
-•	Executed a Just-In-Time strategy, lowering inventory holding costs by 25% and surging material turnover by 30%.
-•	Conducted market research and feature prioritization to align product innovations with customer needs, resulting in a 10% market share increase.
-•	Introduced energy-efficient methods, cutting energy consumption by 12% and lowering the carbon footprint by 8%.
-•	Collaborated with cross-functional teams to align sourcing requirements with operational goals, reducing project turnaround time by 15%.
-•	Supported materials life-cycle management by making strategic buy decisions, ensuring continuous production and reducing material wastage by 8%.
-
-PROJECTS 
-Highway Speeding Enforcement System (In Progress)
-Spearheading an AI-driven traffic violation detection system by leveraging drones, IoT, predictive modeling, anomaly detection, and real-time data analytics while incorporating user feedback to prioritize features and enhance road safety.
-AI-Driven Surveillance System (In Progress)
-Working on an AI surveillance platform using IoT and computer vision to enhance real-time monitoring and security coverage.
-Food Spoilage Detection System
-Designed an AI and sensor-based solution for real-time spoilage detection, integrating  machine learning workflows data visualization dashboards to improve operational insights.
-Fabrication of Vehicle External Airbag System
-Engineered a sensor-based external airbag system, minimizing collision impact through innovative microcontroller integration.
-
- CERTIFICATIONS
-  PMI | Certified Associate in Project Management									 2024
- CSSC | Lean Six Sigma Green Belt 											 2024
- Google | Project Management: Professional Certificate									 2024
- Google | Agile Project Management Certificate 										 2024
- IBM | Introduction to Agile Development and Scrum									 2024
- IBM | Product Manager Professional											 2024
-
-PUBLICATIONS
- IJARESM | Evolution Of Technology in Supply Chain Management In Agriculture					2023
+University of Florida | Full Stack Web Developer Jun 2023 - Dec 2023
+● Executed a seamless migration of a legacy Shark bite victims database A WS server, optimizing storage and database performance
+with column analysis, refinement, and an admin dashboard.
+● Leveraged the extensive functionalities of the D3.js framework to create comprehensive data visualizations based on shark attacks
+and geolocations.
+● Employed Splunk for monitoring and analytics, providing valuable insights and enhancing system performance.
+University of Florida | Full Stack Web Developer Jan 2023 - Jun 2023
+● Designed a fully functional web application to retrieve files from Amazon S3 buckets, enabling efficient real-time traffic
+monitoring by streamlining sensor data for over 100 traffic intersections in large-scale cities like Orlando.
+● Employed a high-availability deployment strategy using Nginx and Docker services on AWS, ensuring 0 downtime and seamless
+updates across multiple cluster nodes.
+JP Morgan Chase | Software Developer Feb 2022 - Aug 2022
+● Built and deployed multiple applications using CDK, contributing to the efficient provisioning and management of cloud
+infrastructure.
+● Designed and implemented RESTful endpoint APIs utilizing Kotlin and DynamoDB, incorporating core functionality, resulting
+in optimized APIs with 30% faster response time and achieving 99.9% uptime.
+● Conducted thorough unit and integration testing with MockK and Mockito frameworks, achieving a 30% reduction in the
+number of defects discovered in production and decreasing the time required for bug fixing by 25%.
+● Improved code readability through klint code formatting and reduced code review time by 20%.
+● Created efficient connectivity code between the data and control plane layers, leveraging Java and Splunk, leading to a 50%
+reduction in data access latency.
+EPAM Systems | Software Developer Aug 2021 – Jan 2022
+● A key member of the client demo team and individually configured product environments for prospective clients.
+● Implemented Agile methodologies through Azure DevOps, managed project requirements, code deployment, and version control.
+● Resolved production issues and customized products to align with the distinct business requirements of four clients.
+● Implemented admin UI using React JS, Material UI, and Redux, collaborating with major banks in the United States.
+● Developed an API-driven import/export capability of data with Apache Camel, RabbitMq, XML, and Spring Boot, streamlining
+environment configuration for the organization.
+JP Morgan Chase | Software Developer May 2021 – Jul 2021
+● Implemented efficient automation solutions across various Business Intelligence platforms, resulting in a 30% reduction in
+manual effort and improved data accuracy.
+● Designed and deployed over 50 micro-solutions using Python to streamline the migration of Cognos to new data centers,
+reducing migration time by 50% and minimizing disruptions to business operations.
+● Created a cloud-based self-service portal that empowered users to manage their data, accounts, and reports independently, leading
+to a 40% decrease in support ticket volume and increased user satisfaction.
+PROJECTS
+Tweeter Bot Nov 2023 – Oct 2023
+● Created a Twitter-like platform with a client simulator and an integrated engine for tasks like registration and tweet dispatches.
+Leveraging a WebSocket interface with the Gossip protocol ensured efficient tweet exchanges. The robust system built with
+Erlang capably managed 5,000 concurrent simulated clients.
+Kubernetes Integration with Python-CGI Jul 2023 – May 2023
+● Designed and deployed a Flask web app with a UI enabling users to run Kubernetes operations using plain English commands.
+The platform integrates features like custom pod naming, specific deployments, port-oriented service exposure, and replica
+adjustments, all presented with a straightforward menu guide.
+Live Streaming Video Chat App Jan 2023 – Feb 2023
+● Contributed to the creation of a multi-user Live Streaming Video Chat App using Python’s CV2 module, integrating socket
+programming for real-time communication and ensuring an optimized user experience
+High Availability Proxy Load Balancer Sep 2022 – Oct 2022
+● Participated in the deployment of a scalable load balancer on AWS using Ansible, optimized to support a million users, while
+streamlining the automation of multiple web server setups.
+Website Development Jan 2022 – May 2022
+● Designed and implemented a robotic electronics blog, meticulously optimizing content and user experience, which resulted in
+consistently attracting organic monthly traffic of 10,000 users, showcasing the site’s growing popularity and relevance in the
+niche.
+Heal Meal, Javascript & Go, React.js, MySQL, Cypress Sep 2021 – Dec 2021
+● Built and launched a customized meal subscription website for individuals with specific dietary needs and allergies, leveraging
+GoLang for API scripting and React.js for front-end implementation.
+● Orchestrated a cross-functional team for project delivery within a 5-week timeline, implementing agile methodologies across 4
+sprints.
+● Ensured a seamless user experience by collaborating with designers and executing comprehensive testing, fortifying security
+measures, and seamlessly integrating third-party APIs for payment processing and authentication.
+A W ARDS AND CERTIFICATION
+● Recipient of the Y oung Promising Engineer Award, Indian Society of Tech and Education
+● Girls Who Code Achiever, Flipkart GWC 3.0
+● Winner in JPMC Code for Good Hackathon
+● AWS Certified Solutions Architect
+PATENT
+● Secured a patent on NICE wristband which has the potential to revolutionize how we monitor and manage our health in real time.
+My role in developing and patenting the NICE wristband involved extensive research, experimentation, and collaboration with a
+team of experts in electronics, software development, and biomedical engineering.
 
 """
 

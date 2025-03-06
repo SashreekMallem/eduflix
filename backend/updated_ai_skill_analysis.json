@@ -1,6 +1,10 @@
 {
-    "Career and Learning Goals": ["Python", "Machine Learning", "SQL", "AWS"],
-
+    "Career and Learning Goals": [
+        "Python",
+        "Machine Learning",
+        "SQL",
+        "AWS"
+    ],
     "Extracted Skills": {
         "Technical Skills": [
             {
@@ -45,7 +49,7 @@
             },
             {
                 "name": "SQL",
-                "proficiency": 85.0,
+                "proficiency": 40.0,
                 "weighted_proficiency": 85.0
             },
             {
@@ -219,7 +223,7 @@
             },
             {
                 "name": "AWS",
-                "proficiency": 90.0,
+                "proficiency": 0,
                 "weighted_proficiency": 90.0
             },
             {
