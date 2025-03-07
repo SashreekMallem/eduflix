@@ -21,19 +21,46 @@ def save_analysis_data(analysis_data):
         json.dump(analysis_data, f, indent=4)
 
 def get_relevant_skills(analysis_data):
-    """Filters skills based on the user's career and learning goals."""
-    learning_goals = analysis_data.get("Career and Learning Goals", [])
-    relevant_skills = []
+    """
+    Filters skills based on the user's career and learning goals.
+    'Career Goals' indicate what the user wants to become (essential skills),
+    while 'Learning Goals' specify the areas the user wants to learn.
+    This function returns a list of skill names prioritized as:
+       1. Skills matching both career and learning goals.
+       2. Skills matching either goal.
+    """
+    career_goals = analysis_data.get("Career Goals", [])
+    learning_goals = analysis_data.get("Learning Goals", [])
+    all_skills = [skill["name"] for cat in analysis_data.get("Extracted Skills", {}).values() for skill in cat]
 
-    for category, skills in analysis_data.get("Extracted Skills", {}).items():
+    if not career_goals and not learning_goals:
+        print("⚠️ Warning: No career or learning goals provided. Using all extracted skills.")
+        return all_skills
+
+    prioritized = []
+    fallback = []
+
+    # Lowercase goals for matching
+    career_goals = [goal.lower() for goal in career_goals]
+    learning_goals = [goal.lower() for goal in learning_goals]
+
+    for cat, skills in analysis_data.get("Extracted Skills", {}).items():
         for skill in skills:
-            if skill["name"] in learning_goals:  # Check if the skill aligns with the user's goals
-                relevant_skills.append(skill["name"])
+            skill_name = skill["name"].strip().lower()
+            in_career = any(goal in skill_name for goal in career_goals)
+            in_learning = any(goal in skill_name for goal in learning_goals)
+            if in_career and in_learning:
+                # Highest priority if skill appears in both
+                prioritized.append(skill["name"])
+            elif in_career or in_learning:
+                fallback.append(skill["name"])
 
-    if not relevant_skills:
-        print("⚠️ Warning: No skills match the user's career and learning goals.")
-    
-    return relevant_skills
+    # Remove duplicates and keep prioritized first
+    combined = list(dict.fromkeys(prioritized + fallback))
+    if not combined:
+        print("⚠️ Warning: No skills match the provided goals. Using all extracted skills.")
+        return all_skills
+    return combined
 
 def call_gpt4o(prompt):
     """Calls GPT-4o to generate questions and evaluate responses dynamically."""
