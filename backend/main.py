@@ -9,9 +9,7 @@ import logging
 from fastapi.middleware.cors import CORSMiddleware
 from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 import os
-
-# Import the skill extraction function
-from skill_extraction import extract_skills
+from fastapi.responses import RedirectResponse  # Add this import
 
 # Configure logging & force reconfiguration so that our settings override uvicorn defaults
 logging.basicConfig(
@@ -313,18 +311,6 @@ async def onboarding(
     cursor.execute(query, params)
     conn.commit()
     logging.debug("DB commit successful; profile updated/inserted")
-
-    # Extract skills from the provided text
-    text = f"{field_of_study} {relevant_courses} {added_degrees} {certifications} {online_courses} {work_experience} {project_description}"
-    skills = extract_skills(text)
-    logging.debug(f"Extracted skills: {skills}")
-
-    # Insert extracted skills into the database
-    for skill in skills:
-        cursor.execute("""
-            INSERT INTO extracted_skills (user_id, skill)
-            VALUES (%s, %s)
-        """, (user_id, skill))
 
     conn.commit()
     cursor.close()

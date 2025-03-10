@@ -3,11 +3,33 @@ import os
 import json
 import re
 import numpy as np
+from neo4j import GraphDatabase  # new import for Neo4j integration
 
 client = OpenAI()
 
 # ✅ Call GPT-4o using the new OpenAI SDK
-def call_gpt4o(prompt):
+def call_gpt4o(prompt, cypher_query=None):
+    # If a Cypher query is provided, optimize it using GPT-4o
+    if cypher_query:
+        optimization_prompt = f"""
+        You are an expert in Neo4j Cypher query optimization. 
+        Given this original query:
+        {cypher_query}
+        Suggest an optimized version taking into account potential large data volumes, appropriate indexes, and best practices.
+        Return only the optimized query as plain text.
+        """
+        try:
+            optimize_response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "system", "content": "You are an expert in Cypher optimization."},
+                          {"role": "user", "content": optimization_prompt}],
+                temperature=0
+            )
+            optimized = optimize_response.choices[0].message.content.strip()
+            print("🔹 Optimized Cypher Query:\n", optimized)
+            return optimized
+        except Exception as e:
+            print(f"❌ Optimization failed: {e}")
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -36,11 +58,6 @@ def extract_skills(text, career_path, impact_statements):
     In addition to explicitly mentioned skills, analyze sentence relationships and context to infer any implicit skills.
     Consider the fact that the skills maybe be across differnt roles in experience, projects, and certifications.
     
-    IMPORTANT: For each skill, also calculate a BASE proficiency score (0-100) based on:
-      - Number of years of experience.
-      - Complexity of work and projects performed using that skill.
-      - Overall work and impact accomplished with that skill.
-    Make sure the base score reflects a realistic proficiency level.
     
     ---
     
@@ -85,17 +102,17 @@ def extract_skills(text, career_path, impact_statements):
     ### **🔹 Expected JSON Output:**
     {{
         "Technical Skills": [
-            {{"name": "Python", "proficiency": 85}},
-            {{"name": "SQL", "proficiency": 80}},
-            {{"name": "Machine Learning", "proficiency": 90}}
+            {{"name": "Python", "proficiency": 85, "years_experience": 3}},
+            {{"name": "SQL", "proficiency": 80, "years_experience": 2}},
+            {{"name": "Machine Learning", "proficiency": 90, "years_experience": 4}}
         ],
         "Soft Skills": [
-            {{"name": "Project Management", "proficiency": 75}},
-            {{"name": "Leadership", "proficiency": 80}}
+            {{"name": "Project Management", "proficiency": 75, "years_experience": 5}},
+            {{"name": "Leadership", "proficiency": 80, "years_experience": 4}}
         ],
         "Tools & Frameworks": [
-            {{"name": "SAP ERP", "proficiency": 88}},
-            {{"name": "JIRA", "proficiency": 70}}
+            {{"name": "SAP ERP", "proficiency": 88, "years_experience": 2}},
+            {{"name": "JIRA", "proficiency": 70, "years_experience": 1}}
         ],
         "Certifications": [
             {{
@@ -114,8 +131,8 @@ def extract_skills(text, career_path, impact_statements):
             }}
         ],
         "Industry Knowledge": [
-            {{"name": "Supply Chain Optimization", "proficiency": 85}},
-            {{"name": "Fraud Detection", "proficiency": 90}}
+            {{"name": "Supply Chain Optimization", "proficiency": 85, "years_experience": 2}},
+            {{"name": "Fraud Detection", "proficiency": 90, "years_experience": 3}}
         ]
     }}
 
@@ -141,8 +158,7 @@ def extract_skills(text, career_path, impact_statements):
         return {"error": "Skill extraction failed"}
 
 
-
-# New helper function: Calculate base proficiency using research-based logic.
+# Updated assign_base_proficiency to treat 0 as missing years.
 def assign_base_proficiency(years, complexity):
     """
     Uses research-based mapping to assign a base proficiency.
@@ -157,8 +173,8 @@ def assign_base_proficiency(years, complexity):
         High: +10
     Returns the sum, capped at 100.
     """
-    if years is None:
-        years = 1  # default to entry-level if not provided
+    if years is None or years == 0:
+        years = 1  # default to entry-level if not provided or 0
     if years < 1:
         base = 40
     elif years < 3:
@@ -184,31 +200,55 @@ def assign_base_proficiency(years, complexity):
 def normalize_skills(extracted_skills):
     """
     Removes duplicate skills, ensures uniform categorization, and consolidates redundant skills.
+    Also aggregates years of experience if the same skill comes from multiple roles.
     Additionally, if available, reassigns the base proficiency using research-based logic.
     """
-    normalized_skills = set()
+    merged_skills = {}  # key: lower-case skill name, value: merged skill dict
     cleaned_skills = {}
+
     for category, skills in extracted_skills.items():
-        cleaned_skills[category] = []
+        if category not in cleaned_skills:
+            cleaned_skills[category] = []
         for skill in skills:
-            skill_name = skill['name'].strip().lower()
-            if skill_name not in normalized_skills:
-                normalized_skills.add(skill_name)
-                # If the skill contains 'years_experience' and 'project_complexity', reassign base score.
-                if skill.get("years_experience") is not None or skill.get("project_complexity") is not None:
-                    years = skill.get("years_experience")
-                    complexity = skill.get("project_complexity")
-                    new_base = assign_base_proficiency(years, complexity)
-                    skill["proficiency"] = new_base
-                    details = (f"Research-based assignment: For {years if years is not None else 'unspecified'} years of experience "
-                               f"and a '{complexity if complexity is not None else 'simple'}' project complexity, base score set to {new_base}.")
-                    append_explanation(skill, "base score", details)
-                else:
-                    # Otherwise, use the existing proficiency and explanation.
-                    base = skill.get("proficiency", 0)
-                    details = f"Base score of {base} assigned based on years of experience, project complexity, and overall impact."
-                    append_explanation(skill, "base score", details)
-                cleaned_skills[category].append(skill)
+            key = skill['name'].strip().lower()
+            # Get current years; assume numeric if provided, otherwise 0.
+            curr_years = 0
+            if skill.get("years_experience") is not None:
+                try:
+                    curr_years = float(skill.get("years_experience"))
+                except Exception:
+                    curr_years = 0
+            # If already exists, aggregate the years and optionally update other properties.
+            if key in merged_skills:
+                existing = merged_skills[key]
+                existing_years = existing.get("total_years_experience", 0)
+                aggregated = existing_years + curr_years
+                existing["total_years_experience"] = aggregated
+                # Optionally, merge project complexity info if needed.
+                # Append explanation about aggregation.
+                existing.setdefault("boost_reasoning", []).append(
+                    f"Aggregated additional {curr_years} years of experience from duplicate occurrence; total now {aggregated}."
+                )
+            else:
+                # Initialize with total_years_experience field.
+                skill["total_years_experience"] = curr_years
+                merged_skills[key] = skill
+
+        # Append merged skills for the category.
+        cleaned_skills[category] = list(merged_skills.values())
+        # Reset merged_skills for next category if skills may be repeated across categories.
+        merged_skills = {}
+    # Reassign base proficiency using aggregated total_years_experience.
+    for category, skills in cleaned_skills.items():
+        for skill in skills:
+            # Use aggregated years if available.
+            years = skill.get("total_years_experience", None)
+            complexity = skill.get("project_complexity")
+            new_base = assign_base_proficiency(years, complexity)
+            skill["proficiency"] = new_base
+            details = (f"Research-based assignment: For {years if years is not None else 'unspecified'} years of experience "
+                       f"and a '{complexity if complexity is not None else 'simple'}' project complexity, base score set to {new_base}.")
+            append_explanation(skill, "base score", details)
     return cleaned_skills
 
 
@@ -225,10 +265,6 @@ def extract_impact_statements(text, career_path, extracted_skills):
     ### **🔹 Extraction Rules**
     - **Identify all measurable impact statements** that include quantifiable improvements.  
     - **Determine the primary impact area dynamically** based on the content and context of the statement.
-    - **Assess the impact level**: High, Medium, Low based on the significance of the improvement.
-      - If a skill has a **high-impact statement**, **increase proficiency based on the complexity and actual impact that portrays his proficiency in skill and boosts the score by appropriate number**.
-      - If **moderate impact**, **increase proficiency based on the complexity and actual impact that portrays his proficiency in skill and boosts the score by appropriate number**.
-      - If **low impact**, **increase proficiency based on the complexity and actual impact that portrays his proficiency in skill and boosts the score by appropriate number**.
     - **Cross-check extracted impact statements against extracted skills** in `{extracted_skills}`
       - If an impact statement directly aligns with a **technical, managerial, or industry skill**, tag it accordingly.
     
@@ -446,11 +482,7 @@ def apply_proficiency_boosts(extracted_skills, impact_statements):
 def get_company_reputation_boost(company_name):
     prompt = f"""
     You are an expert in industry analysis.
-    Determine the tier of the company "{company_name}" using the following lists:
-      - Top-tier: Google, Amazon, Microsoft, JPMorgan.
-      - Mid-tier: Intel, Cisco, Accenture, Deloitte.
-    If the company name includes any of the above (case-insensitive), return the corresponding tier ("top-tier" or "mid-tier").
-    Otherwise, return "other".
+    Determine the tier of the company "{company_name}" ("top-tier" or "mid-tier" or "low-tier").
     Return your answer as a JSON object like: {{"tier": "top-tier"}}.
     """
     response = call_gpt4o(prompt)
@@ -472,10 +504,7 @@ def get_company_reputation_boost(company_name):
 def get_role_based_boost(role, years_experience):
     prompt = f"""
     You are an expert in career evaluation.
-    Given the role title "{role}" and {years_experience} years of experience, classify the position among the following limited categories:
-      - "senior" or "director" for high-level roles,
-      - "manager" or "team lead" for mid-level roles,
-      - "analyst" or "associate" for entry-level roles.
+    Given the role title "{role}" and {years_experience} years of experience, classify the position among the high-level roles, mid-level roles, entry-level roles conisder the years of expereince to cross verify also the responsibilites.
     Return your answer as a JSON object like: {{"level": "senior"}}.
     """
     response = call_gpt4o(prompt)
@@ -486,82 +515,129 @@ def get_role_based_boost(role, years_experience):
         print(f"❌ Error determining role level for '{role}': {e}")
         level = ""
 
-    if level in ["senior", "director"]:
+    if level in ["high-level"]:
         return 12.5
-    elif level in ["manager", "team lead"]:
+    elif level in ["mid-level"]:
         return 8.5
-    elif level in ["analyst", "associate"]:
+    elif level in ["entry-level"]:
         return 2.5
     else:
         return 0.0
 
-# New function: Apply Skill Decay for stale experiences
+# New function modification: Apply Skill Decay using exponential decay formula.
 def apply_skill_decay(extracted_skills, work_experiences):
-    """
-    For each skill, if no work experience (assumed to include 'end_date' and 'skills' fields)
-    is found within the last 5 years, reduce its proficiency by 15%.
-    """
-    from datetime import datetime, timedelta
-    decay_threshold = datetime.utcnow() - timedelta(days=5*365)
-    recent_skills = set()
-    for exp in work_experiences:
-        end_date = exp.get("end_date")
-        if end_date:
-            try:
-                exp_end = datetime.strptime(end_date, "%Y-%m-%d")
-                if exp_end >= decay_threshold:
-                    for sk in exp.get("skills", []):
-                        recent_skills.add(sk.strip().lower())
-            except Exception:
-                continue
+    from datetime import datetime
+    import math
+    today = datetime.utcnow()
     for category, skills in extracted_skills.items():
         for skill in skills:
-            if skill["name"].strip().lower() not in recent_skills:
-                base = skill["proficiency"]
-                updated = round(base * 0.85, 2)
-                skill["proficiency"] = updated
-                details = f"Skill '{skill['name']}' not used in work experiences within 5 years. Base: {base} decayed to {updated}."
-                append_explanation(skill, "decay", details)
+            skill_name = skill["name"].strip().lower()
+            last_used = None
+            for exp in work_experiences:
+                if "skills" in exp and any(skill_name == s.strip().lower() for s in exp["skills"]):
+                    end_date = exp.get("end_date")
+                    if end_date:
+                        try:
+                            exp_end = datetime.strptime(end_date, "%Y-%m-%d")
+                        except Exception:
+                            continue
+                        if (last_used is None) or (exp_end > last_used):
+                            last_used = exp_end
+            if last_used is None:
+                # If no usage found, assume the skill hasn't been used for 5 years.
+                years_since = 5
+            else:
+                delta = today - last_used
+                years_since = delta.days / 365.0
+            decay_factor = math.exp(-years_since / 2.5)
+            base = skill["proficiency"]
+            updated = round(base * decay_factor, 2)
+            skill["proficiency"] = updated
+            details = (
+                f"Skill '{skill['name']}' last used {years_since:.2f} years ago. "
+                f"Applied exponential decay: {base} * exp(-{years_since:.2f}/2.5) = {updated}."
+            )
+            append_explanation(skill, "decay", details)
     return extracted_skills
 
-# New function: Apply Industry Trend Bonus for high-demand skills
-def apply_industry_trend_bonus(extracted_skills):
+# NEW helper function to determine if a skill is trending based on career and learning goals using GPT-4o.
+def is_trending_skill(skill_name, career_goals, learning_goals):
+    prompt = f"""
+    You are an expert in industry trends and skills relevance.
+    Given the skill "{skill_name}", career goals: "{career_goals}", and learning goals: "{learning_goals}",
+    determine if this skill is currently trending in the industry.
+    Answer with a JSON object like: {{"trending": "yes"}} or {{"trending": "no"}}.
     """
-    Increase proficiency for trending skills by 5% (capped at 100).
+    response = call_gpt4o(prompt)
+    try:
+        result = json.loads(response)
+        return result.get("trending", "no").lower() == "yes"
+    except Exception as e:
+        print(f"Error determining trending status for '{skill_name}': {e}")
+        return False
+
+# Modified apply_industry_trend_bonus to use GPT-based trending determination.
+def apply_industry_trend_bonus(extracted_skills, career_goals, learning_goals):
     """
-    trending_skills = {"python", "machine learning", "aws", "docker", "kubernetes", "javascript", "reactjs"}
+    Increase proficiency for skills determined trending against the given career and learning goals by 5% (capped at 100).
+    """
     for category, skills in extracted_skills.items():
         for skill in skills:
-            if skill["name"].strip().lower() in trending_skills:
+            skill_name = skill["name"].strip()
+            if is_trending_skill(skill_name, career_goals, learning_goals):
                 base = skill["proficiency"]
                 bonus = base * 0.05
                 updated = min(round(base + bonus, 2), 100)
                 skill["proficiency"] = updated
-                details = f"Trending skill bonus applied to '{skill['name']}': {base} increased by 5% to {updated}."
+                details = f"Trending skill bonus applied to '{skill_name}': {base} increased by 5% to {updated}."
                 append_explanation(skill, "trend bonus", details)
     return extracted_skills
 
-# NEW helper function for certification boosts (Step 3: Certification-Based Boost)
+# NEW helper function for certification boosts (Combined)
 def get_certification_boost(cert_name):
-    # Tier 1: Highly Respected certifications
-    if any(term in cert_name for term in ["AWS", "PMP", "Google Cloud", "CISSP"]):
+    """
+    Uses GPT-4o to determine the certification tier (1 for highly respected, 2 for moderate, 3 for others)
+    for the given certification name, and returns the corresponding boost percentage:
+      - Tier 1: +10%
+      - Tier 2: +5%
+      - Tier 3: +2%
+    """
+    prompt = f"""
+    You are an expert in industry certifications.
+    Determine the tier for the certification "{cert_name}" where:
+      - Tier 1: Highly respected certifications.
+      - Tier 2: Moderately valued certifications.
+      - Tier 3: Others.
+    Return your answer as a JSON object like: {{"tier": 1}}.
+    """
+    response = call_gpt4o(prompt)
+    try:
+        result = json.loads(response)
+        tier = result.get("tier", 3)
+    except Exception as e:
+        print(f"❌ Error determining certification tier for '{cert_name}': {e}")
+        tier = 3
+    if tier == 1:
         return 10  # +10%
-    # Tier 2: Moderate Value certifications
-    elif any(term in cert_name for term in ["Coursera", "LinkedIn", "Udemy Advanced"]):
+    elif tier == 2:
         return 5   # +5%
     else:
-        return 2   # Tier 3: +2%
+        return 2   # +2%
 
-# Modified apply_certification_boosts with fixed boost percentages
+# Modified apply_certification_boosts using the combined helper
 def apply_certification_boosts(extracted_skills, certifications):
+    """
+    For each certification, this function uses GPT-4o to analyze it and then retrieves its boost percentage.
+    The certification boost is applied to related skills' proficiency and an explanation is appended.
+    """
     for cert in certifications:
         cert_name = cert["name"]
         prompt = f"""
-        You are an expert in industry certifications. Analyze the certification "{cert_name}" and return the following details:
+        You are an expert in industry certifications. Analyze the certification "{cert_name}" and return details in the format:
         {{
-            "credibility": "High",
-            "reputation_score": 92,
-            "certification_level": "Advanced"
+            "credibility": "<value>",
+            "reputation_score": <number>,
+            "certification_level": "<value>"
         }}
         """
         cert_analysis = call_gpt4o(prompt)
@@ -599,49 +675,43 @@ def get_course_boost(course_name):
         print(f"Error determining course boost for {course_name}: {e}")
         return 2.0
 
-# Modified apply_course_boosts to use dynamic GPT-4 based boost
+# NEW helper function to determine course level via GPT-4o.
+def get_course_level(course_name):
+    prompt = f"""
+    You are an expert in evaluating online courses.
+    Given the course name "{course_name}", classify it as "advanced", "intermediate", or "beginner".
+    Return your answer as a JSON object like: {{"level": "advanced"}}.
+    """
+    response = call_gpt4o(prompt)
+    try:
+        result = json.loads(response)
+        return result.get("level", "beginner").lower()
+    except Exception as e:
+        print(f"Error determining course level for '{course_name}': {e}")
+        return "beginner"
+
+# Modified apply_course_boosts to use GPT-based course level determination.
 def apply_course_boosts(extracted_skills, courses):
     for course in courses:
         course_name = course["name"]
-        boost = get_course_boost(course_name)
+        level = get_course_level(course_name)
+        # Set boost based on determined level.
+        if level == "advanced":
+            boost = 10
+        elif level == "intermediate":
+            boost = 5
+        else:
+            boost = 2
+        # Apply boost to related skills.
         for category, skills in extracted_skills.items():
             for skill in skills:
                 if course_name.lower() in skill["name"].lower():
                     old_prof = skill["proficiency"]
                     skill["proficiency"] = round(skill["proficiency"] * (1 + boost / 100), 2)
-                    details = (f"Online course '{course_name}' applied to '{skill['name']}': "
-                               f"proficiency increased from {old_prof} by dynamic boost of {boost}% to {skill['proficiency']}.")
+                    details = (f"Online course '{course_name}' (level: {level}) applied to '{skill['name']}': "
+                               f"proficiency increased from {old_prof} by {boost}% to {skill['proficiency']}.")
                     append_explanation(skill, "course boost", details)
     return extracted_skills
-
-def apply_course_boosts(extracted_skills, courses):
-    """
-    Adjusts skill proficiency based on online courses.
-    - Advanced-level (MITx, Stanford, Harvard) → +10% boost
-    - Mid-level (Udemy, LinkedIn, Coursera) → +5% boost
-    """
-
-    advanced_courses = {"MITx", "Stanford Online", "HarvardX"}
-    mid_level_courses = {"Udemy", "LinkedIn Learning", "Coursera"}
-
-    for course in courses:
-        course_name = course["name"]
-        boost = 0
-
-        # **1️⃣ Apply Boost Based on Course Level**
-        if any(adv in course_name for adv in advanced_courses):
-            boost = 10  # **+10% for Advanced Courses**
-        elif any(mid in course_name for mid in mid_level_courses):
-            boost = 5  # **+5% for Mid-Level Courses**
-
-        # **2️⃣ Apply Proficiency Boost to Related Skills**
-        for category, skills in extracted_skills.items():
-            for skill in skills:
-                if course_name.lower() in skill["name"].lower():
-                    skill["proficiency"] = round(skill["proficiency"] * (1 + boost / 100), 2)
-
-    return extracted_skills
-
 
 
 def is_top_tier_company(company_name):
@@ -987,7 +1057,7 @@ def validate_skills_against_industry(extracted_skills, career_goals, learning_go
     certifications and courses. The function then identifies the value of each and reports any gaps.
     
     Returns a JSON with:
-      "industry_standards": a detailed list of all essential skills, courses, and knowledge required,
+      "industry_standards": a detailed list of all essential, must-have, and commonly posted skills, courses, and knowledge required,
       "missing_skills": a list of elements that are either missing or under-represented.
     """
     skills_list = list({skill["name"] for cat in extracted_skills.values() for skill in cat})
@@ -996,14 +1066,15 @@ def validate_skills_against_industry(extracted_skills, career_goals, learning_go
     Given the following extracted skills: {skills_list},
     and considering the user's Career Goals: {career_goals} and Learning Goals: {learning_goals},
     compare these against a comprehensive and detailed list of all skills, courses, and knowledge that are critical for 
-    success in this domain.
+    success in this domain. Please ensure that your evaluation includes the industry-mandatory skills and those that are 
+    most commonly posted for professionals with the stated career goals.
     
     In your evaluation, consider:
     - Explicit skills and those implicitly inferred from context.
-    - The relative value or importance of each skill, certification, and course.
+    - The relative value or importance of each skill, certification, or course.
     
     Your response should be in JSON format with two keys:
-      "industry_standards": a detailed list of essential skills, courses and knowledge (including implicit ones) required,
+      "industry_standards": a detailed list of essential, must-have, and commonly posted skills, courses and knowledge (including implicit ones) required,
       "missing_skills": a list of skills, courses, or knowledge areas that are missing or under-represented relative to these standards.
     """
     response = call_gpt4o(prompt)
@@ -1013,48 +1084,18 @@ def validate_skills_against_industry(extracted_skills, career_goals, learning_go
         print(f"❌ Error parsing industry validation: {e}")
         return {"industry_standards": [], "missing_skills": []}
 
+def get_missing_skills(user_name, career_goal):
+    query = """
+    MATCH (u:User {name: $user_name})-[:HAS_SKILL]->(s)
+    MATCH (j:Job {title: $career_goal})-[:REQUIRES]->(needed_skill)
+    WHERE NOT (u)-[:HAS_SKILL]->(needed_skill)
+    RETURN needed_skill.name AS MissingSkill
+    """
+    return edu_kg.run_query(query, {"user_name": user_name, "career_goal": career_goal})
+
 def analyze_user_profile(text):
-    """
-    Master function to run full user profile analysis.
-    Calls extraction functions in sequence and compiles results.
-    """
-    # **1️⃣ Extract Skills**
-    extracted_skills = extract_skills(text, career_path="General", impact_statements=[])
-
-    # **2️⃣ Extract Impact Statements**
-    impact_statements = extract_impact_statements(text, career_path="General", extracted_skills=extracted_skills)
-
-    # **3️⃣ Apply Proficiency Boosts from Impact**
-    extracted_skills = apply_proficiency_boosts(extracted_skills, impact_statements)
-
-    # **4️⃣ Extract Scoring Inputs**
-    scoring_inputs = extract_scoring_inputs(text, extracted_skills, impact_statements)
-
-    # **5️⃣ Apply Work Experience Adjustments**
-    if "Work Experience" in scoring_inputs:
-        scoring_inputs["Work Experience"] = adjust_work_experience_weights(
-            scoring_inputs["Work Experience"], extracted_skills
-        )
-
-    # **6️⃣ Apply Certification & Course Boosts**
-    if "Certifications" in scoring_inputs:
-        extracted_skills = apply_certification_boosts(extracted_skills, scoring_inputs["Certifications"])
-    if "Online Courses" in scoring_inputs:
-        extracted_skills = apply_course_boosts(extracted_skills, scoring_inputs["Online Courses"])
-
-    # New Step: Apply Skill Decay and Real-Time Industry Trend Bonus
-    if "Work Experience" in scoring_inputs:
-        extracted_skills = apply_skill_decay(extracted_skills, scoring_inputs["Work Experience"])
-    extracted_skills = apply_industry_trend_bonus(extracted_skills)
-
-    # **7️⃣ Adjust Weights Based on Available Data**
-    adjusted_weights = adjust_weights_updated(scoring_inputs, extracted_skills)
-
-    # **8️⃣ Calculate Final Career Readiness Score**
-    final_score = calculate_final_score(extracted_skills)
-
-    # **9️⃣ Validate Extracted Skills Against Industry Standards**
-    # Safely attempt to parse user goals from the input text; default to "General" if parsing fails.
+    import concurrent.futures
+    # Parse user goals early from input; default to "General" if parsing fails.
     try:
         user_data = json.loads(text)
         career_goals = user_data.get("Career Goals", "General")
@@ -1064,7 +1105,45 @@ def analyze_user_profile(text):
         career_goals = "General"
         learning_goals = "General"
 
+    # Run extract_skills and extract_impact_statements concurrently.
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_skills = executor.submit(extract_skills, text, "General", [])
+        # Use a lambda to delay extract_impact_statements until skills are available.
+        future_impact = executor.submit(lambda: extract_impact_statements(text, "General", future_skills.result()))
+        extracted_skills = future_skills.result()
+        impact_statements = future_impact.result()
+
+    # **3️⃣ Apply Proficiency Boosts from Impact**
+    extracted_skills = apply_proficiency_boosts(extracted_skills, impact_statements)
+    # **4️⃣ Extract Scoring Inputs**
+    scoring_inputs = extract_scoring_inputs(text, extracted_skills, impact_statements)
+    # **5️⃣ Apply Work Experience Adjustments**
+    if "Work Experience" in scoring_inputs:
+        scoring_inputs["Work Experience"] = adjust_work_experience_weights(
+            scoring_inputs["Work Experience"], extracted_skills
+        )
+    # **6️⃣ Apply Certification & Course Boosts**
+    if "Certifications" in scoring_inputs:
+        extracted_skills = apply_certification_boosts(extracted_skills, scoring_inputs["Certifications"])
+    if "Online Courses" in scoring_inputs:
+        extracted_skills = apply_course_boosts(extracted_skills, scoring_inputs["Online Courses"])
+
+    # New Step: Apply Skill Decay and Real-Time Industry Trend Bonus
+    if "Work Experience" in scoring_inputs:
+        extracted_skills = apply_skill_decay(extracted_skills, scoring_inputs["Work Experience"])
+    extracted_skills = apply_industry_trend_bonus(extracted_skills, career_goals, learning_goals)
+
+    # **7️⃣ Adjust Weights Based on Available Data**
+    adjusted_weights = adjust_weights_updated(scoring_inputs, extracted_skills)
+    # **8️⃣ Calculate Final Career Readiness Score**
+    final_score = calculate_final_score(extracted_skills)
+    # **9️⃣ Validate Extracted Skills Against Industry Standards**
     industry_validation = validate_skills_against_industry(extracted_skills, career_goals, learning_goals)
+
+    # Store into Neo4j
+    store_skills_in_neo4j(edu_kg, "defaultUser", extracted_skills)
+    missing_skills = get_missing_skills("John Doe", "Data Scientist")
+    print("🛑 Missing Skills:", missing_skills)
 
     # **🔹 Return Final Analysis**
     result = {
@@ -1075,7 +1154,6 @@ def analyze_user_profile(text):
         "Final Score": final_score,
         "Industry Validation": industry_validation
     }
-
     return result
 
 
@@ -1088,3 +1166,40 @@ with open("ai_skill_analysis.json", "w") as f:
     json.dump(result, f, indent=4)
 
 print("\n✅ Analysis complete! Results saved to 'ai_skill_analysis.json'")
+
+class KnowledgeGraph:
+    def __init__(self, uri="bolt://localhost:7687", user="neo4j", password="Nutra0/KavsIs"):
+        self.driver = GraphDatabase.driver(uri, auth=(user, password))
+
+    def close(self):
+        self.driver.close()
+
+    def run_query(self, query, params={}):
+        with self.driver.session() as session:
+            result = session.run(query, **params)
+            return [record for record in result]
+
+edu_kg = KnowledgeGraph()
+
+def store_skills_in_neo4j(edu_kg, user_id, extracted_skills):
+    """
+    Merges user and skill data into the Neo4j knowledge graph.
+    """
+    for category, skills in extracted_skills.items():
+        for skill in skills:
+            skill_name = skill.get("name", "Unknown Skill")
+            query = """
+            MERGE (u:User {id: $user_id})
+            MERGE (s:Skill {name: $skill_name})
+            MERGE (u)-[:HAS_SKILL {category: $category}]->(s)
+            """
+            params = {
+                "user_id": user_id,
+                "skill_name": skill_name,
+                "category": category
+            }
+            optimized_query = call_gpt4o("", cypher_query=query)
+            if optimized_query:
+                edu_kg.run_query(optimized_query, params)
+            else:
+                edu_kg.run_query(query, params)
