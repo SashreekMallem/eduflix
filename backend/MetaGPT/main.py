@@ -125,6 +125,45 @@ def init_db_tables():
             END IF;
         END$$;
     """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS user_profiles (
+        user_id SERIAL PRIMARY KEY,
+        full_name VARCHAR(255),
+        date_of_birth DATE,
+        username VARCHAR(255) UNIQUE,
+        current_status VARCHAR(255),
+        resume_file VARCHAR(255),
+        transcript_files TEXT[],
+        university VARCHAR(255),
+        degree VARCHAR(255),
+        field_of_study VARCHAR(255),
+        relevant_courses TEXT[],
+        added_degrees JSONB,
+        certifications JSONB,
+        online_courses JSONB,
+        work_experience JSONB,
+        preferred_learning_pace VARCHAR(255),
+        learning_commitment VARCHAR(255),
+        preferred_learning_methods TEXT[],
+        learning_goals TEXT[],
+        projects JSONB,
+        publications JSONB,
+        career_goals TEXT[],
+        skills TEXT[]
+    );
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS analysis_results (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES user_profiles(user_id),
+        extracted_skills JSONB,
+        final_score FLOAT,
+        impact_statements JSONB,
+        scoring_inputs JSONB,
+        industry_validation JSONB,
+        debug_messages TEXT[]
+    );
+    """)
     conn.commit()
     cursor.close()
     conn.close()
@@ -358,12 +397,17 @@ async def onboarding(
     skills = extract_skills(text)
     logging.debug(f"Extracted skills: {skills}")
 
-    # Insert extracted skills into the database
+    # Insert extracted skills into the database: only send "name" and "proficiency"
     for skill_obj in skills:
+        # Filter only required fields; default proficiency to 0 if not provided.
+        filtered_skill = {
+            "name": skill_obj.get("name", ""),
+            "proficiency": skill_obj.get("proficiency", 0)
+        }
         cursor.execute("""
             INSERT INTO extracted_skills (user_id, skill)
             VALUES (%s, %s::jsonb)
-        """, (user_id, json.dumps(skill_obj)))
+        """, (user_id, json.dumps(filtered_skill)))
 
     conn.commit()
     cursor.close()
@@ -1179,38 +1223,100 @@ def extract_skills(text: str) -> List[Dict[str, str]]:
 #     response = get_ai_tutor_response(prompt)
 #     return {"response": response}
 
+# Mock function to simulate analyze_user_profile
+def mock_analyze_user_profile(data):
+    return {
+        "Extracted Skills": {
+            "Technical Skills": [
+                {"name": "Python", "proficiency": 85},
+                {"name": "SQL", "proficiency": 80}
+            ],
+            "Soft Skills": [
+                {"name": "Leadership", "proficiency": 75}
+            ],
+            "Tools & Frameworks": [
+                {"name": "TensorFlow", "proficiency": 70}
+            ],
+            "Certifications": [
+                {"name": "AWS Certified", "proficiency": 90}
+            ],
+            "Industry Knowledge": [
+                {"name": "Supply Chain Management", "proficiency": 65}
+            ]
+        },
+        "Final Score": 7.27,
+        "Impact Statements": {
+            "Impact Statements": [
+                {"statement": "Reduced costs by 18%", "impact_area": "Cost Optimization"}
+            ]
+        },
+        "Scoring Inputs": {
+            "Work Experience": []
+        },
+        "Industry Validation": {
+            "industry_standards": ["Web Application Development"],
+            "missing_skills": ["Docker", "Kubernetes"]
+        },
+        "debugMessages": [
+            "Profile analysis started.",
+            "User data parsed.",
+            "Skill extraction started.",
+            "Prompt generated.",
+            "Skills extracted via GPT-4o.",
+            "Skills response cleaned.",
+            "Skills response parsed as JSON.",
+            "Skills normalized.",
+            "Impact statements extracted.",
+            "Proficiency boosts applied.",
+            "Scoring inputs extracted.",
+            "Skill decay applied.",
+            "Industry trend bonus applied.",
+            "Final score: 7.27.",
+            "Skills validated against industry.",
+            "Error saving analysis results to database: name 'get_db_connection' is not defined"
+        ]
+    }
+
 @app.post("/skill-extraction")
 async def skill_extraction(data: dict = Body(...)):
     try:
-        # Call the skill extraction function from skill_extraction.py
-        # from skill_extraction import analyze_user_profile
-        # result = analyze_user_profile(json.dumps(data))
+        # Use the mock function instead of the actual analyze_user_profile function
+        result = mock_analyze_user_profile(json.dumps(data))
         
-        # Save the result to a file or database if needed
-        # with open("ai_skill_analysis.json", "w") as f:
-        #     json.dump(result, f, indent=4)
+        # Save the analysis results to the analysis_results table
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO analysis_results (user_id, extracted_skills, final_score, impact_statements, scoring_inputs, industry_validation, debug_messages)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            data.get("user_id"),
+            json.dumps(result.get("Extracted Skills")),
+            result.get("Final Score"),
+            json.dumps(result.get("Impact Statements")),
+            json.dumps(result.get("Scoring Inputs")),
+            json.dumps(result.get("Industry Validation")),
+            result.get("debugMessages")
+        ))
         
-        # Extract skills and knowledge gaps from the result
-        # extracted_skills = result.get("Extracted Skills", {})
-        # knowledge_gaps = result.get("Industry Validation", {}).get("missing_skills", [])
-
-        # Convert extracted_skills and knowledge_gaps to JSONB format
-        # extracted_skills_jsonb = json.dumps(extracted_skills)
-        # knowledge_gaps_jsonb = json.dumps(knowledge_gaps)
-
         # Update the user_profiles table with the extracted skills and knowledge gaps
-        # conn = get_db_connection()
-        # cursor = conn.cursor()
-        # cursor.execute("""
-        #     UPDATE user_profiles
-        #     SET extracted_skills = %s::jsonb, knowledge_gaps = %s::jsonb
-        #     WHERE user_id = %s
-        # """, (extracted_skills_jsonb, knowledge_gaps_jsonb, data.get("user_id")))
-        # conn.commit()
-        # cursor.close()
-        # conn.close()
-
-        return {"message": "Skill extraction paused successfully"}
+        cursor.execute("""
+            UPDATE user_profiles
+            SET skills = %s, knowledge_gaps = %s
+            WHERE user_id = %s
+        """, (
+            json.dumps(result.get("Extracted Skills")),
+            json.dumps(result.get("Industry Validation").get("missing_skills")),
+            data.get("user_id")
+        ))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        with open("ai_skill_analysis.json", "w") as f:
+            json.dump(result, f, indent=4)
+        return result
     except Exception as e:
         logging.exception("Error during skill extraction")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

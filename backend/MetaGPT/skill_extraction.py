@@ -4,6 +4,7 @@ import json
 import re
 import numpy as np
 import requests  # new import for sending data back to the backend
+from main import get_db_connection  # Import get_db_connection function
 
 client = OpenAI()
 
@@ -53,7 +54,7 @@ import json
 
 def extract_skills(text, career_path, impact_statements):
     debug_messages = []
-    debug_messages.append("Starting skill extraction process.")
+    debug_messages.append("Skill extraction started.")
     prompt = f"""
     You are an expert in skill extraction, proficiency assessment, and industry validation.
     Extract ALL key skills from the given text and categorize them properly.
@@ -143,25 +144,25 @@ def extract_skills(text, career_path, impact_statements):
     ### **Text to Process:**
     {text}
     """
-    debug_messages.append("Generated prompt for skill extraction.")
+    debug_messages.append("Prompt generated.")
     extracted_skills = call_gpt4o(prompt)
-    debug_messages.append("Received response from GPT-4o for skill extraction.")
+    debug_messages.append("Skills extracted via GPT-4o.")
 
     # ✅ Clean response: Remove markdown formatting (` ```json ... ``` `)
     extracted_skills = re.sub(r"```json\n|\n```", "", extracted_skills).strip()
-    debug_messages.append("Cleaned GPT-4o response for skill extraction.")
+    debug_messages.append("Skills response cleaned.")
 
     # ✅ Debug Print
     print("🔹 Cleaned Response (Skills):\n", extracted_skills)
 
     try:
         extracted_skills_json = json.loads(extracted_skills)
-        debug_messages.append("Parsed JSON response for skill extraction.")
+        debug_messages.append("Skills response parsed as JSON.")
         normalized_skills = normalize_skills(extracted_skills_json)
-        debug_messages.append("Normalized extracted skills.")
+        debug_messages.append("Skills normalized.")
         return normalized_skills, debug_messages
     except json.JSONDecodeError as e:
-        debug_messages.append(f"❌ JSON Parsing Failed (Skills): {e}")
+        debug_messages.append(f"JSON Parsing Error: {e}")
         print(f"❌ JSON Parsing Failed (Skills): {e}")
         return {"error": "Skill extraction failed"}, debug_messages
 
@@ -325,10 +326,10 @@ def extract_impact_statements(text, career_path, extracted_skills):
     try:
         extracted_impact_json = json.loads(impact_statements)
         validated_impact_statements = validate_impact_statements(extracted_impact_json, extracted_skills)
-        return validated_impact_statements, ["Impact statements extracted successfully."]
+        return validated_impact_statements, ["Impact statements extracted."]
     except json.JSONDecodeError as e:
         print(f"❌ JSON Parsing Failed (Impact Statements): {e}")
-        return {"error": "Impact extraction failed"}, [f"❌ JSON Parsing Failed (Impact Statements): {e}"]
+        return {"error": "Impact extraction failed"}, [f"JSON Parsing Error: {e}"]
 
 
 def validate_impact_statements(impact_data, extracted_skills):
@@ -579,7 +580,7 @@ def is_trending_skill(skill_name, career_goals, learning_goals):
     determine if this skill is currently trending in the industry.
     Answer with a JSON object like: {{"trending": "yes"}} or {{"trending": "no"}}.
     """
-    response = call_gpt4o(prompt)
+    response = call_gpt4o.prompt()
     try:
         result = json.loads(response)
         return result.get("trending", "no").lower() == "yes"
@@ -694,7 +695,7 @@ def get_course_level(course_name):
     Given the course name "{course_name}", classify it as "advanced", "intermediate", or "beginner".
     Return your answer as a JSON object like: {{"level": "advanced"}}.
     """
-    response = call_gpt4o.prompt)
+    response = call_gpt4o.prompt()
     try:
         result = json.loads(response)
         return result.get("level", "beginner").lower()
@@ -726,31 +727,11 @@ def apply_course_boosts(extracted_skills, courses):
     return extracted_skills
 
 
-def is_top_tier_company(company_name):
-    """
-    Uses GPT-4o to determine if a company is a top-tier organization.
-    Returns True if the company is prestigious, otherwise False.
-    """
-    if not company_name:
-        return False  # No company name provided
-
-    prompt = f"""
-    You are an expert in industry analysis.  
-    Is the company "{company_name}" considered **top-tier** in its industry?  
-
-    - A top-tier company is globally recognized, a Fortune 500 company, a leading innovator, or dominant in its field.  
-    - If the company meets these criteria, return **"Yes"**.  
-    - Otherwise, return **"No"**.
-    """
-
-    response = call_gpt4o(prompt)
-    return response.lower() == "yes"
-
 
 import json
 
 # ✅ Function to Extract Structured Inputs for Scoring
-def extract_scoring_inputs(text, extracted_skills, impact_statements):
+def extract_scoring_inputs(text, extracted_skills, impact_statements, career_goals):
     prompt = f"""
     You are an expert in **career evaluation and proficiency scoring**.  
     Extract the required **structured data** to compute a **career readiness score** based on **industry standards**.
@@ -762,9 +743,10 @@ def extract_scoring_inputs(text, extracted_skills, impact_statements):
     
     **1️⃣ Degrees & Courses (Weight: 25%)**
     - **Extract all degree details, not just the highest level of degree**: (e.g., Bachelor's in Engineering, Master's in Business Analytics).
-    - **Determine relevance**: Compare degree to `{extracted_skills}`.
+    - **Determine relevance**: Compare degree to `{career_goals}`.
     - **Assess level**: (Bachelor’s = base score, Master’s = +10% boost, and PHD and all other degrees that i might have missed give boost scores based on their level of degree).
     - **Check for specializations or high-impact coursework** (e.g., "AI in Supply Chain Management").
+    - **Include grade information**: Use the grade to further assess the degree's impact.
 
     **2️⃣ Work Experience (Weight: 30%)**
     - **Extract job roles & duration** (e.g., "Project Manager, 3 years at Google").
@@ -802,7 +784,7 @@ def extract_scoring_inputs(text, extracted_skills, impact_statements):
     ---
 
     ### **🔹 Example Input:**
-    "I completed a Master’s in Engineering Management with coursework in AI.  
+    "I completed a Master’s in Engineering Management with coursework in AI and a GPA of 3.8.  
     Worked as a Data Scientist for 3 years at Google AI.  
     Developed an ML model that improved fraud detection by 30%.  
     Completed an AWS Cloud Certification and a Coursera Python Course."
@@ -813,7 +795,8 @@ def extract_scoring_inputs(text, extracted_skills, impact_statements):
             "degree": "Master’s in Engineering Management",
             "relevance": "High",
             "level": "Master’s",
-            "specialized_coursework": ["AI in Engineering"]
+            "specialized_coursework": ["AI in Engineering"],
+            "grade": "3.8"
         }},
         "Work Experience": {{
             "roles": [
@@ -975,7 +958,7 @@ def calculate_final_score(extracted_skills):
 
     for category, skills in extracted_skills.items():
         for skill in skills:
-            if isinstance(skill, dict) and "proficiency" in skill):
+            if isinstance(skill, dict) and "proficiency" in skill:
                 total_proficiency += skill.get("proficiency", 0)
                 skill_count += 1
 
@@ -984,102 +967,6 @@ def calculate_final_score(extracted_skills):
 
     return round(total_proficiency / skill_count, 2)
 
-
-
-
-# Example Text for Testing
-example_text = """
-carrer goal: Senior software engineer
-Learnig goal: python, SQL, machine learning, project management, leadership, fraud detection, supply chain optimization, AWS Cloud Practitioner Certification, PMP certification, AI in Supply Chain Management, MITx AI for Business.
-PUSHPANJALI DIVI
-+1 352 204 6244 | divi.p@ufl.edu | linkedin.com/in/pushpanjalidivi/
-EDUCATION
-University of Florida, Gainesville, FL Masters in Computer Science Aug 2022 – Dec 2023
-GPA - 3.7
-Coursework: Advanced Data Structures, Analysis of Algorithms, Database Management Systems, Software Engineering, Math for
-Intelligent Systems, Distributed Operating System Principles, Machine Learning, Advanced Blockchain, Designing Integrated
-Media Environments
-G. Narayanamma Institute of Technology and Science, Hyderabad Bachelors in Computer Science Jul 2018 – July 2022
-GPA - 4.0
-SKILLS
-Languages: C, C++, C#, Java, Python, Kotlin, Rust, MA TLAB, SQL, JavaScript, HTML, CSS, Typescript, GO
-Frameworks and Libraries: .NET Core, Bootstrap, Spring Boot, ReactJS, NodeJS, Django, Flask, Flutter, Figma, REST API, D3.js
-Big Data & ML: Spark, Hadoop, Hive, Statistics, ML models, Numpy, Pandas, Beautiful Soup, Sklearn Libraries, Web Scraping
-DevOps and Cloud: Ansible, Docker, Jenkins, Kubernetes, Terraform, AWS
-Tools and Utilities: Splunk, Psostman, Wireshark, Prometheus, OpenCV , GitHub & Bitbucket
-PROFESSIONAL EXPERIENCE
-University of Florida | Full Stack Web Developer Jun 2023 - Dec 2023
-● Executed a seamless migration of a legacy Shark bite victims database A WS server, optimizing storage and database performance
-with column analysis, refinement, and an admin dashboard.
-● Leveraged the extensive functionalities of the D3.js framework to create comprehensive data visualizations based on shark attacks
-and geolocations.
-● Employed Splunk for monitoring and analytics, providing valuable insights and enhancing system performance.
-University of Florida | Full Stack Web Developer Jan 2023 - Jun 2023
-● Designed a fully functional web application to retrieve files from Amazon S3 buckets, enabling efficient real-time traffic
-monitoring by streamlining sensor data for over 100 traffic intersections in large-scale cities like Orlando.
-● Employed a high-availability deployment strategy using Nginx and Docker services on AWS, ensuring 0 downtime and seamless
-updates across multiple cluster nodes.
-JP Morgan Chase | Software Developer Feb 2022 - Aug 2022
-● Built and deployed multiple applications using CDK, contributing to the efficient provisioning and management of cloud
-infrastructure.
-● Designed and implemented RESTful endpoint APIs utilizing Kotlin and DynamoDB, incorporating core functionality, resulting
-in optimized APIs with 30% faster response time and achieving 99.9% uptime.
-● Conducted thorough unit and integration testing with MockK and Mockito frameworks, achieving a 30% reduction in the
-number of defects discovered in production and decreasing the time required for bug fixing by 25%.
-● Improved code readability through klint code formatting and reduced code review time by 20%.
-● Created efficient connectivity code between the data and control plane layers, leveraging Java and Splunk, leading to a 50%
-reduction in data access latency.
-EPAM Systems | Software Developer Aug 2021 – Jan 2022
-● A key member of the client demo team and individually configured product environments for prospective clients.
-● Implemented Agile methodologies through Azure DevOps, managed project requirements, code deployment, and version control.
-● Resolved production issues and customized products to align with the distinct business requirements of four clients.
-● Implemented admin UI using React JS, Material UI, and Redux, collaborating with major banks in the United States.
-● Developed an API-driven import/export capability of data with Apache Camel, RabbitMq, XML, and Spring Boot, streamlining
-environment configuration for the organization.
-JP Morgan Chase | Software Developer May 2021 – Jul 2021
-● Implemented efficient automation solutions across various Business Intelligence platforms, resulting in a 30% reduction in
-manual effort and improved data accuracy.
-● Designed and deployed over 50 micro-solutions using Python to streamline the migration of Cognos to new data centers,
-reducing migration time by 50% and minimizing disruptions to business operations.
-● Created a cloud-based self-service portal that empowered users to manage their data, accounts, and reports independently, leading
-to a 40% decrease in support ticket volume and increased user satisfaction.
-PROJECTS
-Tweeter Bot Nov 2023 – Oct 2023
-● Created a Twitter-like platform with a client simulator and an integrated engine for tasks like registration and tweet dispatches.
-Leveraging a WebSocket interface with the Gossip protocol ensured efficient tweet exchanges. The robust system built with
-Erlang capably managed 5,000 concurrent simulated clients.
-Kubernetes Integration with Python-CGI Jul 2023 – May 2023
-● Designed and deployed a Flask web app with a UI enabling users to run Kubernetes operations using plain English commands.
-The platform integrates features like custom pod naming, specific deployments, port-oriented service exposure, and replica
-adjustments, all presented with a straightforward menu guide.
-Live Streaming Video Chat App Jan 2023 – Feb 2023
-● Contributed to the creation of a multi-user Live Streaming Video Chat App using Python’s CV2 module, integrating socket
-programming for real-time communication and ensuring an optimized user experience
-High Availability Proxy Load Balancer Sep 2022 – Oct 2022
-● Participated in the deployment of a scalable load balancer on AWS using Ansible, optimized to support a million users, while
-streamlining the automation of multiple web server setups.
-Website Development Jan 2022 – May 2022
-● Designed and implemented a robotic electronics blog, meticulously optimizing content and user experience, which resulted in
-consistently attracting organic monthly traffic of 10,000 users, showcasing the site’s growing popularity and relevance in the
-niche.
-Heal Meal, Javascript & Go, React.js, MySQL, Cypress Sep 2021 – Dec 2021
-● Built and launched a customized meal subscription website for individuals with specific dietary needs and allergies, leveraging
-GoLang for API scripting and React.js for front-end implementation.
-● Orchestrated a cross-functional team for project delivery within a 5-week timeline, implementing agile methodologies across 4
-sprints.
-● Ensured a seamless user experience by collaborating with designers and executing comprehensive testing, fortifying security
-measures, and seamlessly integrating third-party APIs for payment processing and authentication.
-A W ARDS AND CERTIFICATION
-● Recipient of the Y oung Promising Engineer Award, Indian Society of Tech and Education
-● Girls Who Code Achiever, Flipkart GWC 3.0
-● Winner in JPMC Code for Good Hackathon
-● AWS Certified Solutions Architect
-PATENT
-● Secured a patent on NICE wristband which has the potential to revolutionize how we monitor and manage our health in real time.
-My role in developing and patenting the NICE wristband involved extensive research, experimentation, and collaboration with a
-team of experts in electronics, software development, and biomedical engineering.
-
-"""
 
 def validate_skills_against_industry(extracted_skills, career_goals, learning_goals):
     """
@@ -1127,15 +1014,15 @@ def get_missing_skills(user_name, career_goal):
 def analyze_user_profile(data):
     import concurrent.futures
     debug_messages = []
-    debug_messages.append("Starting user profile analysis.")
+    debug_messages.append("Profile analysis started.")
     # Parse user data from input
     try:
         user_data = json.loads(data)
         career_goals = user_data.get("career_goals", "General")
         learning_goals = user_data.get("learning_goals", "General")
-        debug_messages.append("Parsed user data from input.")
+        debug_messages.append("User data parsed.")
     except json.decoder.JSONDecodeError:
-        debug_messages.append("⚠️ Input data is not valid JSON. Defaulting Career and Learning Goals to 'General'.")
+        debug_messages.append("Invalid JSON. Using default goals.")
         print("⚠️ Input data is not valid JSON. Defaulting Career and Learning Goals to 'General'.")
         career_goals = "General"
         learning_goals = "General"
@@ -1165,39 +1052,39 @@ def analyze_user_profile(data):
 
     # **3️⃣ Apply Proficiency Boosts from Impact**
     extracted_skills = apply_proficiency_boosts(extracted_skills, impact_statements)
-    debug_messages.append("Applied proficiency boosts from impact statements.")
+    debug_messages.append("Proficiency boosts applied.")
     # **5️⃣ Apply Work Experience Adjustments**
-    scoring_inputs = extract_scoring_inputs(skills_text, extracted_skills, impact_statements)
-    debug_messages.append("Extracted scoring inputs.")
+    scoring_inputs = extract_scoring_inputs(skills_text, extracted_skills, impact_statements, career_goals)
+    debug_messages.append("Scoring inputs extracted.")
     if "Work Experience" in scoring_inputs:
         scoring_inputs["Work Experience"] = adjust_work_experience_weights(
             scoring_inputs["Work Experience"], extracted_skills
         )
-        debug_messages.append("Applied work experience adjustments.")
+        debug_messages.append("Work experience adjustments applied.")
     # Ensure "Work Experience" key exists in scoring_inputs
     if "Work Experience" not in scoring_inputs:
         scoring_inputs["Work Experience"] = []
     # **6️⃣ Apply Certification & Course Boosts**
     if "Certifications" in scoring_inputs:
         extracted_skills = apply_certification_boosts(extracted_skills, scoring_inputs["Certifications"])
-        debug_messages.append("Applied certification boosts.")
+        debug_messages.append("Certification boosts applied.")
     if "Online Courses" in scoring_inputs:
         extracted_skills = apply_course_boosts(extracted_skills, scoring_inputs["Online Courses"])
-        debug_messages.append("Applied course boosts.")
+        debug_messages.append("Course boosts applied.")
 
     # New Step: Apply Skill Decay and Real-Time Industry Trend Bonus
     extracted_skills = apply_skill_decay(extracted_skills, scoring_inputs["Work Experience"])
-    debug_messages.append("Applied skill decay.")
+    debug_messages.append("Skill decay applied.")
     extracted_skills = apply_industry_trend_bonus(extracted_skills, career_goals, learning_goals)
-    debug_messages.append("Applied industry trend bonus.")
+    debug_messages.append("Industry trend bonus applied.")
 
     # **8️⃣ Calculate Final Career Readiness Score**
     adjusted_weights = adjust_weights_updated(scoring_inputs, extracted_skills)
     final_score = calculate_final_score(extracted_skills)
-    debug_messages.append(f"Calculated final career readiness score: {final_score}.")
+    debug_messages.append(f"Final score: {final_score}.")
     # **9️⃣ Validate Extracted Skills Against Industry Standards**
     industry_validation = validate_skills_against_industry(extracted_skills, career_goals, learning_goals)
-    debug_messages.append("Validated extracted skills against industry standards.")
+    debug_messages.append("Skills validated against industry.")
 
     # **🔹 Return Final Analysis**
     result = {
@@ -1209,30 +1096,28 @@ def analyze_user_profile(data):
         "debugMessages": debug_messages  # Include debug messages in the result
     }
 
-    # Send extracted skills and knowledge gaps back to the backend
+    # Save analysis results to the database
     try:
-        backend_url = "https://backend.example.com/api/skills"
-        payload = {
-            "user_id": user_data.get("user_id"),
-            "extracted_skills": extracted_skills,
-            "knowledge_gaps": industry_validation.get("missing_skills", [])
-        }
-        debug_messages.append(f"Sending data to backend: {backend_url}")
-        debug_messages.append(f"Payload: {json.dumps(payload, indent=4)}")
-        response = requests.post(backend_url, json=payload)
-        response.raise_for_status()
-        debug_messages.append("Successfully sent extracted skills and knowledge gaps to backend.")
-    except requests.RequestException as e:
-        debug_messages.append(f"❌ Error sending extracted skills and knowledge gaps to backend: {e}")
-        print(f"❌ Error sending extracted skills and knowledge gaps to backend: {e}")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+        INSERT INTO analysis_results (user_id, extracted_skills, final_score, impact_statements, scoring_inputs, industry_validation, debug_messages)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            user_data.get("user_id"),
+            json.dumps(extracted_skills),
+            final_score,
+            json.dumps(impact_statements),
+            json.dumps(scoring_inputs),
+            json.dumps(industry_validation),
+            debug_messages
+        ))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        debug_messages.append("Analysis results saved to database.")
+    except Exception as e:
+        debug_messages.append(f"❌ Error saving analysis results to database: {e}")
+        print(f"❌ Error saving analysis results to database: {e}")
 
     return result
-
-# Run Analysis
-result = analyze_user_profile(example_text)
-
-# Save to JSON
-with open("ai_skill_analysis.json", "w") as f:
-    json.dump(result, f, indent=4)
-
-print("\n✅ Analysis complete! Results saved to 'ai_skill_analysis.json'")
