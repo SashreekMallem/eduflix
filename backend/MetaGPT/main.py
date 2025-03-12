@@ -107,9 +107,23 @@ def init_db_tables():
         CREATE TABLE IF NOT EXISTS extracted_skills (
             skill_id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
-            skill VARCHAR(255) NOT NULL,
+            skill TEXT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES user_profiles(user_id)
         )
+    """)
+    # Convert skill column from TEXT to JSONB
+    cursor.execute("""
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'extracted_skills' AND column_name = 'skill'
+            ) THEN
+                ALTER TABLE extracted_skills
+                ALTER COLUMN skill TYPE JSONB
+                USING to_jsonb(skill);
+            END IF;
+        END$$;
     """)
     conn.commit()
     cursor.close()
@@ -139,25 +153,29 @@ class SignUpUser(BaseModel):
 class UserProfile(BaseModel):
     user_id: int
     username: str
+    full_name: str
+    date_of_birth: str
+    current_status: Optional[str]
     resume_file: Optional[str]
-    transcript_file: Optional[str]
-
+    transcript_files: Optional[List[str]]
     university: Optional[str]
-    degree: Optional[str]
+    degree: str
+    field_of_study: str
     relevant_courses: List[str]
-
-    certifications: List[Dict[str, str]]  # Example: [{"title": "AWS", "issuer": "Amazon"}]
-    online_courses: List[Dict[str, str]]  # Example: [{"name": "Deep Learning", "platform": "Coursera"}]
-
-    project_file: Optional[str]
-    project_description: Optional[str]
-
-    work_experience_title: Optional[str]
-    # Change union order to allow list first, then string
-    work_experience_description: Optional[Union[List[str], str]]
-
+    added_degrees: List[Dict[str, Union[str, List[str]]]]
+    certifications: List[Dict[str, str]]
+    online_courses: List[Dict[str, str]]
+    work_experience: List[Dict[str, str]]
     preferred_learning_pace: Optional[str]
+    learning_commitment: Optional[str]
     preferred_learning_methods: List[str]
+    learning_goals: List[str]
+    project_link: Optional[str]
+    project_title: Optional[str]
+    project_description: Optional[str]
+    publications: List[Dict[str, str]]
+    career_goals: List[str]
+    skills: List[str]
 
 class StudyGroup(BaseModel):
     group_id: int
@@ -215,26 +233,28 @@ def sign_up(user: SignUpUser):
 @app.post("/onboarding")
 async def onboarding(
     user_id: int = Form(...),
-    full_name: str = Form(...),       # Mandatory for personalization
-    date_of_birth: str = Form(...),
-    username: str = Form(...),        # Required for identification
+    full_name: str = Form(...),
+    date_of_birth: Optional[str] = Form(None),
+    username: str = Form(...),
     current_status: Optional[str] = Form(None),
     resume_file: Optional[UploadFile] = File(None),
     transcript_files: Optional[List[UploadFile]] = File(None),
     university: Optional[str] = Form(None),
-    degree: str = Form(...),          # Mandatory for academic background
-    field_of_study: str = Form(...),  # Mandatory for skill extraction
+    degree: str = Form(...),
+    field_of_study: str = Form(...),
     relevant_courses: str = Form("[]"),
     added_degrees: str = Form("[]"),
-    certifications: str = Form(...),  # Mandatory to capture qualifications
+    certifications: str = Form(...),
     online_courses: str = Form("[]"),
-    work_experience: str = Form(...), # Mandatory for professional expertise
+    work_experience: str = Form(...),
     preferred_learning_pace: Optional[str] = Form(None),
     learning_commitment: Optional[str] = Form(None),
     preferred_learning_methods: str = Form("[]"),
-    learning_goals: str = Form(...),  # Mandatory to drive recommendations
-    project_file: Optional[UploadFile] = File(None),
-    project_description: Optional[str] = Form(None),
+    learning_goals: str = Form("[]"),
+    projects: str = Form("[]"),          # New parameter for projects array
+    publications: str = Form("[]"),
+    career_goals: str = Form("[]"),
+    skills: str = Form("[]")
 ):
     # Log incoming values to confirm they match the form submission
     logging.debug("Onboarding details to be inserted:")
@@ -258,9 +278,16 @@ async def onboarding(
         "learning_commitment": learning_commitment,
         "preferred_learning_methods": preferred_learning_methods,
         "learning_goals": learning_goals,
-        "project_file": project_file.filename if project_file else None,
-        "project_description": project_description,
+        "projects": projects,
+        "publications": publications,
+        "career_goals": career_goals,
+        "skills": skills
     })
+
+    logging.debug("career_goals received: %s", career_goals)
+    logging.debug("learning_goals received: %s", learning_goals)
+    logging.debug("projects received: %s", projects)
+    logging.debug("skills received: %s", skills)
 
     # Remove any existing record for this user
     conn = get_db_connection()
@@ -270,17 +297,25 @@ async def onboarding(
     # Process file names
     resume_file_name = resume_file.filename if resume_file else None
     transcript_files_names = [f.filename for f in transcript_files] if transcript_files else []
-    project_file_name = project_file.filename if project_file else None
 
     # Ensure these fields are not undefined
     final_preferred_learning_pace = preferred_learning_pace if preferred_learning_pace is not None else ""
-    final_project_description = project_description if project_description is not None else ""
     final_learning_goals = learning_goals if learning_goals else "[]"
+    final_publications = json.dumps(safe_json_load(publications), ensure_ascii=False)
+    final_career_goals = json.dumps(safe_json_load(career_goals), ensure_ascii=False)
+    final_skills = json.dumps(safe_json_load(skills), ensure_ascii=False)
+    final_projects = json.dumps(safe_json_load(projects), ensure_ascii=False)  # New projects variable
 
+    # Convert 'null' or empty date_of_birth to None
+    final_date_of_birth = None
+    if date_of_birth and date_of_birth.strip().lower() not in ["null", ""]:
+        final_date_of_birth = date_of_birth
+
+    # Removed final_projects from parameters
     params = (
         user_id,
         full_name,
-        date_of_birth,
+        final_date_of_birth,  # Use final_date_of_birth
         username,
         current_status,
         resume_file_name,
@@ -292,20 +327,26 @@ async def onboarding(
         json.dumps(safe_json_load(added_degrees)),
         json.dumps(safe_json_load(certifications)),
         json.dumps(safe_json_load(online_courses)),
-        json.dumps(safe_json_load(work_experience)),
-        final_preferred_learning_pace,  # Updated: Learning pace
+        json.dumps(safe_json_load(work_experience), ensure_ascii=False),
+        final_preferred_learning_pace,
         learning_commitment,
-        json.dumps(safe_json_load(preferred_learning_methods)),
-        final_learning_goals,           # Updated: Learning goals
-        project_file_name,
-        final_project_description       # Updated: Project description
+        json.dumps(safe_json_load(preferred_learning_methods), ensure_ascii=False),
+        json.dumps(safe_json_load(learning_goals), ensure_ascii=False),
+        final_projects,   # Use projects array value here
+        final_publications,
+        final_career_goals,
+        final_skills               # Use the processed skills here
     )
     query = """
         INSERT INTO user_profiles 
             (user_id, full_name, date_of_birth, username, current_status, resume_file, transcript_files, university, degree, field_of_study,
              relevant_courses, added_degrees, certifications, online_courses, work_experience, preferred_learning_pace, learning_commitment,
-             preferred_learning_methods, learning_goals, project_file, project_description)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             preferred_learning_methods, learning_goals, projects, publications, career_goals, skills)
+        VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb,
+            %s, %s, %s::jsonb, %s::jsonb, %s, %s::jsonb, %s::jsonb, %s::jsonb
+        )
     """
     logging.debug(f"Executing onboarding query with parameters: {params}")
     cursor.execute(query, params)
@@ -313,22 +354,54 @@ async def onboarding(
     logging.debug("DB commit successful; profile updated/inserted")
 
     # Extract skills from the provided text
-    text = f"{field_of_study} {relevant_courses} {added_degrees} {certifications} {online_courses} {work_experience} {project_description}"
+    text = f"{field_of_study} {relevant_courses} {added_degrees} {certifications} {online_courses} {work_experience} {projects}"
     skills = extract_skills(text)
     logging.debug(f"Extracted skills: {skills}")
 
     # Insert extracted skills into the database
-    for skill in skills:
+    for skill_obj in skills:
         cursor.execute("""
             INSERT INTO extracted_skills (user_id, skill)
-            VALUES (%s, %s)
-        """, (user_id, skill))
+            VALUES (%s, %s::jsonb)
+        """, (user_id, json.dumps(skill_obj)))
 
     conn.commit()
     cursor.close()
     conn.close()
 
     return {"message": "User onboarding data stored successfully"}
+
+@app.post("/onboarding")
+def onboarding(data: dict = Body(...)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            UPDATE user_profiles
+            SET project_link = %s,
+                project_title = %s,
+                project_description = %s,
+                career_goals = %s,
+                learning_goals = %s,
+                skills = %s
+            WHERE user_id = %s
+        """, (
+            data.get("project_link"),
+            data.get("project_title"),
+            data.get("project_description"),
+            data.get("career_goals"),
+            data.get("learning_goals"),
+            data.get("skills"),
+            data.get("user_id")
+        ))
+        conn.commit()
+        return {"message": "Profile updated successfully"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
 
 # Login endpoint
 @app.post("/login")
@@ -352,7 +425,7 @@ def login(user: LoginUser):
             SELECT user_id, full_name, to_char(date_of_birth, 'YYYY-MM-DD') as date_of_birth, username, current_status, 
                    resume_file, transcript_files, university, degree, field_of_study, relevant_courses, added_degrees, 
                    certifications, online_courses, work_experience, preferred_learning_pace, learning_commitment, 
-                   preferred_learning_methods, learning_goals, project_file, project_description
+                   preferred_learning_methods, learning_goals, project_link, project_title, project_description
             FROM user_profiles WHERE user_id = %s
         """, (auth_user_id,))
         profile_result = cursor.fetchone()
@@ -389,8 +462,9 @@ def login(user: LoginUser):
                 "learning_commitment": profile_result[16],
                 "preferred_learning_methods": profile_result[17],
                 "learning_goals": profile_result[18],
-                "project_file": profile_result[19],
-                "project_description": profile_result[20],
+                "project_link": profile_result[19],
+                "project_title": profile_result[20],
+                "project_description": profile_result[21],
             }
             return {
                 "message": "Login successful. Redirecting to home page.",
@@ -421,7 +495,7 @@ def get_onboarding_details(user_id: int):
             SELECT user_id, full_name, to_char(date_of_birth, 'YYYY-MM-DD') as date_of_birth, username, current_status,
                    resume_file, transcript_files, university, degree, field_of_study, relevant_courses, added_degrees,
                    certifications, online_courses, work_experience, preferred_learning_pace, learning_commitment,
-                   preferred_learning_methods, learning_goals, project_file, project_description
+                   preferred_learning_methods, learning_goals, project_link, project_title, project_description, publications, career_goals, skills
             FROM user_profiles WHERE user_id = %s
         """, (user_id,))
         profile_result = cursor.fetchone()
@@ -449,8 +523,12 @@ def get_onboarding_details(user_id: int):
             "learning_commitment": profile_result[16],
             "preferred_learning_methods": profile_result[17],
             "learning_goals": profile_result[18],
-            "project_file": profile_result[19],
-            "project_description": profile_result[20],
+            "project_link": profile_result[19],
+            "project_title": profile_result[20],
+            "project_description": profile_result[21],
+            "publications": profile_result[22],
+            "career_goals": profile_result[23],
+            "skills": profile_result[24]
         }
         
         conn.commit()
@@ -873,7 +951,7 @@ def get_user_profile(username: str):
             "current_status": profile_result[4],
             "resume_file": profile_result[5],
             "transcript_file": profile_result[6],
-            "education": education,  # Updated education section
+            "education": education,
             "certifications": profile_result[12],
             "online_courses": profile_result[13],
             "work_experience": profile_result[14],
@@ -881,9 +959,12 @@ def get_user_profile(username: str):
             "learning_commitment": profile_result[16],
             "preferred_learning_methods": profile_result[17],
             "learning_goals": profile_result[18],
-            "project_file": profile_result[19],
-            "project_description": profile_result[20],
-            "extracted_skills": extracted_skills  # New field for skill breakdown
+            "project_link": profile_result[19],
+            "project_title": profile_result[20],
+            "project_description": profile_result[21],
+            "publications": profile_result[22],
+            "career_goals": profile_result[23],
+            "skills": extracted_skills
         }
         conn.commit()
         cursor.close()
@@ -1075,6 +1156,12 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             logging.info(f"Client {client_id} removed from connected_clients.")
         pass  # Implement cleanup logic
 
+def extract_skills(text: str) -> List[Dict[str, str]]:
+    # Ensure we return a list of dicts with a "name" key
+    if not text or not text.strip():
+        return []
+    return [{"name": text.strip()}]
+
 # # Load Gemma model from Hugging Face
 # model_name = "google/gemma-2-2b"
 # # Access the token from the environment variable
@@ -1091,6 +1178,66 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 # async def ai_tutor(prompt: str = Form(...)):
 #     response = get_ai_tutor_response(prompt)
 #     return {"response": response}
+
+@app.post("/skill-extraction")
+async def skill_extraction(data: dict = Body(...)):
+    try:
+        # Call the skill extraction function from skill_extraction.py
+        # from skill_extraction import analyze_user_profile
+        # result = analyze_user_profile(json.dumps(data))
+        
+        # Save the result to a file or database if needed
+        # with open("ai_skill_analysis.json", "w") as f:
+        #     json.dump(result, f, indent=4)
+        
+        # Extract skills and knowledge gaps from the result
+        # extracted_skills = result.get("Extracted Skills", {})
+        # knowledge_gaps = result.get("Industry Validation", {}).get("missing_skills", [])
+
+        # Convert extracted_skills and knowledge_gaps to JSONB format
+        # extracted_skills_jsonb = json.dumps(extracted_skills)
+        # knowledge_gaps_jsonb = json.dumps(knowledge_gaps)
+
+        # Update the user_profiles table with the extracted skills and knowledge gaps
+        # conn = get_db_connection()
+        # cursor = conn.cursor()
+        # cursor.execute("""
+        #     UPDATE user_profiles
+        #     SET extracted_skills = %s::jsonb, knowledge_gaps = %s::jsonb
+        #     WHERE user_id = %s
+        # """, (extracted_skills_jsonb, knowledge_gaps_jsonb, data.get("user_id")))
+        # conn.commit()
+        # cursor.close()
+        # conn.close()
+
+        return {"message": "Skill extraction paused successfully"}
+    except Exception as e:
+        logging.exception("Error during skill extraction")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.post("/update-skills")
+async def update_skills(data: dict = Body(...)):
+    try:
+        user_id = data.get("user_id")
+        extracted_skills = data.get("extracted_skills", {})
+        knowledge_gaps = data.get("knowledge_gaps", [])
+
+        # Update the user_profiles table with the extracted skills and knowledge gaps
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE user_profiles
+            SET extracted_skills = %s, knowledge_gaps = %s
+            WHERE user_id = %s
+        """, (json.dumps(extracted_skills), json.dumps(knowledge_gaps), user_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return {"message": "Skills and knowledge gaps updated successfully"}
+    except Exception as e:
+        logging.exception("Error updating skills and knowledge gaps")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/")
 def home():

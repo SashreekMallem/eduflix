@@ -3,14 +3,14 @@ import os
 import json
 import re
 import numpy as np
-from neo4j import GraphDatabase  # new import for Neo4j integration
+import requests  # new import for sending data back to the backend
 
 client = OpenAI()
 
 # ✅ Call GPT-4o using the new OpenAI SDK
 def call_gpt4o(prompt, cypher_query=None):
     # If a Cypher query is provided, optimize it using GPT-4o
-    if cypher_query:
+    if (cypher_query):
         optimization_prompt = f"""
         You are an expert in Neo4j Cypher query optimization. 
         Given this original query:
@@ -52,6 +52,8 @@ def call_gpt4o(prompt, cypher_query=None):
 import json
 
 def extract_skills(text, career_path, impact_statements):
+    debug_messages = []
+    debug_messages.append("Starting skill extraction process.")
     prompt = f"""
     You are an expert in skill extraction, proficiency assessment, and industry validation.
     Extract ALL key skills from the given text and categorize them properly.
@@ -141,21 +143,27 @@ def extract_skills(text, career_path, impact_statements):
     ### **Text to Process:**
     {text}
     """
-
+    debug_messages.append("Generated prompt for skill extraction.")
     extracted_skills = call_gpt4o(prompt)
+    debug_messages.append("Received response from GPT-4o for skill extraction.")
 
     # ✅ Clean response: Remove markdown formatting (` ```json ... ``` `)
     extracted_skills = re.sub(r"```json\n|\n```", "", extracted_skills).strip()
+    debug_messages.append("Cleaned GPT-4o response for skill extraction.")
 
     # ✅ Debug Print
     print("🔹 Cleaned Response (Skills):\n", extracted_skills)
 
     try:
         extracted_skills_json = json.loads(extracted_skills)
-        return normalize_skills(extracted_skills_json)
+        debug_messages.append("Parsed JSON response for skill extraction.")
+        normalized_skills = normalize_skills(extracted_skills_json)
+        debug_messages.append("Normalized extracted skills.")
+        return normalized_skills, debug_messages
     except json.JSONDecodeError as e:
+        debug_messages.append(f"❌ JSON Parsing Failed (Skills): {e}")
         print(f"❌ JSON Parsing Failed (Skills): {e}")
-        return {"error": "Skill extraction failed"}
+        return {"error": "Skill extraction failed"}, debug_messages
 
 
 # Updated assign_base_proficiency to treat 0 as missing years.
@@ -316,11 +324,11 @@ def extract_impact_statements(text, career_path, extracted_skills):
 
     try:
         extracted_impact_json = json.loads(impact_statements)
-        return validate_impact_statements(extracted_impact_json, extracted_skills)
+        validated_impact_statements = validate_impact_statements(extracted_impact_json, extracted_skills)
+        return validated_impact_statements, ["Impact statements extracted successfully."]
     except json.JSONDecodeError as e:
         print(f"❌ JSON Parsing Failed (Impact Statements): {e}")
-        return {"error": "Impact extraction failed"}
-
+        return {"error": "Impact extraction failed"}, [f"❌ JSON Parsing Failed (Impact Statements): {e}"]
 
 
 def validate_impact_statements(impact_data, extracted_skills):
@@ -335,8 +343,9 @@ def validate_impact_statements(impact_data, extracted_skills):
     flat_skills = {}
     for category, skills in extracted_skills.items():
         for skill in skills:
-            skill_name = skill["name"].strip().lower()
-            flat_skills[skill_name] = skill["name"]  # Store original casing for final output
+            if isinstance(skill, dict) and "name" in skill:
+                skill_name = skill["name"].strip().lower()
+                flat_skills[skill_name] = skill["name"]  # Store original casing for final output
 
     validated_impact_statements = []
     seen_statements = set()
@@ -459,8 +468,9 @@ def apply_proficiency_boosts(extracted_skills, impact_statements):
     skill_dict = {}
     for category, skills in extracted_skills.items():
         for skill in skills:
-            skill_name = skill["name"].strip().lower()
-            skill_dict[skill_name] = skill
+            if isinstance(skill, dict) and "name" in skill:
+                skill_name = skill["name"].strip().lower()
+                skill_dict[skill_name] = skill
 
     for impact in impact_statements.get("Impact Statements", []):
         # Get a dynamic boost percentage from GPT-4o for this impact
@@ -531,33 +541,34 @@ def apply_skill_decay(extracted_skills, work_experiences):
     today = datetime.utcnow()
     for category, skills in extracted_skills.items():
         for skill in skills:
-            skill_name = skill["name"].strip().lower()
-            last_used = None
-            for exp in work_experiences:
-                if "skills" in exp and any(skill_name == s.strip().lower() for s in exp["skills"]):
-                    end_date = exp.get("end_date")
-                    if end_date:
-                        try:
-                            exp_end = datetime.strptime(end_date, "%Y-%m-%d")
-                        except Exception:
-                            continue
-                        if (last_used is None) or (exp_end > last_used):
-                            last_used = exp_end
-            if last_used is None:
-                # If no usage found, assume the skill hasn't been used for 5 years.
-                years_since = 5
-            else:
-                delta = today - last_used
-                years_since = delta.days / 365.0
-            decay_factor = math.exp(-years_since / 2.5)
-            base = skill["proficiency"]
-            updated = round(base * decay_factor, 2)
-            skill["proficiency"] = updated
-            details = (
-                f"Skill '{skill['name']}' last used {years_since:.2f} years ago. "
-                f"Applied exponential decay: {base} * exp(-{years_since:.2f}/2.5) = {updated}."
-            )
-            append_explanation(skill, "decay", details)
+            if isinstance(skill, dict) and "name" in skill:
+                skill_name = skill["name"].strip().lower()
+                last_used = None
+                for exp in work_experiences:
+                    if "skills" in exp and any(skill_name == s.strip().lower() for s in exp["skills"]):
+                        end_date = exp.get("end_date")
+                        if end_date:
+                            try:
+                                exp_end = datetime.strptime(end_date, "%Y-%m-%d")
+                            except Exception:
+                                continue
+                            if (last_used is None) or (exp_end > last_used):
+                                last_used = exp_end
+                if last_used is None:
+                    # If no usage found, assume the skill hasn't been used for 5 years.
+                    years_since = 5
+                else:
+                    delta = today - last_used
+                    years_since = delta.days / 365.0
+                decay_factor = math.exp(-years_since / 2.5)
+                base = skill["proficiency"]
+                updated = round(base * decay_factor, 2)
+                skill["proficiency"] = updated
+                details = (
+                    f"Skill '{skill['name']}' last used {years_since:.2f} years ago. "
+                    f"Applied exponential decay: {base} * exp(-{years_since:.2f}/2.5) = {updated}."
+                )
+                append_explanation(skill, "decay", details)
     return extracted_skills
 
 # NEW helper function to determine if a skill is trending based on career and learning goals using GPT-4o.
@@ -583,14 +594,15 @@ def apply_industry_trend_bonus(extracted_skills, career_goals, learning_goals):
     """
     for category, skills in extracted_skills.items():
         for skill in skills:
-            skill_name = skill["name"].strip()
-            if is_trending_skill(skill_name, career_goals, learning_goals):
-                base = skill["proficiency"]
-                bonus = base * 0.05
-                updated = min(round(base + bonus, 2), 100)
-                skill["proficiency"] = updated
-                details = f"Trending skill bonus applied to '{skill_name}': {base} increased by 5% to {updated}."
-                append_explanation(skill, "trend bonus", details)
+            if isinstance(skill, dict) and "name" in skill:
+                skill_name = skill["name"].strip()
+                if is_trending_skill(skill_name, career_goals, learning_goals):
+                    base = skill["proficiency"]
+                    bonus = base * 0.05
+                    updated = min(round(base + bonus, 2), 100)
+                    skill["proficiency"] = updated
+                    details = f"Trending skill bonus applied to '{skill_name}': {base} increased by 5% to {updated}."
+                    append_explanation(skill, "trend bonus", details)
     return extracted_skills
 
 # NEW helper function for certification boosts (Combined)
@@ -682,7 +694,7 @@ def get_course_level(course_name):
     Given the course name "{course_name}", classify it as "advanced", "intermediate", or "beginner".
     Return your answer as a JSON object like: {{"level": "advanced"}}.
     """
-    response = call_gpt4o(prompt)
+    response = call_gpt4o.prompt)
     try:
         result = json.loads(response)
         return result.get("level", "beginner").lower()
@@ -880,7 +892,22 @@ def extract_scoring_inputs(text, extracted_skills, impact_statements):
         return {"error": "Scoring input extraction failed"}
 
 
-
+def adjust_work_experience_weights(work_experience, extracted_skills):
+    """
+    Adjusts work experience weights based on extracted skills.
+    """
+    # Placeholder logic for adjusting work experience weights
+    # Implement the actual logic based on your requirements
+    for experience in work_experience:
+        if isinstance(experience, dict) and "role" in experience:
+            role = experience["role"]
+            # Example adjustment logic
+            experience["weight"] = 1.0  # Default weight
+            if "senior" in role.lower():
+                experience["weight"] += 0.5
+            if "manager" in role.lower():
+                experience["weight"] += 0.3
+    return work_experience
 
 
 # ✅ Dynamic Weight Redistribution Logic
@@ -910,6 +937,8 @@ def adjust_weights_updated(user_data, extracted_skills):
     final_weights = base_weights.copy()
 
     for missing_cat in missing:
+        if missing_cat not in priority_order:
+            continue  # Skip if missing_cat is not in priority_order
         missing_weight = final_weights.pop(missing_cat, 0)  # Remove weight for missing category
 
         for priority_cat in priority_order[missing_cat]:
@@ -925,13 +954,14 @@ def adjust_weights_updated(user_data, extracted_skills):
     # **Apply Adjusted Weights to Skill Proficiency**
     for category, skills in extracted_skills.items():
         for skill in skills:
-            try:
-                skill["proficiency"] = float(skill["proficiency"])  # Convert to float
-                skill["weighted_proficiency"] = round(skill["proficiency"] * final_weights.get(category, 1), 2)
-            except ValueError:
-                print(f"❌ Error: Invalid proficiency value for skill: {skill}")
-                skill["proficiency"] = 0.0  # Default to 0 if conversion fails
-                skill["weighted_proficiency"] = 0.0
+            if isinstance(skill, dict) and "proficiency" in skill:
+                try:
+                    skill["proficiency"] = float(skill["proficiency"])  # Convert to float
+                    skill["weighted_proficiency"] = round(skill["proficiency"] * final_weights.get(category, 1), 2)
+                except ValueError:
+                    print(f"❌ Error: Invalid proficiency value for skill: {skill}")
+                    skill["proficiency"] = 0.0  # Default to 0 if conversion fails
+                    skill["weighted_proficiency"] = 0.0
 
 
     return final_weights
@@ -945,8 +975,9 @@ def calculate_final_score(extracted_skills):
 
     for category, skills in extracted_skills.items():
         for skill in skills:
-            total_proficiency += skill.get("proficiency", 0)
-            skill_count += 1
+            if isinstance(skill, dict) and "proficiency" in skill):
+                total_proficiency += skill.get("proficiency", 0)
+                skill_count += 1
 
     if skill_count == 0:
         return 0  # Avoid division by zero
@@ -975,7 +1006,7 @@ Languages: C, C++, C#, Java, Python, Kotlin, Rust, MA TLAB, SQL, JavaScript, HTM
 Frameworks and Libraries: .NET Core, Bootstrap, Spring Boot, ReactJS, NodeJS, Django, Flask, Flutter, Figma, REST API, D3.js
 Big Data & ML: Spark, Hadoop, Hive, Statistics, ML models, Numpy, Pandas, Beautiful Soup, Sklearn Libraries, Web Scraping
 DevOps and Cloud: Ansible, Docker, Jenkins, Kubernetes, Terraform, AWS
-Tools and Utilities: Splunk, Postman, Wireshark, Prometheus, OpenCV , GitHub & Bitbucket
+Tools and Utilities: Splunk, Psostman, Wireshark, Prometheus, OpenCV , GitHub & Bitbucket
 PROFESSIONAL EXPERIENCE
 University of Florida | Full Stack Web Developer Jun 2023 - Dec 2023
 ● Executed a seamless migration of a legacy Shark bite victims database A WS server, optimizing storage and database performance
@@ -1060,7 +1091,7 @@ def validate_skills_against_industry(extracted_skills, career_goals, learning_go
       "industry_standards": a detailed list of all essential, must-have, and commonly posted skills, courses, and knowledge required,
       "missing_skills": a list of elements that are either missing or under-represented.
     """
-    skills_list = list({skill["name"] for cat in extracted_skills.values() for skill in cat})
+    skills_list = list({skill["name"] for cat in extracted_skills.values() for skill in cat if isinstance(skill, dict) and "name" in skill})
     prompt = f"""
     You are an expert in establishing industry skill standards and evaluating career readiness.
     Given the following extracted skills: {skills_list},
@@ -1093,70 +1124,109 @@ def get_missing_skills(user_name, career_goal):
     """
     return edu_kg.run_query(query, {"user_name": user_name, "career_goal": career_goal})
 
-def analyze_user_profile(text):
+def analyze_user_profile(data):
     import concurrent.futures
-    # Parse user goals early from input; default to "General" if parsing fails.
+    debug_messages = []
+    debug_messages.append("Starting user profile analysis.")
+    # Parse user data from input
     try:
-        user_data = json.loads(text)
-        career_goals = user_data.get("Career Goals", "General")
-        learning_goals = user_data.get("Learning Goals", "General")
+        user_data = json.loads(data)
+        career_goals = user_data.get("career_goals", "General")
+        learning_goals = user_data.get("learning_goals", "General")
+        debug_messages.append("Parsed user data from input.")
     except json.decoder.JSONDecodeError:
-        print("⚠️ Input text is not valid JSON. Defaulting Career and Learning Goals to 'General'.")
+        debug_messages.append("⚠️ Input data is not valid JSON. Defaulting Career and Learning Goals to 'General'.")
+        print("⚠️ Input data is not valid JSON. Defaulting Career and Learning Goals to 'General'.")
         career_goals = "General"
         learning_goals = "General"
+        user_data = {}
+
+    # Extract relevant sections for each function
+    skills_text = f"{user_data.get('skills', [])} {user_data.get('work_experience', [])} {user_data.get('projects', [])} {user_data.get('publications', [])} {user_data.get('certifications', [])} {user_data.get('online_courses', [])} {user_data.get('education', [])}"
+    impact_text = f"{user_data.get('work_experience', [])} {user_data.get('projects', [])} {user_data.get('publications', [])}"
+    career_goals_text = f"{user_data.get('career_goals', [])}"
+    learning_goals_text = f"{user_data.get('learning_goals', [])}"
+    certifications_text = f"{user_data.get('certifications', [])}"
+    online_courses_text = f"{user_data.get('online_courses', [])}"
+    work_experience_text = f"{user_data.get('work_experience', [])}"
 
     # Run extract_skills and extract_impact_statements concurrently.
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_skills = executor.submit(extract_skills, text, "General", [])
-        # Use a lambda to delay extract_impact_statements until skills are available.
-        future_impact = executor.submit(lambda: extract_impact_statements(text, "General", future_skills.result()))
-        extracted_skills = future_skills.result()
-        impact_statements = future_impact.result()
+        future_skills = executor.submit(extract_skills, skills_text, "General", [])
+        future_impact = executor.submit(lambda: extract_impact_statements(impact_text, "General", future_skills.result()[0]))
+        extracted_skills, skill_debug = future_skills.result()
+        debug_messages.extend(skill_debug)
+        impact_result = future_impact.result()
+        if len(impact_result) == 2:
+            impact_statements, impact_debug = impact_result
+        else:
+            impact_statements, impact_debug = {"Impact Statements": []}, ["No impact statements extracted."]
+        debug_messages.extend(impact_debug)
 
     # **3️⃣ Apply Proficiency Boosts from Impact**
     extracted_skills = apply_proficiency_boosts(extracted_skills, impact_statements)
-    # **4️⃣ Extract Scoring Inputs**
-    scoring_inputs = extract_scoring_inputs(text, extracted_skills, impact_statements)
+    debug_messages.append("Applied proficiency boosts from impact statements.")
     # **5️⃣ Apply Work Experience Adjustments**
+    scoring_inputs = extract_scoring_inputs(skills_text, extracted_skills, impact_statements)
+    debug_messages.append("Extracted scoring inputs.")
     if "Work Experience" in scoring_inputs:
         scoring_inputs["Work Experience"] = adjust_work_experience_weights(
             scoring_inputs["Work Experience"], extracted_skills
         )
+        debug_messages.append("Applied work experience adjustments.")
+    # Ensure "Work Experience" key exists in scoring_inputs
+    if "Work Experience" not in scoring_inputs:
+        scoring_inputs["Work Experience"] = []
     # **6️⃣ Apply Certification & Course Boosts**
     if "Certifications" in scoring_inputs:
         extracted_skills = apply_certification_boosts(extracted_skills, scoring_inputs["Certifications"])
+        debug_messages.append("Applied certification boosts.")
     if "Online Courses" in scoring_inputs:
         extracted_skills = apply_course_boosts(extracted_skills, scoring_inputs["Online Courses"])
+        debug_messages.append("Applied course boosts.")
 
     # New Step: Apply Skill Decay and Real-Time Industry Trend Bonus
-    if "Work Experience" in scoring_inputs:
-        extracted_skills = apply_skill_decay(extracted_skills, scoring_inputs["Work Experience"])
+    extracted_skills = apply_skill_decay(extracted_skills, scoring_inputs["Work Experience"])
+    debug_messages.append("Applied skill decay.")
     extracted_skills = apply_industry_trend_bonus(extracted_skills, career_goals, learning_goals)
+    debug_messages.append("Applied industry trend bonus.")
 
-    # **7️⃣ Adjust Weights Based on Available Data**
-    adjusted_weights = adjust_weights_updated(scoring_inputs, extracted_skills)
     # **8️⃣ Calculate Final Career Readiness Score**
+    adjusted_weights = adjust_weights_updated(scoring_inputs, extracted_skills)
     final_score = calculate_final_score(extracted_skills)
+    debug_messages.append(f"Calculated final career readiness score: {final_score}.")
     # **9️⃣ Validate Extracted Skills Against Industry Standards**
     industry_validation = validate_skills_against_industry(extracted_skills, career_goals, learning_goals)
-
-    # Store into Neo4j
-    store_skills_in_neo4j(edu_kg, "defaultUser", extracted_skills)
-    missing_skills = get_missing_skills("John Doe", "Data Scientist")
-    print("🛑 Missing Skills:", missing_skills)
+    debug_messages.append("Validated extracted skills against industry standards.")
 
     # **🔹 Return Final Analysis**
     result = {
         "Extracted Skills": extracted_skills,
+        "Final Score": final_score,
         "Impact Statements": impact_statements,
         "Scoring Inputs": scoring_inputs,
-        "Adjusted Weights": adjusted_weights,
-        "Final Score": final_score,
-        "Industry Validation": industry_validation
+        "Industry Validation": industry_validation,
+        "debugMessages": debug_messages  # Include debug messages in the result
     }
+
+    # Send extracted skills and knowledge gaps back to the backend
+    try:
+        backend_url = "https://backend.example.com/api/skills"
+        payload = {
+            "user_id": user_data.get("user_id"),
+            "extracted_skills": extracted_skills,
+            "knowledge_gaps": industry_validation.get("missing_skills", [])
+        }
+        debug_messages.append(f"Sending data to backend: {backend_url}")
+        debug_messages.append(f"Payload: {json.dumps(payload, indent=4)}")
+        response = requests.post(backend_url, json=payload)
+        response.raise_for_status()
+        debug_messages.append("Successfully sent extracted skills and knowledge gaps to backend.")
+    except requests.RequestException as e:
+        debug_messages.append(f"❌ Error sending extracted skills and knowledge gaps to backend: {e}")
+        print(f"❌ Error sending extracted skills and knowledge gaps to backend: {e}")
+
     return result
-
-
 
 # Run Analysis
 result = analyze_user_profile(example_text)
@@ -1166,40 +1236,3 @@ with open("ai_skill_analysis.json", "w") as f:
     json.dump(result, f, indent=4)
 
 print("\n✅ Analysis complete! Results saved to 'ai_skill_analysis.json'")
-
-class KnowledgeGraph:
-    def __init__(self, uri="bolt://localhost:7687", user="neo4j", password="Nutra0/KavsIs"):
-        self.driver = GraphDatabase.driver(uri, auth=(user, password))
-
-    def close(self):
-        self.driver.close()
-
-    def run_query(self, query, params={}):
-        with self.driver.session() as session:
-            result = session.run(query, **params)
-            return [record for record in result]
-
-edu_kg = KnowledgeGraph()
-
-def store_skills_in_neo4j(edu_kg, user_id, extracted_skills):
-    """
-    Merges user and skill data into the Neo4j knowledge graph.
-    """
-    for category, skills in extracted_skills.items():
-        for skill in skills:
-            skill_name = skill.get("name", "Unknown Skill")
-            query = """
-            MERGE (u:User {id: $user_id})
-            MERGE (s:Skill {name: $skill_name})
-            MERGE (u)-[:HAS_SKILL {category: $category}]->(s)
-            """
-            params = {
-                "user_id": user_id,
-                "skill_name": skill_name,
-                "category": category
-            }
-            optimized_query = call_gpt4o("", cypher_query=query)
-            if optimized_query:
-                edu_kg.run_query(optimized_query, params)
-            else:
-                edu_kg.run_query(query, params)

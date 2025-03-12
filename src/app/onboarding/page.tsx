@@ -55,18 +55,24 @@ export default function NeuralNetworkBackground() {
   const [workExperienceCompany, setWorkExperienceCompany] = useState("");
   const [workExperienceTitle, setWorkExperienceTitle] = useState("");
   const [workExperienceDescription, setWorkExperienceDescription] = useState("");
+  const [workExperienceStart, setWorkExperienceStart] = useState(""); // New state for start date
+  const [workExperienceEnd, setWorkExperienceEnd] = useState("");     // New state for end date
   interface WorkExperience {
     company: string;
     title: string;
     description: string;
+    start_date: string; // New field for work experience start date
+    end_date: string;   // New field for work experience end date
   }
 
   const [addedWorkExperiences, setAddedWorkExperiences] = useState<WorkExperience[]>([]);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
-  const [projectFile, setProjectFile] = useState<File | null>(null);
+  const [projectLink, setProjectLink] = useState("");
+  const [projectTitle, setProjectTitle] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   interface Project {
-    file: File;
+    link: string;
+    title: string;
     description: string;
   }
   
@@ -83,11 +89,13 @@ export default function NeuralNetworkBackground() {
   const [currentStatus, setCurrentStatus] = useState(""); // New state for current status
   const [fieldOfStudy, setFieldOfStudy] = useState("");
   const [relevantCourses, setRelevantCourses] = useState<string[]>([]);
+  const [grade, setGrade] = useState(""); // New state for grade
   interface Degree {
     university: string;
     degree: string;
     field_of_study: string;
     relevant_courses: string[];
+    grade: string; // Include grade in Degree interface
   }
 
   const [addedDegrees, setAddedDegrees] = useState<Degree[]>([]);
@@ -95,6 +103,26 @@ export default function NeuralNetworkBackground() {
   const [learningGoals, setLearningGoals] = useState<string[]>([]);
   const [fullName, setFullName] = useState("");
   const [dob, setDob] = useState("");
+  const [careerGoals, setCareerGoals] = useState<string[]>([]); // Add this line
+  const [debugMessages, setDebugMessages] = useState<string[]>([]); // Add this line
+  const [skills, setSkills] = useState<string[]>([]); // Add a new state for skills if not present
+  // Add a ref for latest skills
+  const skillsRef = useRef<string[]>(skills);
+
+  // Update ref on skills change
+  useEffect(() => {
+    skillsRef.current = skills;
+    console.log("Updated Skills:", skills); // logs updated skills
+  }, [skills]);
+
+  // Add a ref for careerGoals
+  const careerGoalsRef = useRef<string[]>(careerGoals);
+
+  // Update ref on careerGoals change
+  useEffect(() => {
+    careerGoalsRef.current = careerGoals;
+    console.log("Updated Career Goals:", careerGoals);
+  }, [careerGoals]);
 
   const handleAddDegree = () => {
     if (university && degree && fieldOfStudy) {
@@ -104,6 +132,7 @@ export default function NeuralNetworkBackground() {
           university,
           degree,
           field_of_study: fieldOfStudy,
+          grade,                         // Include grade in added degree
           relevant_courses: relevantCourses,
         },
       ]);
@@ -111,6 +140,7 @@ export default function NeuralNetworkBackground() {
       setDegree("High School");
       setFieldOfStudy("");
       setRelevantCourses([]);
+      setGrade(""); // Reset grade input
     }
   };
 
@@ -243,7 +273,9 @@ export default function NeuralNetworkBackground() {
     if (
       workExperienceCompany.trim() !== "" &&
       workExperienceTitle.trim() !== "" &&
-      workExperienceDescription.trim() !== ""
+      workExperienceDescription.trim() !== "" &&
+      workExperienceStart.trim() !== "" &&
+      workExperienceEnd.trim() !== ""
     ) {
       setAddedWorkExperiences([
         ...addedWorkExperiences,
@@ -251,43 +283,45 @@ export default function NeuralNetworkBackground() {
           company: workExperienceCompany.trim(),
           title: workExperienceTitle.trim(),
           description: workExperienceDescription.trim(),
+          start_date: workExperienceStart.trim(), // add start date
+          end_date: workExperienceEnd.trim(),       // add end date
         },
       ]);
       setWorkExperienceCompany("");
       setWorkExperienceTitle("");
       setWorkExperienceDescription("");
+      setWorkExperienceStart(""); // reset start date
+      setWorkExperienceEnd("");   // reset end date
     }
   };
 
   const handleAddProject = () => {
-    if (projectFile) {
+    if (projectTitle.trim() !== "" && projectDescription.trim() !== "") {
       setAddedProjects([
         ...addedProjects,
         {
-          file: projectFile,
+          title: projectTitle.trim(),
           description: projectDescription.trim(),
+          link: projectLink.trim(),
         },
       ]);
-      setProjectFile(null);
+      setProjectTitle("");
       setProjectDescription("");
+      setProjectLink("");
     }
-  };
-
-  const handleRemoveProject = (index: number) => {
-    const newProjects = [...addedProjects];
-    newProjects.splice(index, 1);
-    setAddedProjects(newProjects);
-  };
-
-  const handleEditProject = (index: number) => {
-    const item = addedProjects[index];
-    setProjectFile(item.file);
-    setProjectDescription(item.description);
   };
 
   // Add this helper function at the top of the component (after state declarations, for example)
   const handleAddLearningGoal = (goal: string) => {
     setLearningGoals((prevGoals) => [...prevGoals, goal]);
+  };
+
+  const handleAddCareerGoal = (goal: string) => {
+    setCareerGoals((prevGoals) => [...prevGoals, goal]);
+  };
+
+  const handleAddSkill = (skill: string) => {
+    setSkills((prevSkills) => [...prevSkills, skill]);
   };
 
   const margin = 50;
@@ -558,9 +592,6 @@ const createRectangleWithNodes = () => {
     const rectWidth = 900; // For summary form
     const rectHeight = 800;
     
-    // --- Removed rectangle formation code here ---
-    // const nodesInRectangle = nodes.slice(0, 20);
-    // nodesInRectangle.forEach(...);
     
     // Directly create the search bar container:
     setTimeout(() => {
@@ -579,7 +610,7 @@ const createRectangleWithNodes = () => {
   
       searchBarContainer.innerHTML = `
         <div class="flex items-center w-full h-full">
-          <input type="text" id="learningGoalsInput" class="flex-grow h-full px-3 py-2 bg-transparent text-white placeholder-gray-400 rounded-md focus:outline-none" placeholder="Learning Goals..." />
+          <input type="text" id="learningGoalsInput" class="flex-grow h-full px-3 py-2 bg-transparent text-white placeholder-gray-400 rounded-md focus:outline-none" placeholder="Career Goals..." />
           <button id="searchBarButton" class="ml-2 p-2 bg-purple-500 hover:bg-purple-600 rounded-full">
             <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
@@ -616,48 +647,94 @@ const createRectangleWithNodes = () => {
         });
       });
   
+      // New flag to check if career goal has been entered
+      let careerGoalEntered = false;
+      
       const learningGoalsInput = document.getElementById('learningGoalsInput');
       const searchBarButton = document.getElementById('searchBarButton');
       let intervalId: NodeJS.Timeout;
+      
       learningGoalsInput?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
           const text = (learningGoalsInput as HTMLInputElement).value.trim();
           if (text) {
-            handleAddLearningGoal(text);
-            const availableNode = nodes.find(node => !node.isStatic && !node.textPinned);
-            if (availableNode) {
-              availableNode.textPinned = true;
-              gsap.to(availableNode, {
-                width: 100,
-                height: 100,
-                duration: 1,
-                ease: "power2.inOut",
-                onUpdate: () => setNodes([...nodes]),
-                onComplete: () => {
-                  const textContainer = document.createElement('div');
-                  // Add class for later removal
-                  textContainer.classList.add("learning-goals-tag");
-                  textContainer.style.position = 'absolute';
-                  textContainer.style.left = `${availableNode.x}px`;
-                  textContainer.style.top = `${availableNode.y}px`;
-                  textContainer.style.transform = 'translate(-50%, -50%)';
-                  textContainer.style.color = 'white';
-                  textContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                  textContainer.style.padding = '10px';
-                  textContainer.style.borderRadius = '10px';
-                  textContainer.style.zIndex = '1000';
-                  textContainer.innerText = text;
-                  document.body.appendChild(textContainer);
-                  gsap.fromTo(textContainer, { opacity: 0 }, { opacity: 1, duration: 1 });
-                  (learningGoalsInput as HTMLInputElement).value = '';
-                  const updateTextPosition = () => {
+            // If career goal not yet set, treat as career goal
+            if (!careerGoalEntered) {
+              // Pin the available node to center
+              const availableNode = nodes.find(node => !node.isStatic && !node.textPinned);
+              if (availableNode) {
+                availableNode.textPinned = true;
+                gsap.to(availableNode, {
+                  x: centerX,
+                  y: window.innerHeight / 2,
+                  duration: 1,
+                  ease: "power2.inOut",
+                  onUpdate: () => setNodes([...nodes]),
+                  onComplete: () => {
+                    // Pin the node by zeroing its velocity and marking it static
+                    availableNode.vx = 0;
+                    availableNode.vy = 0;
+                    availableNode.isStatic = true;
+                    // Create and display career goal text container
+                    const careerGoalContainer = document.createElement('div');
+                    careerGoalContainer.classList.add("career-goals-tag");
+                    careerGoalContainer.style.position = 'absolute';
+                    careerGoalContainer.style.left = `${availableNode.x}px`;
+                    careerGoalContainer.style.top = `${availableNode.y}px`;
+                    careerGoalContainer.style.transform = 'translate(-50%, -50%)';
+                    careerGoalContainer.style.color = 'white';
+                    careerGoalContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                    careerGoalContainer.style.padding = '10px';
+                    careerGoalContainer.style.borderRadius = '10px';
+                    careerGoalContainer.style.zIndex = '1000';
+                    careerGoalContainer.innerText = text;
+                    document.body.appendChild(careerGoalContainer);
+                  },
+                });
+              }
+              // Save the career goal (if needed, e.g., via a separate state)
+              handleAddCareerGoal(text);
+              careerGoalEntered = true;
+              // Change input placeholder for subsequent entries to "Learning Goals..."
+              (learningGoalsInput as HTMLInputElement).placeholder = "Learning Goals...";
+              (learningGoalsInput as HTMLInputElement).value = "";
+            } else {
+              // For subsequent entries, behave as before for learning goals
+              handleAddLearningGoal(text);
+              const availableNode = nodes.find(node => !node.isStatic && !node.textPinned);
+              if (availableNode) {
+                availableNode.textPinned = true;
+                gsap.to(availableNode, {
+                  width: 100,
+                  height: 100,
+                  duration: 1,
+                  ease: "power2.inOut",
+                  onUpdate: () => setNodes([...nodes]),
+                  onComplete: () => {
+                    const textContainer = document.createElement('div');
+                    // ...existing styling and positioning...
+                    textContainer.classList.add("learning-goals-tag");
+                    textContainer.style.position = 'absolute';
                     textContainer.style.left = `${availableNode.x}px`;
                     textContainer.style.top = `${availableNode.y}px`;
-                  };
-                  intervalId = setInterval(updateTextPosition, 16);
-                },
-              });
+                    textContainer.style.transform = 'translate(-50%, -50%)';
+                    textContainer.style.color = 'white';
+                    textContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                    textContainer.style.padding = '10px';
+                    textContainer.style.borderRadius = '10px';
+                    textContainer.style.zIndex = '1000';
+                    textContainer.innerText = text;
+                    document.body.appendChild(textContainer);
+                    gsap.fromTo(textContainer, { opacity: 0 }, { opacity: 1, duration: 1 });
+                    (learningGoalsInput as HTMLInputElement).value = '';
+                    intervalId = setInterval(() => {
+                      textContainer.style.left = `${availableNode.x}px`;
+                      textContainer.style.top = `${availableNode.y}px`;
+                    }, 16);
+                  },
+                });
+              }
             }
           }
         }
@@ -665,189 +742,388 @@ const createRectangleWithNodes = () => {
   
       searchBarButton?.addEventListener('click', async () => {
         clearInterval(intervalId);
-        // Remove all learning goals tag elements
-        document.querySelectorAll('.learning-goals-tag').forEach(tag => tag.remove());
+        // Remove all career goals and learning goals tag elements
+        document.querySelectorAll('.career-goals-tag, .learning-goals-tag').forEach(tag => tag.remove());
         gsap.to(searchBarContainer, {
           opacity: 0,
           duration: 1,
           onComplete: () => {
             document.body.removeChild(searchBarContainer);
-            // Position nodes in a rectangle then display the summary form
-            positionNodesForSummary();
-            setTimeout(() => {
-              const infoContainer = document.createElement('div');
-              infoContainer.id = "infoContainer";
-              infoContainer.style.position = 'absolute';
-              infoContainer.style.left = `${centerX - rectWidth / 2}px`;
-              infoContainer.style.top = `${window.innerHeight - rectHeight}px`;
-              infoContainer.style.width = `${rectWidth}px`;
-              infoContainer.style.height = `${rectHeight}px`;
-              // Set background to transparent as requested
-              infoContainer.style.backgroundColor = 'transparent';
-              infoContainer.style.borderRadius = '10px';
-              infoContainer.style.padding = '20px';
-              infoContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
-              infoContainer.style.overflowY = 'auto';
-              infoContainer.style.zIndex = '1000';
-              infoContainer.innerHTML = `
-                <div style="font-family: 'Arial', sans-serif; color: #e0e0e0; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">
-                  <h2 class="text-center text-3xl font-bold mb-8" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Final Summary</h2>
-
-                  <section class="mb-8">
-                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Personal Details</h3>
-                    <div class="ml-6">
-                      <p class="mb-2 text-lg"><strong>Full Name:</strong> ${fullName || "Not provided"}</p>
-                      <p class="mb-2 text-lg"><strong>Username:</strong> ${username || "Not provided"}</p>
-                      <p class="mb-2 text-lg"><strong>Date of Birth:</strong> ${dob || "Not provided"}</p>
-                      <p class="mb-2 text-lg"><strong>Current Status:</strong> ${currentStatus || "Not provided"}</p>
-                    </div>
-                  </section>
-
-                  <section class="mb-8">
-                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Documents</h3>
-                    <div class="ml-6">
-                      <p class="mb-2 text-lg"><strong>Resume:</strong> ${resumeFile ? resumeFile.name : "Not provided"}</p>
-                      <p class="mb-2 text-lg"><strong>Transcripts:</strong> ${transcriptFiles.length ? transcriptFiles.map(file => file.name).join(', ') : "Not provided"}</p>
-                    </div>
-                  </section>
-
-                  <section class="mb-8">
-                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Academic Information</h3>
-                    <div class="ml-6">
-                      ${addedDegrees.length 
-                        ? addedDegrees.map(degree => `
-                          <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                            <p class="mb-2 text-lg"><strong>Institution:</strong> ${degree.university}</p>
-                            <p class="mb-2 text-lg"><strong>Degree:</strong> ${degree.degree}</p>
-                            <p class="mb-2 text-lg"><strong>Field:</strong> ${degree.field_of_study}</p>
-                            <p class="mb-2 text-lg"><strong>Courses:</strong> ${
-                              degree.relevant_courses && degree.relevant_courses.length 
-                                ? degree.relevant_courses.join(', ') 
-                                : "None"
+            // Create new search bar container for collecting skills
+            const skillsSearchContainer = document.createElement('div');
+            skillsSearchContainer.style.position = 'absolute';
+            skillsSearchContainer.style.left = `${centerX - 300}px`;
+            skillsSearchContainer.style.top = '50px';
+            skillsSearchContainer.style.width = '600px';
+            skillsSearchContainer.style.height = '50px';
+            skillsSearchContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            skillsSearchContainer.style.borderRadius = '25px';
+            skillsSearchContainer.style.padding = '10px';
+            skillsSearchContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
+            skillsSearchContainer.style.zIndex = '1000';
+            skillsSearchContainer.style.opacity = '0';
+      
+            skillsSearchContainer.innerHTML = `
+              <div class="flex items-center w-full h-full">
+                <input type="text" id="skillsInput" class="flex-grow h-full px-3 py-2 bg-transparent text-white placeholder-gray-400 rounded-md focus:outline-none" placeholder="Enter Skills..." />
+                <button id="skillsSearchButton" class="ml-2 p-2 bg-purple-500 hover:bg-purple-600 rounded-full">
+                  <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                  </svg>
+                </button>
+              </div>
+            `;
+            document.body.appendChild(skillsSearchContainer);
+            gsap.to(skillsSearchContainer, { opacity: 1, duration: 1 });
+      
+            // NEW: Add keydown listener for skills tagging
+            const skillsInput = document.getElementById('skillsInput');
+            skillsInput?.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                const inputEl = skillsInput as HTMLInputElement;
+                const text = inputEl.value.trim();
+                if (text) {
+                  // Update the skills state (same as learning goals logic)
+                  setSkills(prevSkills => [...prevSkills, text]);
+                  // Create and show a skills tag that follows the assigned node's position (or a new node at center)
+                  let availableNode = nodes.find(node => !node.textPinned);
+                  if (!availableNode) {
+                    availableNode = {
+                      id: nodes.length,
+                      x: window.innerWidth / 2,
+                      y: window.innerHeight / 2,
+                      vx: 0,
+                      vy: 0,
+                      size: 4,
+                      connectedTo: [],
+                      isStatic: false,
+                      textPinned: false,
+                    };
+                    nodes.push(availableNode);
+                    setNodes([...nodes]);
+                  }
+                  availableNode.textPinned = true;
+                  const skillsTagContainer = document.createElement('div');
+                  skillsTagContainer.classList.add("skills-tag");
+                  skillsTagContainer.style.position = 'absolute';
+                  skillsTagContainer.style.left = `${availableNode.x}px`;
+                  skillsTagContainer.style.top = `${availableNode.y}px`;
+                  skillsTagContainer.style.transform = 'translate(-50%, -50%)';
+                  skillsTagContainer.style.color = 'white';
+                  skillsTagContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                  skillsTagContainer.style.padding = '10px';
+                  skillsTagContainer.style.borderRadius = '10px';
+                  skillsTagContainer.style.zIndex = '1000';
+                  skillsTagContainer.innerText = text;
+                  document.body.appendChild(skillsTagContainer);
+                  setInterval(() => {
+                    skillsTagContainer.style.left = `${availableNode.x}px`;
+                    skillsTagContainer.style.top = `${availableNode.y}px`;
+                  }, 16);
+                  inputEl.value = "";
+                }
+              }
+            });
+      
+            const skillsSearchButton = document.getElementById('skillsSearchButton');
+            skillsSearchButton?.addEventListener('click', async () => {
+              clearInterval(intervalId);
+              // Remove all skills tag elements
+              document.querySelectorAll('.skills-tag').forEach(tag => tag.remove());
+              gsap.to(skillsSearchContainer, {
+                opacity: 0,
+                duration: 1,
+                onComplete: () => {
+                  document.body.removeChild(skillsSearchContainer);
+                  // Now, position nodes as rectangle and display final summary
+                  positionNodesForSummary();
+                  setTimeout(() => {
+                    const infoContainer = document.createElement('div');
+                    infoContainer.id = "infoContainer";
+                    infoContainer.style.position = 'absolute';
+                    infoContainer.style.left = `${centerX - rectWidth / 2}px`;
+                    infoContainer.style.top = `${window.innerHeight - rectHeight}px`;
+                    infoContainer.style.width = `${rectWidth}px`;
+                    infoContainer.style.height = `${rectHeight}px`;
+                    infoContainer.style.backgroundColor = 'transparent';
+                    infoContainer.style.borderRadius = '10px';
+                    infoContainer.style.padding = '20px';
+                    infoContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
+                    infoContainer.style.overflowY = 'auto';
+                    infoContainer.style.zIndex = '1000';
+                    infoContainer.innerHTML = `
+                      <div style="font-family: 'Arial', sans-serif; color: #e0e0e0; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">
+                        <h2 class="text-center text-3xl font-bold mb-8" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Final Summary</h2>
+      
+                        <section class="mb-8">
+                          <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Personal Details</h3>
+                          <div class="ml-6">
+                            <p class="mb-2 text-lg"><strong>Full Name:</strong> ${fullName || "Not provided"}</p>
+                            <p class="mb-2 text-lg"><strong>Username:</strong> ${username || "Not provided"}</p>
+                            <p class="mb-2 text-lg"><strong>Date of Birth:</strong> ${dob || "Not provided"}</p>
+                            <p class="mb-2 text-lg"><strong>Current Status:</strong> ${currentStatus || "Not provided"}</p>
+                          </div>
+                        </section>
+      
+                        <section class="mb-8">
+                          <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Documents</h3>
+                          <div class="ml-6">
+                            <p class="mb-2 text-lg"><strong>Resume:</strong> ${resumeFile ? resumeFile.name : "Not provided"}</p>
+                            <p class="mb-2 text-lg"><strong>Transcripts:</strong> ${transcriptFiles.length ? transcriptFiles.map(file => file.name).join(', ') : "Not provided"}</p>
+                          </div>
+                        </section>
+      
+                        <section class="mb-8">
+                          <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Academic Information</h3>
+                          <div class="ml-6">
+                            ${addedDegrees.length 
+                              ? addedDegrees.map(degree => `
+                                <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                                  <p class="mb-2 text-lg"><strong>Institution:</strong> ${degree.university}</p>
+                                  <p class="mb-2 text-lg"><strong>Degree:</strong> ${degree.degree}</p>
+                                  <p class="mb-2 text-lg"><strong>Field:</strong> ${degree.field_of_study}</p>
+                                  <p class="mb-2 text-lg"><strong>Grade:</strong> ${degree.grade}</p>
+                                  <p class="mb-2 text-lg"><strong>Courses:</strong> ${
+                                    degree.relevant_courses && degree.relevant_courses.length 
+                                      ? degree.relevant_courses.join(', ') 
+                                      : "None"
+                                  }</p>
+                                </div>
+                              `).join('')
+                              : "<p>No degrees added yet.</p>"
+                            }
+                          </div>
+                        </section>
+      
+                        <section class="mb-8">
+                          <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Certifications / Online Courses</h3>
+                          <div class="ml-6">
+                            ${addedItems.length ? addedItems.map(item => `
+                              <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                                <p class="mb-2 text-lg"><strong>Type:</strong> ${item.type}</p>
+                                <p class="mb-2 text-lg"><strong>Title:</strong> ${item.title || "N/A"}</p>
+                                <p class="mb-2 text-lg"><strong>Issuer:</strong> ${item.issuer}</p>
+                                ${item.verificationLink ? `<p class="mb-2 text-lg"><strong>Link:</strong> ${item.verificationLink}</p>` : ""}
+                              </div>
+                            `).join('') : "<p>Not provided</p>"}
+                          </div>
+                        </section>
+      
+                        <section class="mb-8">
+                          <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Work Experience</h3>
+                          <div class="ml-6">
+                            ${addedWorkExperiences.length ? addedWorkExperiences.map(exp => `
+                              <div class="mb-4 p-4 border border-white rounded-md">
+                                <div class="flex justify-between items-center mb-3">
+                                  <strong style="margin-right: 10px;">Company:</strong> <span>${exp.company}</span>
+                                  <strong style="margin-right: 10px;">Title:</strong> <span>${exp.title}</span>
+                                </div>
+                                <p class="mb-2 text-lg"><strong>Duration:</strong> ${exp.start_date || "N/A"} - ${exp.end_date || "N/A"}</p>
+                                <div class="p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                                  <p>${exp.description}</p>
+                                </div>
+                              </div>
+                            `).join('') : "<p>Not provided</p>"}
+                          </div>
+                        </section>
+      
+                        <section class="mb-8">
+                          <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Project Information</h3>
+                          <div class="ml-6">
+                            ${
+                              addedProjects.length
+                              ? addedProjects.map(project => `
+                                <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                                  <p class="mb-2 text-lg"><strong>Project Link:</strong> ${project.link}</p>
+                                  <p class="mb-2 text-lg"><strong>Project Title:</strong> ${project.title}</p>
+                                  <p class="mb-2 text-lg"><strong>Project Description:</strong> ${project.description}</p>
+                                </div>
+                              `).join('')
+                              : `
+                                <p class="mb-2 text-lg"><strong>Project Link:</strong> ${projectLink ? projectLink : "Not provided"}</p>
+                                <p class="mb-2 text-lg"><strong>Project Title:</strong> ${projectTitle}</p>
+                              `
+                            }
+                          </div>
+                        </section>
+      
+                        <section class="mb-8">
+                          <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Career Goals & Skills</h3>
+                          <div class="ml-6">
+                            <p class="mb-2 text-lg"><strong>Career Goal:</strong> ${learningGoalsRef.current.length ? learningGoalsRef.current[0] : "Not provided"}</p>
+                            <p class="mb-2 text-lg"><strong>Skills:</strong> ${
+                              learningGoalsRef.current.length > 1 ? learningGoalsRef.current.slice(1).join(', ') : "Not provided"
                             }</p>
                           </div>
-                        `).join('')
-                        : "<p>No degrees added yet.</p>"
+                        </section>
+
+                        <section class="mb-8">
+                          <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Learning Goals</h3>
+                          <div class="ml-6">
+                            <p class="mb-2 text-lg"><strong>Learning Goals:</strong> ${learningGoalsRef.current.length ? learningGoalsRef.current.join(', ') : "Not provided"}</p>
+                          </div>
+                        </section>
+
+                        <section class="mb-8">
+                          <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Publications</h3>
+                          <div class="ml-6">
+                            ${addedPublications.length ? addedPublications.map(pub => `
+                              <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                                <p class="mb-2 text-lg"><strong>Title:</strong> ${pub.title}</p>
+                                <p class="mb-2 text-lg"><strong>Journal:</strong> ${pub.journal}</p>
+                                <p class="mb-2 text-lg"><strong>Date:</strong> ${pub.date}</p>
+                                ${pub.link ? `<p class="mb-2 text-lg"><strong>Link:</strong> ${pub.link}</p>` : ""}
+                              </div>
+                            `).join('') : "<p>Not provided</p>"}
+                          </div>
+                        </section>
+
+                        <section class="mb-8">
+                          <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Learning Preferences and Goals</h3>
+                          <div class="ml-6">
+                            <p class="mb-2 text-lg"><strong>Preferred Learning Pace:</strong> ${preferredLearningPace || "Not provided"}</p>
+                            <p class="mb-2 text-lg"><strong>Learning Commitment Level:</strong> ${learningCommitment || "Not provided"}</p>
+                            <p class="mb-2 text-lg"><strong>Preferred Learning Methods:</strong> ${preferredLearningMethods.length ? preferredLearningMethods.join(', ') : "Not provided"}</p>
+                          </div>
+                        </section>
+      
+                        <button class="w-full mt-6 bg-purple-500 text-white px-5 py-3 rounded-md font-semibold hover:bg-purple-700 transition duration-300" style="font-weight: bold;" onClick={handleSave}>Save</button>
+                      </div>
+                    `;
+                    document.body.appendChild(infoContainer);
+                    gsap.fromTo(infoContainer, { opacity: 0 }, { opacity: 1, duration: 1 });
+                    infoContainer.querySelector('button')?.addEventListener('click', async () => {
+                      if (!userId) {
+                        console.error("No valid user id available for onboarding.");
+                        return;
                       }
-                    </div>
-                  </section>
-
-                  <section class="mb-8">
-                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Certifications / Online Courses</h3>
-                    <div class="ml-6">
-                      ${addedItems.length ? addedItems.map(item => `
-                        <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                          <p class="mb-2 text-lg"><strong>Type:</strong> ${item.type}</p>
-                          <p class="mb-2 text-lg"><strong>Title:</strong> ${item.title || "N/A"}</p>
-                          <p class="mb-2 text-lg"><strong>Issuer:</strong> ${item.issuer}</p>
-                          ${item.verificationLink ? `<p class="mb-2 text-lg"><strong>Link:</strong> ${item.verificationLink}</p>` : ""}
-                        </div>
-                      `).join('') : "<p>Not provided</p>"}
-                    </div>
-                  </section>
-
-                  <section class="mb-8">
-                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Work Experience</h3>
-                    <div class="ml-6">
-                      ${addedWorkExperiences.length ? addedWorkExperiences.map(exp => `
-                        <div class="mb-4 p-4 border border-white rounded-md">
-                          <div class="flex justify-between items-center mb-3">
-                            <strong style="margin-right: 10px;">Company:</strong> <span>${exp.company}</span>
-                            <strong style="margin-right: 10px;">Title:</strong> <span>${exp.title}</span>
-                          </div>
-                          <div class="p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                            <p>${exp.description}</p>
-                          </div>
-                        </div>
-                      `).join('') : "<p>Not provided</p>"}
-                    </div>
-                  </section>
-
-                  <section class="mb-8">
-                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Project Information</h3>
-                    <div class="ml-6">
-                      ${
-                        addedProjects.length
-                        ? addedProjects.map(project => `
-                          <div class="mb-4 p-3 rounded-md" style="background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-                            <p class="mb-2 text-lg"><strong>Project File:</strong> ${project.file.name}</p>
-                            <p class="mb-2 text-lg"><strong>Project Description:</strong> ${project.description}</p>
-                          </div>
-                        `).join('')
-                        : `
-                          <p class="mb-2 text-lg"><strong>Project File:</strong> ${projectFile ? projectFile.name : "Not provided"}</p>
-                          <p class="mb-2 text-lg"><strong>Project Description:</strong> ${projectDescription || "Not provided"}</p>
-                        `
+                      const formData = new FormData();
+                      formData.append("user_id", userId);
+                      formData.append("full_name", fullName); // Collected from Step 2 (Personal Details)
+                      formData.append("date_of_birth", dob || null);  // Collected from Step 2 (Personal Details)
+                      formData.append("username", username);   // Collected from Step 2 (Personal Details)
+                      formData.append("current_status", currentStatus); // Collected from Step 2 (Personal Details)
+                      if (resumeFile) formData.append("resume_file", resumeFile); // Step 1 (Documents)
+                      if (transcriptFiles.length) {
+                        transcriptFiles.forEach(file => formData.append("transcript_files", file)); // Step 1 (Documents)
                       }
-                    </div>
-                  </section>
+                      formData.append("university", university); // Displayed from Step 3 but final education is in added_degrees
+                      formData.append("degree", degree);           // Displayed from Step 3 but final education is in added_degrees
+                      formData.append("field_of_study", fieldOfStudy); // Step 3 (Academic Information)
+                      formData.append("relevant_courses", JSON.stringify(relevantCourses)); // Step 3 (Academic Information)
+                      formData.append("added_degrees", JSON.stringify(addedDegrees)); // Final education info as collected in Step 3 (combined in added_degrees)
+                      formData.append("certifications", JSON.stringify(addedItems)); // Step 4 (Certifications / Online Courses)
+                      formData.append("online_courses", JSON.stringify(onlineCourses || [])); // Step 4 (Certifications / Online Courses)
+                      formData.append("work_experience", JSON.stringify(addedWorkExperiences.map(exp => ({
+                        ...exp,
+                        start_date: exp.start_date || null,
+                        end_date: exp.end_date || null,
+                      })))); // Step 5 (Work Experience)
+                      formData.append("preferred_learning_pace", preferredLearningPace); // Step 7 (Learning Preferences)
+                      formData.append("learning_commitment", learningCommitment); // Step 7 (Learning Preferences)
+                      formData.append("preferred_learning_methods", JSON.stringify(preferredLearningMethods)); // Step 8 (Learning Preferences)
+                      formData.append("learning_goals", JSON.stringify(learningGoalsRef.current || [])); // Updated here
+                      formData.append("projects", JSON.stringify(addedProjects)); // Step 6 (Project Information)
+                      formData.append("publications", JSON.stringify(addedPublications)); // Step 7 (Publications)
+                      formData.append("career_goals", JSON.stringify(careerGoalsRef.current || [])); // Add career goals
+                      formData.append("skills", JSON.stringify(skillsRef.current)); // Initialize skills as an empty array
+  
+                      console.log("Submitting onboarding data:");
+                      console.log("User ID:", userId);
+                      console.log("Full Name:", fullName);
+                      console.log("Date of Birth:", dob);
+                      console.log("Username:", username);
+                      console.log("Current Status:", currentStatus);
+                      console.log("Resume File:", resumeFile ? resumeFile.name : null);
+                      console.log("Transcript Files:", transcriptFiles.map(file => file.name));
+                      console.log("University:", university);
+                      console.log("Degree:", degree);
+                      console.log("Field of Study:", fieldOfStudy);
+                      console.log("Relevant Courses:", relevantCourses);
+                      console.log("Added Degrees:", addedDegrees);
+                      console.log("Certifications:", addedItems);
+                      console.log("Online Courses:", onlineCourses);
+                      console.log("Work Experience:", addedWorkExperiences);
+                      console.log("Preferred Learning Pace:", preferredLearningPace);
+                      console.log("Learning Commitment:", learningCommitment);
+                      console.log("Preferred Learning Methods:", preferredLearningMethods);
+                      console.log("Learning Goals:", learningGoals);
+                      console.log("Projects:", addedProjects);
+                      console.log("Publications:", addedPublications);
+                      console.log("Career Goals:", careerGoals);
+                      console.log("Skills:", []);
 
-                  <section class="mb-8">
-                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Learning Preferences and Goals</h3>
-                  </section>
+                      console.log("Final Career Goals (before sending):", careerGoals);
+                      console.log("Final Learning Goals (before sending):", learningGoals);
+                      console.log("Final Skills (before sending):", skillsRef.current);
 
-                  <section class="mb-8">
-                    <h3 class="text-2xl font-semibold mb-4" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.9);">Learning Preferences and Goals</h3>
-                    <div class="ml-6">
-                      <p class="mb-2 text-lg"><strong>Preferred Learning Pace:</strong> ${preferredLearningPace || "Not provided"}</p>
-                      <p class="mb-2 text-lg"><strong>Learning Commitment Level:</strong> ${learningCommitment || "Not provided"}</p>
-                      <p class="mb-2 text-lg"><strong>Preferred Learning Methods:</strong> ${preferredLearningMethods.length ? preferredLearningMethods.join(', ') : "Not provided"}</p>
-                      <p class="mb-2 text-lg"><strong>Learning Goals:</strong> ${learningGoalsRef.current.length ? learningGoalsRef.current.join(', ') : "Not provided"}</p>
-                    </div>
-                  </section>
+                      console.log("Checking formData entries:");
+                      for (const [key, value] of formData.entries()) {
+                        console.log(`${key}:`, value);
+                      }
 
-                  <button class="w-full mt-6 bg-purple-500 text-white px-5 py-3 rounded-md font-semibold hover:bg-purple-700 transition duration-300" style="font-weight: bold;">Save</button>
-                </div>
-              `;
-              document.body.appendChild(infoContainer);
-              gsap.fromTo(infoContainer, { opacity: 0 }, { opacity: 1, duration: 1 });
-              infoContainer.querySelector('button')?.addEventListener('click', async () => {
-                if (!userId) {
-                  console.error("No valid user id available for onboarding.");
-                  return;
-                }
-                const formData = new FormData();
-                formData.append("user_id", userId);
-                formData.append("full_name", fullName); // Collected from Step 2 (Personal Details)
-                formData.append("date_of_birth", dob);  // Collected from Step 2 (Personal Details)
-                formData.append("username", username);   // Collected from Step 2 (Personal Details)
-                formData.append("current_status", currentStatus); // Collected from Step 2 (Personal Details)
-                if (resumeFile) formData.append("resume_file", resumeFile); // Step 1 (Documents)
-                if (transcriptFiles.length) {
-                  transcriptFiles.forEach(file => formData.append("transcript_files", file)); // Step 1 (Documents)
-                }
-                formData.append("university", university); // Displayed from Step 3 but final education is in added_degrees
-                formData.append("degree", degree);           // Displayed from Step 3 but final education is in added_degrees
-                formData.append("field_of_study", fieldOfStudy); // Step 3 (Academic Information)
-                formData.append("relevant_courses", JSON.stringify(relevantCourses)); // Step 3 (Academic Information)
-                formData.append("added_degrees", JSON.stringify(addedDegrees)); // Final education info as collected in Step 3 (combined in added_degrees)
-                formData.append("certifications", JSON.stringify(addedItems)); // Step 4 (Certifications / Online Courses)
-                formData.append("online_courses", JSON.stringify(onlineCourses || [])); // Step 4 (Certifications / Online Courses)
-                formData.append("work_experience", JSON.stringify(addedWorkExperiences)); // Step 5 (Work Experience)
-                formData.append("preferred_learning_pace", preferredLearningPace); // Step 7 (Learning Preferences)
-                formData.append("learning_commitment", learningCommitment); // Step 7 (Learning Preferences)
-                formData.append("preferred_learning_methods", JSON.stringify(preferredLearningMethods)); // Step 8 (Learning Preferences)
-                formData.append("learning_goals", JSON.stringify(learningGoals)); // Collected from the Learning Goals Search Bar (after Step 8)
-                if (projectFile) formData.append("project_file", projectFile); // Step 6 (Project Information)
-                formData.append("project_description", projectDescription); // Step 6 (Project Information)
-              
-                try {
-                  const res = await fetch("http://localhost:8000/onboarding", {
-                    method: "POST",
-                    body: formData,
-                  });
-                  if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || "Onboarding submission failed");
-                  }
-                  // Remove the summary container before routing
-                  infoContainer.remove();
-                  router.push("/home");
-                } catch (error: any) {
-                  console.error("Onboarding submission error:", error.message);
+                      try {
+                        const res = await fetch("http://localhost:8000/onboarding", {
+                          method: "POST",
+                          body: formData,
+                        });
+                        if (!res.ok) {
+                          const err = await res.json();
+                          throw new Error(err.detail || "Onboarding submission failed");
+                        }
+
+                        // Send data to skill_extraction.py
+                        const skillExtractionRes = await fetch("http://localhost:8000/skill-extraction", {
+                          method: "POST",
+                          headers: {
+                              "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({
+                              user_id: userId,
+                              full_name: fullName,
+                              date_of_birth: dob,
+                              username: username,
+                              current_status: currentStatus,
+                              resume_file: resumeFile ? resumeFile.name : null,
+                              transcript_files: transcriptFiles.map(file => file.name),
+                              university: university,
+                              degree: degree,
+                              field_of_study: fieldOfStudy,
+                              relevant_courses: relevantCourses,
+                              added_degrees: addedDegrees,
+                              certifications: addedItems,
+                              online_courses: onlineCourses,
+                              work_experience: addedWorkExperiences,
+                              preferred_learning_pace: preferredLearningPace,
+                              learning_commitment: learningCommitment,
+                              preferred_learning_methods: preferredLearningMethods,
+                              learning_goals: learningGoals,
+                              projects: addedProjects,
+                              publications: addedPublications,
+                              career_goals: careerGoals,
+                              skills: [], // Initialize skills as an empty array
+                          }),
+                        });
+                        if (!skillExtractionRes.ok) {
+                          const err = await skillExtractionRes.json();
+                          throw new Error(err.detail || "Skill extraction submission failed");
+                        }
+
+                        const debugData = await skillExtractionRes.json();
+                        setDebugMessages(debugData.debugMessages || []);
+
+                        // Remove the summary container before routing
+                        infoContainer.remove();
+                        router.push("/home");
+                      } catch (error: any) {
+                        console.error("Onboarding submission error:", error.message);
+                      }
+                    });
+                  }, 1000);
                 }
               });
-            }, 1000);
+            });
           }
         });
       });
@@ -1010,13 +1286,192 @@ const createRectangleWithNodes = () => {
   }, [handleEditSection]);
 
   // Modify createRectangleWithNodes:
-  // Removed duplicate createRectangleWithNodes function
-
-  // Add below other state declarations:
   const learningGoalsRef = useRef<string[]>([]);
   useEffect(() => {
     learningGoalsRef.current = learningGoals;
   }, [learningGoals]);
+
+  const [publicationTitle, setPublicationTitle] = useState("");
+  const [publicationJournal, setPublicationJournal] = useState("");
+  const [publicationDate, setPublicationDate] = useState("");
+  const [publicationLink, setPublicationLink] = useState("");
+  interface Publication {
+    title: string;
+    journal: string;
+    date: string;
+    link: string;
+  }
+  const [addedPublications, setAddedPublications] = useState<Publication[]>([]);
+
+  const handleAddPublication = () => {
+    if (publicationTitle.trim() !== "" && publicationJournal.trim() !== "" && publicationDate.trim() !== "") {
+      setAddedPublications([
+        ...addedPublications,
+        {
+          title: publicationTitle.trim(),
+          journal: publicationJournal.trim(),
+          date: publicationDate.trim(),
+          link: publicationLink.trim(),
+        },
+      ]);
+      setPublicationTitle("");
+      setPublicationJournal("");
+      setPublicationDate("");
+      setPublicationLink("");
+    }
+  };
+
+  const handleRemovePublication = (index: number) => {
+    const newPublications = [...addedPublications];
+    newPublications.splice(index, 1);
+    setAddedPublications(newPublications);
+  };
+
+  const handleEditPublication = (index: number) => {
+    const item = addedPublications[index];
+    setPublicationTitle(item.title);
+    setPublicationJournal(item.journal);
+    setPublicationDate(item.date);
+    setPublicationLink(item.link);
+  };
+
+  const handleSave = async () => {
+    if (!userId) {
+      console.error("No valid user id available for onboarding.");
+      return;
+    }
+    const formData = new FormData();
+    formData.append("user_id", userId);
+    formData.append("full_name", fullName); // Collected from Step 2 (Personal Details)
+    formData.append("date_of_birth", dob || null);  // Collected from Step 2 (Personal Details)
+    formData.append("username", username);   // Collected from Step 2 (Personal Details)
+    formData.append("current_status", currentStatus); // Collected from Step 2 (Personal Details)
+    if (resumeFile) formData.append("resume_file", resumeFile); // Step 1 (Documents)
+    if (transcriptFiles.length) {
+      transcriptFiles.forEach(file => formData.append("transcript_files", file)); // Step 1 (Documents)
+    }
+    formData.append("university", university); // Displayed from Step 3 but final education is in added_degrees
+    formData.append("degree", degree);           // Displayed from Step 3 but final education is in added_degrees
+    formData.append("field_of_study", fieldOfStudy); // Step 3 (Academic Information)
+    formData.append("relevant_courses", JSON.stringify(relevantCourses)); // Step 3 (Academic Information)
+    formData.append("added_degrees", JSON.stringify(addedDegrees)); // Final education info as collected in Step 3 (combined in added_degrees)
+    formData.append("certifications", JSON.stringify(addedItems)); // Step 4 (Certifications / Online Courses)
+    formData.append("online_courses", JSON.stringify(onlineCourses || [])); // Step 4 (Certifications / Online Courses)
+    formData.append("work_experience", JSON.stringify(addedWorkExperiences.map(exp => ({
+      ...exp,
+      start_date: exp.start_date || null,
+      end_date: exp.end_date || null,
+    })))); // Step 5 (Work Experience)
+    formData.append("preferred_learning_pace", preferredLearningPace); // Step 7 (Learning Preferences)
+    formData.append("learning_commitment", learningCommitment); // Step 7 (Learning Preferences)
+    formData.append("preferred_learning_methods", JSON.stringify(preferredLearningMethods)); // Step 8 (Learning Preferences)
+    formData.append("learning_goals", JSON.stringify(learningGoalsRef.current || [])); // Updated here
+    formData.append("projects", JSON.stringify(addedProjects)); // Step 6 (Project Information)
+    formData.append("publications", JSON.stringify(addedPublications)); // Step 7 (Publications)
+    formData.append("career_goals", JSON.stringify(careerGoalsRef.current || [])); // Add career goals
+    formData.append("skills", JSON.stringify(skillsRef.current)); // Initialize skills as an empty array
+
+    console.log("Submitting onboarding data:");
+    console.log("User ID:", userId);
+    console.log("Full Name:", fullName);
+    console.log("Date of Birth:", dob);
+    console.log("Username:", username);
+    console.log("Current Status:", currentStatus);
+    console.log("Resume File:", resumeFile ? resumeFile.name : null);
+    console.log("Transcript Files:", transcriptFiles.map(file => file.name));
+    console.log("University:", university);
+    console.log("Degree:", degree);
+    console.log("Field of Study:", fieldOfStudy);
+    console.log("Relevant Courses:", relevantCourses);
+    console.log("Added Degrees:", addedDegrees);
+    console.log("Certifications:", addedItems);
+    console.log("Online Courses:", onlineCourses);
+    console.log("Work Experience:", addedWorkExperiences);
+    console.log("Preferred Learning Pace:", preferredLearningPace);
+    console.log("Learning Commitment:", learningCommitment);
+    console.log("Preferred Learning Methods:", preferredLearningMethods);
+    console.log("Learning Goals:", learningGoals);
+    console.log("Projects:", addedProjects);
+    console.log("Final Career Goals (before sending):", careerGoals);
+    console.log("Final Learning Goals (before sending):", learningGoals);
+    console.log("Final Skills (before sending):", skillsRef.current);
+
+    console.log("Checking formData entries:");
+    for (const [key, value] of formData.entries()) {
+      console.log(`${key}:`, value);
+    }
+
+    try {
+      const res = await fetch("http://localhost:8000/onboarding", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Onboarding submission failed");
+      }
+  
+      // Send data to skill_extraction.py
+      const skillExtractionRes = await fetch("http://localhost:8000/skill-extraction", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            user_id: userId,
+            full_name: fullName,
+            date_of_birth: dob,
+            username: username,
+            current_status: currentStatus,
+            resume_file: resumeFile ? resumeFile.name : null,
+            transcript_files: transcriptFiles.map(file => file.name),
+            university: university,
+            degree: degree,
+            field_of_study: fieldOfStudy,
+            relevant_courses: relevantCourses,
+            added_degrees: addedDegrees,
+            certifications: addedItems,
+            online_courses: onlineCourses,
+            work_experience: addedWorkExperiences,
+            preferred_learning_pace: preferredLearningPace,
+            learning_commitment: learningCommitment,
+            preferred_learning_methods: preferredLearningMethods,
+            learning_goals: learningGoalsRef.current, // Updated here
+            projects: addedProjects,
+            publications: addedPublications,
+            career_goals: careerGoalsRef.current, // Add career goals
+            skills: [], // Initialize skills as an empty array
+        }),
+      });
+      if (!skillExtractionRes.ok) {
+        const err = await skillExtractionRes.json();
+        throw new Error(err.detail || "Skill extraction submission failed");
+      }
+  
+      const debugData = await skillExtractionRes.json();
+      setDebugMessages(debugData.debugMessages || []);
+  
+      // Remove the summary container before routing
+      const infoContainer = document.getElementById("infoContainer");
+      if (infoContainer) infoContainer.remove();
+      router.push("/home");
+    } catch (error: any) {
+      console.error("Onboarding submission error:", error.message);
+    }
+  };
+
+  // Add the following useEffect block near your state declarations for debugging:
+  useEffect(() => {
+    console.log("Updated Learning Goals:", learningGoals);
+  }, [learningGoals]);
+
+  useEffect(() => {
+    console.log("Updated Career Goals:", careerGoals);
+  }, [careerGoals]);
+
+  useEffect(() => {
+    console.log("Updated Skills:", skills);
+  }, [skills]);
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-gray-900 to-black">
@@ -1259,6 +1714,19 @@ const createRectangleWithNodes = () => {
                 style={{ width: "300px" }}
               />
 
+              {/* New Grade input */}
+              <label className="text-white mb-2 block text-center font-bold text-xl">
+                Grade (e.g., 3.8/4.0):
+              </label>
+              <input
+                type="text"
+                placeholder="Enter your grade"
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
+                style={{ width: "300px" }}
+              />
+
               <label className="text-white mb-2 block text-center font-bold text-xl">
                 Relevant Courses Completed:
               </label>
@@ -1311,7 +1779,7 @@ const createRectangleWithNodes = () => {
                         style={{ cursor: "pointer" }}
                         onClick={() => handleEditDegree(index)}
                       >
-                        {item.university}
+                        {item.university} - {item.degree} {item.grade ? `(${item.grade})` : ""}
                       </span>
                       <button
                         onClick={() => handleRemoveDegree(index)}
@@ -1438,6 +1906,29 @@ const createRectangleWithNodes = () => {
                 style={{ width: "250px" }}
               />
 
+              {/* New input fields for Start Date and End Date */}
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Start Date:
+              </label>
+              <input
+                type="date"
+                value={workExperienceStart}
+                onChange={(e) => setWorkExperienceStart(e.target.value)}
+                className="px-4 py-2 rounded bg-white text-black text-center mb-3"
+                style={{ width: "250px" }}
+              />
+
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                End Date:
+              </label>
+              <input
+                type="date"
+                value={workExperienceEnd}
+                onChange={(e) => setWorkExperienceEnd(e.target.value)}
+                className="px-4 py-2 rounded bg-white text-black text-center mb-3"
+                style={{ width: "250px" }}
+              />
+
               <label className="text-white mb-4 block text-center font-bold text-lg">
                 Description:
               </label>
@@ -1448,7 +1939,7 @@ const createRectangleWithNodes = () => {
                 className="px-4 py-2 rounded bg-white text-black text-center mb-3"
                 style={{ width: "250px", height: "100px" }}
               />
-
+              
               <button
                 onClick={handleAddWorkExperience}
                 className="mt-2 bg-white text-black px-4 py-2 rounded"
@@ -1492,22 +1983,28 @@ const createRectangleWithNodes = () => {
             </>
           ) : step === 6 ? (
             <>
-              <label className="text-white mb-6 block text-center font-bold text-xl">
-                Project File:
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Project Link:
               </label>
               <input
-                type="file"
-                id="projectInput"
-                style={{ display: "none" }}
-                onChange={(e) => handleFileUpload(e, setProjectFile)}
+                type="text"
+                placeholder="Enter project link"
+                value={projectLink}
+                onChange={(e) => setProjectLink(e.target.value)}
+                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
+                style={{ width: "300px" }}
               />
-              <button
-                onClick={() => document.getElementById("projectInput")?.click()}
-                className="flex items-center justify-center px-4 py-2 mb-4 bg-purple-500 text-white rounded-full"
-                style={{ width: "280px", height: "40px" }}
-              >
-                <FaUpload className="mr-2" /> Upload Project
-              </button>
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Project Title:
+              </label>
+              <input
+                type="text"
+                placeholder="Enter project title"
+                value={projectTitle}
+                onChange={(e) => setProjectTitle(e.target.value)}
+                className="px-6 py-3 rounded bg-white text-black text-center mb-4"
+                style={{ width: "300px" }}
+              />
               <label className="text-white mb-6 block text-center font-bold text-xl">
                 Project Description:
               </label>
@@ -1539,7 +2036,7 @@ const createRectangleWithNodes = () => {
                         style={{ cursor: "pointer" }}
                         onClick={() => handleEditProject(index)}
                       >
-                        {item.file.name}
+                        {item.link}
                       </span>
                       <button
                         onClick={() => handleRemoveProject(index)}
@@ -1571,6 +2068,96 @@ const createRectangleWithNodes = () => {
               </div>
             </>
           ) : step === 7 ? (
+            <>
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Publication Title:
+              </label>
+              <input
+                type="text"
+                placeholder="Enter Publication Title"
+                value={publicationTitle}
+                onChange={(e) => setPublicationTitle(e.target.value)}
+                className="px-4 py-2 rounded bg-white text-black text-center mb-3"
+                style={{ width: "250px" }}
+              />
+
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Journal Name:
+              </label>
+              <input
+                type="text"
+                placeholder="Enter Journal Name"
+                value={publicationJournal}
+                onChange={(e) => setPublicationJournal(e.target.value)}
+                className="px-4 py-2 rounded bg-white text-black text-center mb-3"
+                style={{ width: "250px" }}
+              />
+
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Publication Date:
+              </label>
+              <input
+                type="date"
+                value={publicationDate}
+                onChange={(e) => setPublicationDate(e.target.value)}
+                className="px-4 py-2 rounded bg-white text-black text-center mb-3"
+                style={{ width: "250px" }}
+              />
+
+              <label className="text-white mb-4 block text-center font-bold text-lg">
+                Publication Link (Optional):
+              </label>
+              <input
+                type="text"
+                placeholder="Enter Publication Link"
+                value={publicationLink}
+                onChange={(e) => setPublicationLink(e.target.value)}
+                className="px-4 py-2 rounded bg-white text-black text-center mb-3"
+                style={{ width: "250px" }}
+              />
+
+              <button
+                onClick={handleAddPublication}
+                className="mt-2 bg-white text-black px-4 py-2 rounded"
+              >
+                Add Publication
+              </button>
+
+              <div className="mt-4 text-white">
+                Added Publications:
+                <div className="max-h-48 overflow-y-auto bg-gray-900 p-2 rounded" style={{ width: "300px" }}>
+                  {addedPublications.map((item, index) => (
+                    <div
+                      key={index}
+                      className="mb-2 p-2 bg-gray-800 rounded flex items-center justify-between"
+                      style={{ wordBreak: "break-all", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                    >
+                      <span
+                        style={{ cursor: "pointer" }}
+                        onClick={() => handleEditPublication(index)}
+                      >
+                        {item.title} - {item.journal}
+                      </span>
+                      <button
+                        onClick={() => handleRemovePublication(index)}
+                        className="bg-red-500 text-white px-2 py-1 rounded text-xs"
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={handleSubmit}
+                className="mt-6 bg-white text-black px-5 py-2 rounded"
+              >
+                Continue
+              </button>
+            </>
+          ) : step === 8 ? (
             <>
               <label className="text-white mb-6 block text-center font-bold text-xl">
                 Preferred Learning Pace:
@@ -1609,7 +2196,7 @@ const createRectangleWithNodes = () => {
                 Continue
               </button>
             </>
-          ) : step === 8 ? (
+          ) : step === 9 ? (
             <>
               <label className="text-white mb-6 block text-center font-bold text-xl">
                 Preferred Learning Methods:
@@ -1712,13 +2299,31 @@ const createRectangleWithNodes = () => {
               </div>
 
               <button
-                onClick={handleFinishStep7} // changed from handleSubmit to handleFinishStep7
+                onClick={handleFinishStep7} 
                 className="mt-6 bg-white text-black px-5 py-2 rounded"
               >
                 Continue
               </button>
             </>
           ) : null }
+        </div>
+      )}
+      {debugMessages.length > 0 && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-3xl w-full">
+            <h2 className="text-2xl font-bold mb-4">Debug Messages</h2>
+            <ul className="list-disc pl-5">
+              {debugMessages.map((msg, index) => (
+                <li key={index} className="mb-2">{msg}</li>
+              ))}
+            </ul>
+            <button
+              onClick={() => setDebugMessages([])}
+              className="mt-4 bg-purple-500 text-white px-4 py-2 rounded"
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
     </div>
