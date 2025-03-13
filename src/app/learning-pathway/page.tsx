@@ -17,12 +17,18 @@ interface LearningModule {
     subtopics?: LearningModule[];
 }
 
-// Define an interface for the learning pathway
+// Define a more flexible interface for the learning pathway that doesn't rely on predefined levels
 interface LearningPathway {
-    beginner: { modules: LearningModule[] };
-    intermediate: { modules: LearningModule[] };
-    advanced: { modules: LearningModule[] };
+    [key: string]: { modules: LearningModule[] };
     career_goal?: string;
+}
+
+// Add interface for selected module tracking
+interface SelectedModule {
+  id: string; // Unique identifier for the module
+  level: string; // beginner, intermediate, advanced
+  moduleIndex?: number; // Index within the level's modules array
+  object: THREE.Object3D; // Reference to the THREE.js object
 }
 
 const LearningPathwayPage: React.FC = () => {
@@ -32,6 +38,13 @@ const LearningPathwayPage: React.FC = () => {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
     
+    // NEW: Add state for selection mode
+    const [selectionMode, setSelectionMode] = useState<boolean>(false);
+    const [selectedModules, setSelectedModules] = useState<SelectedModule[]>([]);
+    
+    // NEW: Add a ref to hold the initial learning pathway data
+    const initialLearningPathway = useRef<LearningPathway | null>(null);
+    
     // Reference for 3D elements
     const threeContainerRef = useRef<HTMLDivElement>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
@@ -40,6 +53,14 @@ const LearningPathwayPage: React.FC = () => {
     const controlsRef = useRef<OrbitControls | null>(null);
     const atomsRef = useRef<{[key: string]: THREE.Object3D}>({});
     const frameIdRef = useRef<number | null>(null);
+
+    // Add new state for the dialog box and level selection
+    const [showAddDialog, setShowAddDialog] = useState<boolean>(false);
+    const [newLevelName, setNewLevelName] = useState<string>("");
+    const [newModuleName, setNewModuleName] = useState<string>("");
+
+    // NEW: Add a ref to store the createAtom function
+    const createAtomRef = useRef<any>(null);
 
     // Fetch learning pathway data
     useEffect(() => {
@@ -67,7 +88,9 @@ const LearningPathwayPage: React.FC = () => {
 
                 const careerData = await fetchCareerGoals();
                 // Merge verified pathway with career goals from user_profiles
-                setLearningPathway({ ...verifiedData, career_goal: careerData.career_goal });
+                const initialPathway = { ...verifiedData, career_goal: careerData.career_goal };
+                setLearningPathway(initialPathway);
+                initialLearningPathway.current = initialPathway; // Store initial data in ref
                 setIsLoading(false); // Added to stop loading indicator
             } catch (error: any) {
                 console.error("Error fetching learning pathway:", error);
@@ -145,8 +168,8 @@ const LearningPathwayPage: React.FC = () => {
         directionalLight2.position.set(-1, -1, -1);
         scene.add(directionalLight2);
         
-        // Create central atom (career goal)
-        const createAtom = (name: string, color: number, size: number, position: THREE.Vector3) => {
+        // Create central atom (career goal) - MODIFIED with selection tracking
+        const createAtom = (name: string, color: number, size: number, position: THREE.Vector3, isCentral: boolean = false, level?: string, moduleIndex?: number) => {
             const group = new THREE.Group();
             
             // Nucleus
@@ -162,6 +185,16 @@ const LearningPathwayPage: React.FC = () => {
             
             const nucleus = new THREE.Mesh(geometry, material);
             group.add(nucleus);
+            
+            // Store original color for selection toggle
+            group.userData.originalColor = new THREE.Color(color);
+            group.userData.isCentral = isCentral;
+            group.userData.level = level;
+            group.userData.moduleIndex = moduleIndex;
+            group.userData.name = name;
+            
+            // Generate a unique ID for the module
+            group.userData.id = `${level || 'central'}-${moduleIndex !== undefined ? moduleIndex : 'goal'}-${Math.random().toString(36).substr(2, 9)}`;
             
             // Label
             const textDiv = document.createElement('div');
@@ -180,8 +213,47 @@ const LearningPathwayPage: React.FC = () => {
             group.position.copy(position);
             scene.add(group);
             
+            // Make non-central atoms clickable for selection - FIXED: add click handler to the nucleus
+            if (!isCentral) {
+                // Add click handler to toggle selection for both group and nucleus
+                const toggleSelection = () => {
+                    // Only allow selection when in selection mode
+                    if (!selectionMode) return;
+                    
+                    console.log(`Toggling selection for: ${name}`);
+                    
+                    if (group.userData.isSelected) {
+                        // Deselect
+                        material.color.copy(group.userData.originalColor);
+                        group.userData.isSelected = false;
+                        setSelectedModules(prev => prev.filter(m => m.id !== group.userData.id));
+                    } else {
+                        // Select
+                        material.color.set(0xff0000); // Red for selected
+                        group.userData.isSelected = true;
+                        setSelectedModules(prev => [...prev, {
+                            id: group.userData.id,
+                            level: group.userData.level,
+                            moduleIndex: group.userData.moduleIndex,
+                            object: group
+                        }]);
+                    }
+                };
+                
+                // Set the onClick handler on both the group and the nucleus
+                group.userData.onClick = toggleSelection;
+                nucleus.userData.onClick = toggleSelection;
+                
+                // Add click interaction area data to both objects
+                group.userData.clickable = true;
+                nucleus.userData.clickable = true;
+            }
+            
             return { group, nucleus };
         };
+        
+        // Store the function in a ref so it can be accessed outside this useEffect
+        createAtomRef.current = createAtom;
         
         // Use career goal from the output if available, fallback if not.
         const careerGoalLabel = learningPathway.career_goal || "Your Career Goal";
@@ -190,7 +262,8 @@ const LearningPathwayPage: React.FC = () => {
             careerGoalLabel,
             0x9370DB,
             2.5,
-            centralPosition
+            centralPosition,
+            true // is central
         );
         atomsRef.current.central = centralGroup;
         
@@ -213,7 +286,9 @@ const LearningPathwayPage: React.FC = () => {
                 level.charAt(0).toUpperCase() + level.slice(1),
                 levelColors[level as keyof typeof levelColors], 
                 1.5, 
-                position
+                position,
+                false, // not central
+                level  // level name
             );
             
             // Add complete orbit ring around central atom - but make it invisible (opacity 0)
@@ -269,21 +344,14 @@ const LearningPathwayPage: React.FC = () => {
                 const moduleY = Math.sin(moduleAngle) * moduleRadius;
                 
                 const modulePosition = new THREE.Vector3(moduleX, moduleY, 0);
-                // Create a random color variation based on the level's base color
-                const baseColor = new THREE.Color(levelColors[level as keyof typeof levelColors]);
-                const hsl = { h: 0, s: 0, l: 0 };
-                baseColor.getHSL(hsl);
-                hsl.h += (Math.random() - 0.5) * 0.1;
-                hsl.s = Math.min(Math.max(hsl.s + (Math.random() - 0.5) * 0.1, 0), 1);
-                hsl.l = Math.min(Math.max(hsl.l + (Math.random() - 0.5) * 0.1, 0), 1);
-                baseColor.setHSL(hsl.h, hsl.s, hsl.l);
-                const randomModuleColor = baseColor.getHex();
-                
                 const { group: moduleGroup } = createAtom(
                     module.title,
-                    randomModuleColor, 
+                    levelColors[level as keyof typeof levelColors], 
                     0.5, 
-                    modulePosition
+                    modulePosition,
+                    false, // not central
+                    level,  // level name
+                    moduleIndex // module index
                 );
                 
                 // Use a pivot group for clean orbital motion
@@ -432,6 +500,49 @@ const LearningPathwayPage: React.FC = () => {
             }
         });
 
+        // Add click handler detection for selection - IMPROVED RAYCASTER SETTINGS
+        const raycaster = new THREE.Raycaster();
+        // Increase precision by adjusting the threshold
+        raycaster.params.Points.threshold = 0.1;
+        raycaster.params.Line.threshold = 0.1;
+        const mouse = new THREE.Vector2();
+        
+        const handleClick = (event: MouseEvent) => {
+            // Calculate mouse position in normalized device coordinates
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            console.log('Click detected at', mouse.x, mouse.y);
+            
+            // Update the picking ray
+            raycaster.setFromCamera(mouse, camera);
+            
+            // Find intersections - INCLUDE ALL OBJECTS, NOT JUST CHILDREN
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            console.log('Intersections found:', intersects.length);
+            
+            if (intersects.length > 0) {
+                // Improved traversal to find clickable objects
+                for (const intersect of intersects) {
+                    let currentObject: THREE.Object3D | null = intersect.object;
+                    
+                    // Check if this object or any of its parents have an onClick handler
+                    while (currentObject) {
+                        if (currentObject.userData && currentObject.userData.onClick) {
+                            console.log('Found clickable object:', currentObject.userData.name || 'unnamed');
+                            currentObject.userData.onClick();
+                            return; // Stop after handling one click
+                        }
+                        currentObject = currentObject.parent;
+                    }
+                }
+                console.log('No clickable objects found in intersections');
+            }
+        };
+        
+        // Attach the click handler
+        renderer.domElement.addEventListener('click', handleClick);
+        
         // Animation loop with consistent speeds
         const animate = () => {
             if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
@@ -511,8 +622,199 @@ const LearningPathwayPage: React.FC = () => {
                     }
                 }
             });
+
+            renderer.domElement.removeEventListener('click', handleClick);
         };
-    }, [learningPathway]);
+    }, [learningPathway, selectionMode]); // Add selectionMode to dependency array
+
+    // Add helper to dispose of a 3D object
+    function disposeObject(object: THREE.Object3D) {
+        // Dispose geometries and materials for each mesh in this object
+        object.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                child.geometry.dispose();
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(material => material.dispose());
+                } else {
+                    child.material.dispose();
+                }
+            }
+        });
+    }
+
+    // Updated function to toggle selection mode instead of immediately removing
+    const handleRemoveModeToggle = () => {
+        // If already in selection mode with modules selected, show confirmation dialog
+        if (selectionMode && selectedModules.length > 0) {
+            if (confirm(`Are you sure you want to remove ${selectedModules.length} selected module(s)?`)) {
+                // Create a copy of the pathway from the ref
+                const updatedPathway = {
+                    ...initialLearningPathway.current,
+                    beginner: { ...initialLearningPathway.current?.beginner },
+                    intermediate: { ...initialLearningPathway.current?.intermediate },
+                    advanced: { ...initialLearningPathway.current?.advanced }
+                };
+        
+                // Sort selectedModules by moduleIndex in descending order to avoid index shifting issues
+                const sortedSelectedModules = [...selectedModules].sort((a, b) => (b.moduleIndex || 0) - (a.moduleIndex || 0));
+        
+                // Remove selected modules from the 3D scene and data structure
+                sortedSelectedModules.forEach(selectedModule => {
+                    const { level, moduleIndex, object } = selectedModule;
+        
+                    // Remove from 3D scene
+                    if (object && object.parent) {
+                        object.parent.remove(object);
+                        disposeObject(object);
+                    } else {
+                        sceneRef.current?.remove(object);
+                        disposeObject(object);
+                    }
+        
+                    // Remove from data structure
+                    if (level && moduleIndex !== undefined && updatedPathway[level]?.modules) {
+                        updatedPathway[level].modules.splice(moduleIndex, 1);
+                    }
+                });
+        
+                // Update learning pathway state
+                setLearningPathway(updatedPathway);
+        
+                // Clear selection
+                setSelectedModules([]);
+                // Exit selection mode
+                setSelectionMode(false);
+            }
+        }
+        // If in selection mode but nothing selected, simply cancel selection mode:
+        else if (selectionMode) {
+            setSelectionMode(false);
+            selectedModules.forEach(module => {
+                if (module.object && module.object.userData && module.object.userData.originalColor) {
+                    const material = (module.object.children[0] as THREE.Mesh).material as THREE.MeshPhysicalMaterial;
+                    material.color.copy(module.object.userData.originalColor);
+                    module.object.userData.isSelected = false;
+                }
+            });
+            setSelectedModules([]);
+        }
+        // Otherwise, enter selection mode:
+        else {
+            setSelectionMode(true);
+        }
+    };
+
+    // Create an actual 3D module directly in the scene - UPDATED to make moduleName optional
+    const addMolecule = (levelName: string, moduleName?: string) => {
+        if (!learningPathway || !levelName.trim() || !createAtomRef.current) return;
+
+        // Use the createAtom function from the ref
+        const createAtom = createAtomRef.current;
+        
+        // 1. Create a copy of the current pathway
+        const updatedPathway = { ...learningPathway };
+        
+        // 2. Check if level exists, if not create it
+        if (!updatedPathway[levelName]) {
+          updatedPathway[levelName] = { modules: [] };
+        }
+        
+        // 3. Add new module to the level ONLY if moduleName is provided
+        if (moduleName && moduleName.trim()) {
+          const newModuleIndex = updatedPathway[levelName].modules.length;
+          updatedPathway[levelName].modules.push({ title: moduleName, subtopics: [] });
+        }
+        
+        // 4. Update both the state and the ref
+        setLearningPathway(updatedPathway);
+        initialLearningPathway.current = updatedPathway;
+        
+        // 5. Create visual representation in the 3D scene
+        if (!sceneRef.current) return;
+        
+        // Create a new level atom if it doesn't exist
+        if (!atomsRef.current[levelName]) {
+          // Calculate position for the new level
+          const existingLevels = Object.keys(atomsRef.current).filter(key => key !== 'central');
+          const levelRadius = 8;
+          const angle = (existingLevels.length / (existingLevels.length + 1)) * Math.PI * 2;
+          const x = Math.cos(angle) * levelRadius;
+          const y = Math.sin(angle) * levelRadius;
+          const position = new THREE.Vector3(x, y, 0);
+          
+          // Generate a random color for the new level
+          const levelColor = new THREE.Color(
+            0.4 + Math.random() * 0.6,
+            0.4 + Math.random() * 0.6,
+            0.4 + Math.random() * 0.6
+          ).getHex();
+          
+          // Create the level atom
+          const { group: levelGroup } = createAtom(
+            levelName,
+            levelColor,
+            1.5,
+            position,
+            false,
+            levelName
+          );
+          
+          // Add orbit ring
+          const ringGeometry = new THREE.TorusGeometry(
+            levelRadius,
+            0.05,
+            16,
+            100,
+            Math.PI * 2
+          );
+          
+          const ringMaterial = new THREE.MeshBasicMaterial({
+            color: levelColor,
+            transparent: true,
+            opacity: 0,
+          });
+          
+          const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+          ring.rotation.x = Math.PI / 2;
+          atomsRef.current.central.add(ring);
+          
+          // Setup level orbit
+          const levelPivot = new THREE.Group();
+          levelPivot.add(levelGroup);
+          atomsRef.current.central.add(levelPivot);
+          
+          // Store level speeds
+          levelGroup.userData = {
+            pivot: levelPivot,
+            orbitalSpeed: 0.001,
+            selfRotationSpeed: 0.005,
+            initialAngle: angle
+          };
+          
+          // Store in the refs
+          atomsRef.current[levelName] = levelGroup;
+          
+          console.log(`Added new level: ${levelName}`);
+        }
+        
+        // Only add a module if moduleName is provided
+        if (moduleName && moduleName.trim()) {
+          // Now add the module to the level
+          const levelGroup = atomsRef.current[levelName];
+          const moduleRadius = 3.5;
+          const modules = updatedPathway[levelName].modules;
+          const newModuleIndex = modules.length - 1; // Module was already added to array
+          const moduleAngle = (newModuleIndex / modules.length) * Math.PI * 2;
+          const moduleX = Math.cos(moduleAngle) * moduleRadius;
+          const moduleY = Math.sin(moduleAngle) * moduleRadius;
+          const modulePosition = new THREE.Vector3(moduleX, moduleY, 0);
+          
+          // Create module
+          // ...existing module creation code...
+          
+          console.log(`Added module: ${moduleName} to level: ${levelName}`);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -528,9 +830,6 @@ const LearningPathwayPage: React.FC = () => {
             {/* 3D visualization container */}
             <div ref={threeContainerRef} className={styles.fullscreenThreeContainer}></div>
             
-            {/* Black hole indicator */}
-            <div className={styles.blackHole}></div>
-            
             {/* UI overlay */}
             <div className={styles.pageTitle}>Your Learning Pathway</div>
             
@@ -539,11 +838,109 @@ const LearningPathwayPage: React.FC = () => {
                 <button onClick={() => router.push("/home")} className={styles.backButton}>Back to Home</button>
             </div>
             
-            {/* Info panel */}
+            {/* Info panel - UPDATED to show selection mode info */}
             <div className={styles.infoPanel}>
-                <p>Click and drag to rotate the view. Zoom with mouse wheel.</p>
+                {selectionMode ? (
+                    <p className={styles.selectionModeText}>
+                        Selection mode active. Click on modules to select them for removal.
+                        {selectedModules.length > 0 && ` (${selectedModules.length} selected)`}
+                    </p>
+                ) : (
+                    <p>Click and drag to rotate the view. Zoom with mouse wheel.</p>
+                )}
                 <p>Explore your personalized learning pathway with interconnected topics.</p>
             </div>
+            
+            {/* Hovering buttons - UPDATED for selection mode */}
+            <div className={styles.hoveringButtons}>
+                <button 
+                  className={styles.hoveringButton}
+                  onClick={() => setShowAddDialog(true)}>
+                  Add
+                </button>
+                <button 
+                  className={`${styles.hoveringButton} ${selectionMode ? styles.hoveringButtonActive : ''}`}
+                  onClick={handleRemoveModeToggle}>
+                  {selectionMode 
+                    ? `Confirm Removal${selectedModules.length > 0 ? ` (${selectedModules.length})` : ''}`
+                    : 'Remove'}
+                </button>
+                {/* Show cancel button when in selection mode */}
+                {selectionMode && (
+                    <button 
+                      className={styles.hoveringButtonCancel}
+                      onClick={() => {
+                        setSelectionMode(false);
+                        // Reset any selections
+                        selectedModules.forEach(module => {
+                            if (module.object && module.object.userData && module.object.userData.originalColor) {
+                                const material = (module.object.children[0] as THREE.Mesh).material as THREE.MeshPhysicalMaterial;
+                                material.color.copy(module.object.userData.originalColor);
+                                module.object.userData.isSelected = false;
+                            }
+                        });
+                        setSelectedModules([]);
+                      }}>
+                      Cancel
+                    </button>
+                )}
+            </div>
+
+            {/* Add the dialog box for adding modules */}
+            {showAddDialog && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0, left: 0,
+                    width: '100%', height: '100%',
+                    backgroundColor: "rgba(0,0,0,0.5)",
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 100
+                }}>
+                    <div style={{
+                        background: 'white',
+                        padding: '20px',
+                        borderRadius: '8px',
+                        minWidth: '300px'
+                    }}>
+                        <label style={{ display: 'block', marginBottom: '10px' }}>Level Name:</label>
+                        <input 
+                            type="text" 
+                            value={newLevelName} 
+                            placeholder="Enter a new level name"
+                            onChange={e => setNewLevelName(e.target.value)}
+                            style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
+                        />
+                        
+                        <label style={{ display: 'block', marginBottom: '10px' }}>Module Name (Optional):</label>
+                        <input 
+                            type="text" 
+                            value={newModuleName} 
+                            placeholder="Enter module name (optional)"
+                            onChange={e => setNewModuleName(e.target.value)}
+                            style={{ width: '100%', padding: '8px', marginBottom: '20px' }}
+                        />
+                        
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <button onClick={() => {
+                                setShowAddDialog(false);
+                                setNewLevelName("");
+                                setNewModuleName("");
+                            }}>Cancel</button>
+                            <button onClick={() => {
+                                if(newLevelName.trim()){
+                                  // Call addMolecule with or without moduleName
+                                  addMolecule(newLevelName.trim(), newModuleName.trim() || undefined);
+                                  setShowAddDialog(false);
+                                  setNewLevelName("");
+                                  setNewModuleName("");
+                                }
+                            }}>Submit</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
