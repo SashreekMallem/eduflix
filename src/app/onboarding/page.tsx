@@ -1115,7 +1115,7 @@ const createRectangleWithNodes = () => {
 
                         // Remove the summary container before routing
                         infoContainer.remove();
-                        router.push("/home");
+                        router.push(`/learning-pathway?userId=${userId}`);
                       } catch (error: any) {
                         console.error("Onboarding submission error:", error.message);
                       }
@@ -1454,7 +1454,7 @@ const createRectangleWithNodes = () => {
       // Remove the summary container before routing
       const infoContainer = document.getElementById("infoContainer");
       if (infoContainer) infoContainer.remove();
-      router.push("/home");
+      router.push(`/learning-pathway?userId=${userId}`);
     } catch (error: any) {
       console.error("Onboarding submission error:", error.message);
     }

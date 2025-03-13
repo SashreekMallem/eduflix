@@ -1,0 +1,186 @@
+{
+    "AI/ML Engineering": {
+        "Fundamentals": {
+            "Mathematics for AI": {
+                "Linear Algebra": [
+                    "Vectors",
+                    "Matrices",
+                    "Eigenvalues and Eigenvectors"
+                ],
+                "Calculus": [
+                    "Differential Calculus",
+                    "Integral Calculus",
+                    "Multivariable Calculus"
+                ],
+                "Probability and Statistics": [
+                    "Probability Distributions",
+                    "Bayesian Statistics",
+                    "Hypothesis Testing"
+                ]
+            },
+            "Programming for AI": {
+                "Python": [
+                    "Data Structures",
+                    "OOP",
+                    "Libraries for AI (NumPy, Pandas, Scikit-learn)"
+                ],
+                "Software Engineering Principles": [
+                    "Version Control",
+                    "Testing",
+                    "Code Optimization"
+                ]
+            }
+        },
+        "Intermediate Concepts": {
+            "Machine Learning": {
+                "Supervised Learning": [
+                    "Regression",
+                    "Classification",
+                    "Decision Trees",
+                    "Support Vector Machines"
+                ],
+                "Unsupervised Learning": [
+                    "Clustering",
+                    "Dimensionality Reduction"
+                ],
+                "Reinforcement Learning": [
+                    "Markov Decision Processes",
+                    "Q-Learning"
+                ]
+            },
+            "Deep Learning": {
+                "Neural Networks": [
+                    "Feedforward Networks",
+                    "Backpropagation"
+                ],
+                "Convolutional Neural Networks": [
+                    "Image Processing",
+                    "Transfer Learning"
+                ],
+                "Recurrent Neural Networks": [
+                    "LSTM",
+                    "GRU"
+                ]
+            }
+        },
+        "Advanced Topics": {
+            "Advanced Machine Learning": {
+                "Ensemble Methods": [
+                    "Random Forest",
+                    "Gradient Boosting"
+                ],
+                "Bayesian Methods": [
+                    "Bayesian Networks",
+                    "Gaussian Processes"
+                ]
+            },
+            "Advanced Deep Learning": {
+                "Generative Models": [
+                    "GANs",
+                    "VAEs"
+                ],
+                "Attention Mechanisms": [
+                    "Transformers",
+                    "Self-Attention"
+                ]
+            }
+        }
+    },
+    "Computer Vision Models": {
+        "Fundamentals": {
+            "Image Processing": [
+                "Image Filtering",
+                "Edge Detection"
+            ],
+            "Feature Extraction": [
+                "SIFT",
+                "HOG"
+            ]
+        },
+        "Intermediate Concepts": {
+            "Object Detection": [
+                "YOLO",
+                "SSD"
+            ],
+            "Semantic Segmentation": [
+                "U-Net",
+                "Mask R-CNN"
+            ]
+        },
+        "Advanced Topics": {
+            "3D Vision": [
+                "Stereo Vision",
+                "3D Reconstruction"
+            ],
+            "Video Analysis": [
+                "Optical Flow",
+                "Action Recognition"
+            ]
+        }
+    },
+    "Big Data & Cloud-Based ML": {
+        "Fundamentals": {
+            "Big Data Technologies": [
+                "Hadoop",
+                "Spark"
+            ],
+            "Cloud Platforms": [
+                "AWS",
+                "Google Cloud",
+                "Azure"
+            ]
+        },
+        "Intermediate Concepts": {
+            "Data Engineering": [
+                "ETL Pipelines",
+                "Data Warehousing"
+            ],
+            "Cloud-Based ML": [
+                "MLaaS",
+                "Serverless Architectures"
+            ]
+        },
+        "Advanced Topics": {
+            "Scalable ML": [
+                "Distributed Training",
+                "Model Deployment"
+            ],
+            "Data Privacy": [
+                "Federated Learning",
+                "Differential Privacy"
+            ]
+        }
+    },
+    "Software Engineering for ML": {
+        "Fundamentals": {
+            "Software Development Lifecycle": [
+                "Agile",
+                "DevOps"
+            ],
+            "Version Control": [
+                "Git",
+                "GitHub"
+            ]
+        },
+        "Intermediate Concepts": {
+            "Containerization": [
+                "Docker",
+                "Kubernetes"
+            ],
+            "CI/CD for ML": [
+                "Continuous Integration",
+                "Continuous Deployment"
+            ]
+        },
+        "Advanced Topics": {
+            "ML Ops": [
+                "Model Monitoring",
+                "Model Retraining"
+            ],
+            "Scalable Systems": [
+                "Microservices",
+                "Serverless Computing"
+            ]
+        }
+    }
+}

@@ -11,6 +11,9 @@ from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 import os
 from fastapi.responses import JSONResponse
 
+# Add the directory containing learning_pathway.py to the system path
+sys.path.append('/Users/ms/eduflix/backend')
+
 # Configure logging & force reconfiguration so that our settings override uvicorn defaults
 logging.basicConfig(
     level=logging.DEBUG,
@@ -164,6 +167,14 @@ def init_db_tables():
         debug_messages TEXT[]
     );
     """)
+    # Alter analysis_results to add the verified_learning_pathway column if it doesn't exist
+    try:
+        cursor.execute("""
+            ALTER TABLE analysis_results
+            ADD COLUMN IF NOT EXISTS verified_learning_pathway JSONB;
+        """)
+    except Exception as e:
+        logging.error(f"Error altering analysis_results table: {e}")
     conn.commit()
     cursor.close()
     conn.close()
@@ -1315,6 +1326,19 @@ def linkedin_auth():
         f"&scope=r_liteprofile%20r_emailaddress"
     )
     return RedirectResponse(auth_url, status_code=302)  # Changed status code here
+
+from learning_pathway import generate_learning_pathway
+
+@app.get("/generate-learning-pathway")
+def generate_learning_pathway_endpoint(user_id: int):
+    try:
+        pathway = generate_learning_pathway(user_id)
+        if "error" in pathway:
+            raise HTTPException(status_code=500, detail=pathway["error"])
+        return pathway
+    except Exception as e:
+        logging.exception("Error generating learning pathway")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

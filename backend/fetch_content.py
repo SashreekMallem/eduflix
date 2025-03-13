@@ -9,6 +9,12 @@ import re  # Add import for regex if not already present
 import spacy  # New import for spacy
 from nltk.tokenize import word_tokenize  # New import for nltk
 from nltk.corpus import stopwords  # New import for nltk
+import sys  # Import sys for command-line arguments
+
+# Add the directory containing main.py to the system path
+sys.path.append('/Users/ms/eduflix/backend/MetaGPT')
+
+from main import get_db_connection  # Import get_db_connection function
 
 # Load spacy model (ensure 'en_core_web_sm' is installed)
 nlp = spacy.load("en_core_web_sm")
@@ -20,7 +26,7 @@ YOUTUBE_API_KEY = "AIzaSyBktWr9NEB_mp6JHaHIuY_gYJpsgfbh_Vs"
 client = OpenAI()
 
 # Function to search YouTube for videos
-def search_youtube(query, max_results=50):
+def search_youtube(query, max_results=10):
     search_url = f"https://www.googleapis.com/youtube/v3/search?part=snippet&q={query}&type=video&maxResults={max_results}&key={YOUTUBE_API_KEY}"
     response = requests.get(search_url)
     print("🔍 YouTube API Response Status:", response.status_code)
@@ -222,7 +228,6 @@ def extract_topics_and_level_gpt4o(captions):
         skill_level = "Unknown"
     return topics, skill_level
 
-
 # New functions to track processed videos:
 def is_video_processed(video_id):
     try:
@@ -236,94 +241,122 @@ def mark_video_processed(video_id):
     with open("processed_videos.txt", "a") as f:
         f.write(video_id + "\n")
 
+# Function to fetch user learning goals and knowledge gaps from the database
+def fetch_user_goals_and_gaps(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT learning_goals, knowledge_gaps
+        FROM user_profiles
+        WHERE user_id = %s
+    """, (user_id,))
+    result = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if result:
+        learning_goals = result[0]  # Directly use the list
+        knowledge_gaps = result[1]  # Directly use the list
+        return learning_goals, knowledge_gaps
+    return [], []
+
 # Fetch and Rank Videos Based on Queries
-search_queries = ["Python programming", "Python for beginners", "Advanced Python", "Python OOP tutorial", "Python data structures"]
-all_videos = {}
+def fetch_and_rank_videos(user_id):
+    learning_goals, knowledge_gaps = fetch_user_goals_and_gaps(user_id)
+    search_queries = learning_goals + knowledge_gaps
+    all_videos = {}
 
-for query in search_queries:
-    youtube_video_ids = search_youtube(query)
-    youtube_videos = fetch_youtube_data(youtube_video_ids)
-    
-    # Store only unique videos using video title as a key
-    for video in youtube_videos:
-        title = video[1]
-        if title not in all_videos:
-            all_videos[title] = video
-
-# Convert to list for ranking
-unique_videos = list(all_videos.values())
-unique_videos = unique_videos[:5]  # Limit to 5 videos for testing
-
-# Normalize Engagement Data
-if unique_videos:
-    min_views = min(video[3] for video in unique_videos)
-    max_views = max(video[3] for video in unique_videos)
-    min_likes = min(video[4] for video in unique_videos)
-    max_likes = max(video[4] for video in unique_videos)
-    min_comments = min(video[5] for video in unique_videos)
-    max_comments = max(video[5] for video in unique_videos)
-    
-    ranked_videos = []
-    for video in unique_videos:
-        vid, title, platform, views, likes, comments, upload_date = video
-        norm_views = normalize(views, min_views, max_views)
-        norm_likes = normalize(likes, min_likes, max_likes)
-        norm_comments = normalize(comments, min_comments, max_comments)
-        recency = recency_factor(upload_date)
+    for query in search_queries:
+        youtube_video_ids = search_youtube(query)
+        youtube_videos = fetch_youtube_data(youtube_video_ids)
         
-        comments_list = fetch_video_comments(vid)
-        sentiment_score = analyze_sentiment_gpt4(comments_list)
+        # Store only unique videos using video title as a key
+        for video in youtube_videos:
+            title = video[1]
+            if title not in all_videos:
+                all_videos[title] = video
+
+    # Convert to list for ranking
+    unique_videos = list(all_videos.values())
+    unique_videos = unique_videos[:5]  # Limit to 5 videos for testing
+
+    # Normalize Engagement Data
+    if unique_videos:
+        min_views = min(video[3] for video in unique_videos)
+        max_views = max(video[3] for video in unique_videos)
+        min_likes = min(video[4] for video in unique_videos)
+        max_likes = max(video[4] for video in unique_videos)
+        min_comments = min(video[5] for video in unique_videos)
+        max_comments = max(video[5] for video in unique_videos)
         
-        final_score = (
-            (0.35 * norm_views) +
-            (0.25 * norm_likes) +
-            (0.15 * norm_comments) +
-            (0.15 * recency) +
-            (0.10 * sentiment_score)
-        )
-        ranked_videos.append((vid, title, platform, views, likes, comments, upload_date, final_score))
-    
-    ranked_videos.sort(key=lambda x: x[7], reverse=True)
-    
-    # Fix 1: Ensure /Users/ms/eduflix exists
-    output_dir = "/Users/ms/eduflix"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    
-    # Fix 4 (optional): Use a default location in case of problems
-    # Uncomment the next line to use the home directory as fallback:
-    # output_dir = os.path.expanduser("~/")
-    
-    output_file = os.path.join(output_dir, "youtube_ranked_data.txt")
-    
-    # Fix 2: Print the absolute path to confirm where it's stored
-    print(f"📂 Writing output to: {output_file}")
-    
-    print(f"Before file writing, total unique videos: {len(unique_videos)}")
-    print(f"Total ranked videos: {len(ranked_videos)}")
-    if not ranked_videos:
-        print("❌ No ranked videos found! Check API calls and ranking logic.")
-    
-    with open(output_file, "w", encoding="utf-8") as file:
-        for video in ranked_videos:
-            vid, title, platform, views, likes, comments, upload_date, final_score = video
-            if is_video_processed(vid):
-                print(f"⚠️ Skipping already processed video: {vid}")
-                continue
-            captions = fetch_video_captions(vid)
-            topics, skill_level = extract_topics_and_level_gpt4o(captions)
-            file.write(
-                f"Title: {title}\nPlatform: {platform}\nViews: {views}\nLikes: {likes}\nComments: {comments}\n"
-                f"Upload Date: {upload_date}\nFinal Score: {final_score:.4f}\nSentiment Score: {sentiment_score:.2f}\n"
-                f"Topics: {', '.join(topics) if topics else 'None'}\nSkill Level: {skill_level}\nCaptions:\n{captions}\n\n"
+        ranked_videos = []
+        for video in unique_videos:
+            vid, title, platform, views, likes, comments, upload_date = video
+            norm_views = normalize(views, min_views, max_views)
+            norm_likes = normalize(likes, min_likes, max_likes)
+            norm_comments = normalize(comments, min_comments, max_comments)
+            recency = recency_factor(upload_date)
+            
+            comments_list = fetch_video_comments(vid)
+            sentiment_score = analyze_sentiment_gpt4(comments_list)
+            
+            final_score = (
+                (0.35 * norm_views) +
+                (0.25 * norm_likes) +
+                (0.15 * norm_comments) +
+                (0.15 * recency) +
+                (0.10 * sentiment_score)
             )
-            mark_video_processed(vid)
+            ranked_videos.append((vid, title, platform, views, likes, comments, upload_date, final_score))
+        
+        ranked_videos.sort(key=lambda x: x[7], reverse=True)
+        
+        # Fix 1: Ensure /Users/ms/eduflix exists
+        output_dir = "/Users/ms/eduflix"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
+        # Fix 4 (optional): Use a default location in case of problems
+        # Uncomment the next line to use the home directory as fallback:
+        # output_dir = os.path.expanduser("~/")
+        
+        output_file = os.path.join(output_dir, "youtube_ranked_data.txt")
+        
+        # Fix 2: Print the absolute path to confirm where it's stored
+        print(f"📂 Writing output to: {output_file}")
+        
+        print(f"Before file writing, total unique videos: {len(unique_videos)}")
+        print(f"Total ranked videos: {len(ranked_videos)}")
+        if not ranked_videos:
+            print("❌ No ranked videos found! Check API calls and ranking logic.")
+        
+        with open(output_file, "w", encoding="utf-8") as file:
+            for video in ranked_videos:
+                vid, title, platform, views, likes, comments, upload_date, final_score = video
+                if is_video_processed(vid):
+                    print(f"⚠️ Skipping already processed video: {vid}")
+                    continue
+                captions = fetch_video_captions(vid)
+                topics, skill_level = extract_topics_and_level_gpt4o(captions)
+                file.write(
+                    f"Title: {title}\nPlatform: {platform}\nViews: {views}\nLikes: {likes}\nComments: {comments}\n"
+                    f"Upload Date: {upload_date}\nFinal Score: {final_score:.4f}\nSentiment Score: {sentiment_score:.2f}\n"
+                    f"Topics: {', '.join(topics) if topics else 'None'}\nSkill Level: {skill_level}\nCaptions:\n{captions}\n\n"
+                )
+                mark_video_processed(vid)
+        
+        # Fix 3: Check if the file exists after writing
+        if os.path.exists(output_file):
+            print("✅ File successfully written at:", output_file)
+        else:
+            print("❌ File not found. There may be a permission or path issue.")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python fetch_content.py <user_id>")
+        sys.exit(1)
     
-    # Fix 3: Check if the file exists after writing
-    if os.path.exists(output_file):
-        print("✅ File successfully written at:", output_file)
-    else:
-        print("❌ File not found. There may be a permission or path issue.")
+    user_id = int(sys.argv[1])
+    fetch_and_rank_videos(user_id)
 
 print("YouTube Data fetched, ranked, and stored successfully in /Users/ms/eduflix/youtube_ranked_data.txt!")
 
