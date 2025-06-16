@@ -65,121 +65,174 @@ interface UserSuggestion {
 }
 
 // Premium Friend Card with enhanced visual design
-const FriendCard = ({ friend, onChat }: { 
+const FriendCard = ({ 
+  friend, 
+  onChat, 
+  onRemove, 
+  isDropdownOpen, 
+  onToggleDropdown 
+}: { 
   friend: Friend; 
   onChat: (username: string) => void;
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -20 }}
-    whileHover={{ y: -8, scale: 1.02 }}
-    className="group bg-white rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 relative overflow-hidden"
-  >
-    {/* Premium background gradient overlay */}
-    <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-    
-    {/* Status indicator */}
-    <div className="absolute top-4 right-4 w-3 h-3 bg-green-400 rounded-full border-2 border-white shadow-sm" />
-    
-    <div className="relative z-10">
-      {/* Enhanced Avatar Section */}
-      <div className="flex items-start space-x-6 mb-6">
-        <div className="relative">
-          <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-            {friend.friend_profile.full_name?.charAt(0) || 'U'}
-          </div>
-          {/* Achievement badge */}
-          <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg">
-            <HiSparkles className="w-4 h-4 text-yellow-800" />
-          </div>
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-indigo-700 transition-colors">
-                {friend.friend_profile.full_name}
-              </h3>
-              <p className="text-sm text-gray-600 font-medium">@{friend.friend_profile.username}</p>
+  onRemove: (friendshipId: string, friendName: string) => void;
+  isDropdownOpen: boolean;
+  onToggleDropdown: () => void;
+}) => {
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        if (isDropdownOpen) {
+          onToggleDropdown();
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen, onToggleDropdown]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      whileHover={{ y: -8, scale: 1.02 }}
+      className="group bg-white rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 relative overflow-hidden"
+    >
+      {/* Premium background gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      
+      {/* Status indicator */}
+      <div className="absolute top-4 right-4 w-3 h-3 bg-green-400 rounded-full border-2 border-white shadow-sm" />
+      
+      <div className="relative z-10">
+        {/* Enhanced Avatar Section */}
+        <div className="flex items-start space-x-6 mb-6">
+          <div className="relative">
+            <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg group-hover:shadow-xl transition-shadow duration-300">
+              {friend.friend_profile.full_name?.charAt(0) || 'U'}
             </div>
-            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-200">
-              <HiDotsHorizontal className="w-5 h-5" />
-            </button>
+            {/* Achievement badge */}
+            <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg">
+              <HiSparkles className="w-4 h-4 text-yellow-800" />
+            </div>
           </div>
           
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="flex items-center space-x-1 text-xs text-gray-500">
-              <HiLightningBolt className="w-3 h-3 text-yellow-500" />
-              <span>Study Streak: 12 days</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-indigo-700 transition-colors">
+                  {friend.friend_profile.full_name}
+                </h3>
+                <p className="text-sm text-gray-600 font-medium">@{friend.friend_profile.username}</p>
+              </div>
+              <div className="relative" ref={dropdownRef}>
+                <button 
+                  onClick={onToggleDropdown}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-200"
+                >
+                  <HiDotsHorizontal className="w-5 h-5" />
+                </button>
+                
+                {/* Dropdown Menu */}
+                {isDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                    transition={{ duration: 0.1 }}
+                    className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                  >
+                    <button
+                      onClick={() => onRemove(friend.id, friend.friend_profile.full_name)}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors duration-150 flex items-center space-x-2"
+                    >
+                      <FaTimes className="w-3 h-3" />
+                      <span>Remove as Study Buddy</span>
+                    </button>
+                  </motion.div>
+                )}
+              </div>
             </div>
-            <div className="w-1 h-1 bg-gray-300 rounded-full" />
-            <div className="flex items-center space-x-1 text-xs text-gray-500">
-              <HiTrendingUp className="w-3 h-3 text-green-500" />
-              <span>Rising Star</span>
+            
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="flex items-center space-x-1 text-xs text-gray-500">
+                <HiLightningBolt className="w-3 h-3 text-yellow-500" />
+                <span>Study Streak: 12 days</span>
+              </div>
+              <div className="w-1 h-1 bg-gray-300 rounded-full" />
+              <div className="flex items-center space-x-1 text-xs text-gray-500">
+                <HiTrendingUp className="w-3 h-3 text-green-500" />
+                <span>Rising Star</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Status and Education */}
-      <div className="space-y-4 mb-6">
-        <p className="text-sm text-gray-700 leading-relaxed">{friend.friend_profile.current_status}</p>
+        {/* Status and Education */}
+        <div className="space-y-4 mb-6">
+          <p className="text-sm text-gray-700 leading-relaxed">{friend.friend_profile.current_status}</p>
+          
+          {friend.friend_education && friend.friend_education.length > 0 && (
+            <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-xl">
+              <HiAcademicCap className="w-4 h-4 text-indigo-600" />
+              <span className="text-sm text-gray-700 font-medium">
+                {friend.friend_education[0].degree} at {friend.friend_education[0].university}
+              </span>
+            </div>
+          )}
+        </div>
         
-        {friend.friend_education && friend.friend_education.length > 0 && (
-          <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-xl">
-            <HiAcademicCap className="w-4 h-4 text-indigo-600" />
-            <span className="text-sm text-gray-700 font-medium">
-              {friend.friend_education[0].degree} at {friend.friend_education[0].university}
-            </span>
+        {/* Premium Skills Display */}
+        {friend.friend_profile.skills && friend.friend_profile.skills.length > 0 && (
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-2">
+              {friend.friend_profile.skills.slice(0, 4).map((skill, index) => (
+                <motion.span
+                  key={index}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="inline-flex items-center px-3 py-1.5 text-xs font-semibold bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800 rounded-full border border-indigo-200 hover:from-indigo-200 hover:to-purple-200 transition-all duration-200"
+                >
+                  {skill}
+                </motion.span>
+              ))}
+              {friend.friend_profile.skills.length > 4 && (
+                <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                  +{friend.friend_profile.skills.length - 4} more
+                </span>
+              )}
+            </div>
           </div>
         )}
-      </div>
-      
-      {/* Premium Skills Display */}
-      {friend.friend_profile.skills && friend.friend_profile.skills.length > 0 && (
-        <div className="mb-6">
-          <div className="flex flex-wrap gap-2">
-            {friend.friend_profile.skills.slice(0, 4).map((skill, index) => (
-              <motion.span
-                key={index}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                className="inline-flex items-center px-3 py-1.5 text-xs font-semibold bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800 rounded-full border border-indigo-200 hover:from-indigo-200 hover:to-purple-200 transition-all duration-200"
-              >
-                {skill}
-              </motion.span>
-            ))}
-            {friend.friend_profile.skills.length > 4 && (
-              <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
-                +{friend.friend_profile.skills.length - 4} more
-              </span>
-            )}
-          </div>
+        
+        {/* Premium Action Buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => onChat(friend.friend_profile.username)}
+            className="group/btn flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+          >
+            <HiChat className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
+            <span>Chat</span>
+          </button>
+          <Link
+            href={`/profile/${friend.friend_profile.username}`}
+            className="flex items-center justify-center space-x-2 bg-white hover:bg-gray-50 text-gray-800 font-semibold py-3 px-4 rounded-xl transition-all duration-300 border-2 border-gray-200 hover:border-indigo-300 hover:shadow-lg transform hover:scale-105"
+          >
+            <HiUserGroup className="w-4 h-4" />
+            <span>Profile</span>
+          </Link>
         </div>
-      )}
-      
-      {/* Premium Action Buttons */}
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          onClick={() => onChat(friend.friend_profile.username)}
-          className="group/btn flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-        >
-          <HiChat className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
-          <span>Chat</span>
-        </button>
-        <Link
-          href={`/profile/${friend.friend_profile.username}`}
-          className="flex items-center justify-center space-x-2 bg-white hover:bg-gray-50 text-gray-800 font-semibold py-3 px-4 rounded-xl transition-all duration-300 border-2 border-gray-200 hover:border-indigo-300 hover:shadow-lg transform hover:scale-105"
-        >
-          <HiUserGroup className="w-4 h-4" />
-          <span>Profile</span>
-        </Link>
       </div>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 // Premium Invitation Card with profile preview and enhanced design
 const InvitationCard = ({ invitation, onAccept, onDecline }: {
@@ -399,7 +452,7 @@ const SuggestionCard = ({ suggestion, onConnect, connecting, inviteSent }: {
       <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => onConnect(suggestion.profile.id)} // Use profile.id instead of user_id
+        onClick={() => onConnect(suggestion.profile.id)} // Use profile ID for invitations
         disabled={connecting || inviteSent}
         className={`w-full py-4 px-6 rounded-2xl font-bold text-sm transition-all duration-300 shadow-lg hover:shadow-xl transform ${
           inviteSent
@@ -444,6 +497,7 @@ export default function FriendsPage() {
   const [connectingUsers, setConnectingUsers] = useState<Set<string>>(new Set());
   const [sentInvitations, setSentInvitations] = useState<Set<string>>(new Set());
   const [newInvitationAlert, setNewInvitationAlert] = useState(false);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   // Show alert when new invitations arrive
   useEffect(() => {
@@ -632,44 +686,60 @@ export default function FriendsPage() {
   // Helper functions that don't depend on currentUser state
   const fetchFriendsForUser = async (userId: string) => {
     try {
+      console.log('🔍 Fetching friends for user ID:', userId);
       console.log('Fetching friends for user:', userId);
       
-      // Simple query without complex joins first
+      // Query for friendships in both directions (user_id and friend_id)
       const { data: friendships, error } = await supabase
         .from('friendships')
         .select('*')
-        .eq('user_id', userId)
+        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
         .eq('status', 'accepted');
 
       if (error) {
-        console.error('Error fetching friends:', error);
+        console.error('❌ Error fetching friends:', error);
         setFriends([]);
         return;
       }
 
+      console.log('📊 Raw friendships data:', friendships);
       console.log('Raw friendships data:', friendships);
       
       if (!friendships || friendships.length === 0) {
+        console.log('❌ No friendships found - setting empty friends array');
         setFriends([]);
         return;
       }
 
-      // Get friend profiles separately
-      const friendIds = friendships.map(f => f.friend_id);
+      // Get friend IDs - need to get the "other" user in each friendship
+      const friendIds = friendships.map(f => 
+        f.user_id === userId ? f.friend_id : f.user_id
+      );
+      
+      console.log('👥 Friend IDs extracted:', friendIds);
+
       const { data: profiles, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .in('user_id', friendIds);
 
       if (profileError) {
-        console.error('Error fetching friend profiles:', profileError);
+        console.error('❌ Error fetching friend profiles:', profileError);
         setFriends([]);
         return;
       }
 
-      // Combine data manually
+      console.log('👤 Friend profiles fetched:', profiles);
+
+      // Combine data manually and remove duplicates
+      const seenFriendIds = new Set();
       const transformedFriends: Friend[] = friendships.map(friendship => {
-        const profile = profiles?.find(p => p.user_id === friendship.friend_id);
+        // Get the friend's ID (the "other" user in the friendship)
+        const friendId = friendship.user_id === userId ? friendship.friend_id : friendship.user_id;
+        const profile = profiles?.find(p => p.user_id === friendId);
+        
+        console.log(`🔗 Processing friendship ${friendship.id}: friendId=${friendId}, profile found:`, !!profile);
+        
         return {
           id: friendship.id,
           user_id: friendship.user_id,
@@ -679,9 +749,20 @@ export default function FriendsPage() {
           friend_profile: profile as UserProfile,
           friend_education: [] // Will fetch separately if needed
         };
-      }).filter(f => f.friend_profile); // Filter out friends without profiles
+      }).filter(f => {
+        if (!f.friend_profile) return false;
+        // Remove duplicates based on friend's user_id
+        const friendUserId = f.friend_profile.user_id;
+        if (seenFriendIds.has(friendUserId)) {
+          console.log(`🚫 Removing duplicate friend: ${f.friend_profile.full_name} (${friendUserId})`);
+          return false;
+        }
+        seenFriendIds.add(friendUserId);
+        return true;
+      });
 
-      console.log('Transformed friends:', transformedFriends);
+      console.log('✅ Transformed friends (final):', transformedFriends);
+      console.log('📊 Setting friends state with', transformedFriends.length, 'friends');
       setFriends(transformedFriends);
     } catch (error) {
       console.error('Error fetching friends:', error);
@@ -718,7 +799,7 @@ export default function FriendsPage() {
       const { data: profiles, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
-        .in('id', senderIds); // Use 'id' instead of 'user_id' since sender_id is a profile ID
+        .in('id', senderIds); // sender_id is profile ID, match with user_profiles.id
 
       if (profileError) {
         console.error('Error fetching sender profiles:', profileError);
@@ -728,7 +809,7 @@ export default function FriendsPage() {
 
       // Combine data manually
       const transformedInvitations: FriendInvitation[] = invitations.map(invitation => {
-        const profile = profiles?.find(p => p.id === invitation.sender_id); // Use 'id' to match sender_id
+        const profile = profiles?.find(p => p.id === invitation.sender_id); // sender_id is profile ID
         return {
           id: invitation.id,
           sender_id: invitation.sender_id,
@@ -749,26 +830,67 @@ export default function FriendsPage() {
   };
 
   const fetchFriends = useCallback(async () => {
-    if (!currentUser) return;
-    await fetchFriendsForUser(currentUser.id);
+    console.log('🚀 Starting fetchFriends...');
+    console.log('Current user data:', { 
+      authId: currentUser?.authId, 
+      profileId: currentUser?.profile?.id, 
+      username: currentUser?.profile?.username 
+    });
+    
+    if (!currentUser) {
+      console.log('❌ No currentUser, aborting fetchFriends');
+      return;
+    }
+    
+    if (!currentUser.authId) {
+      console.log('❌ No currentUser.authId, aborting fetchFriends');
+      return;
+    }
+    
+    await fetchFriendsForUser(currentUser.authId); // Use authId (auth.users.id) instead of profile id
   }, [currentUser]);
 
   const fetchInvitations = useCallback(async () => {
     if (!currentUser) return;
-    console.log('📨 Fetching invitations for user:', currentUser.id);
-    await fetchInvitationsForUser(currentUser.id);
+    console.log('📨 Fetching invitations for user profile ID:', currentUser.id);
+    await fetchInvitationsForUser(currentUser.id); // Use profile ID for invitations
   }, [currentUser]);
 
   const fetchSuggestions = useCallback(async (userId: string) => {
     try {
       console.log('Fetching suggestions for user:', userId);
       
-      // Simplified approach - just get some users and create basic suggestions
-      const { data: profiles, error } = await supabase
+      // Get current user's existing friends to exclude them from suggestions
+      const { data: existingFriends, error: friendsError } = await supabase
+        .from('friendships')
+        .select('friend_id, user_id')
+        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+        .eq('status', 'accepted');
+
+      if (friendsError) {
+        console.error('Error fetching existing friends for suggestions:', friendsError);
+      }
+
+      // Get friend IDs to exclude
+      const friendIds = existingFriends ? existingFriends.map(f => 
+        f.user_id === userId ? f.friend_id : f.user_id
+      ) : [];
+
+      console.log('Excluding friend IDs from suggestions:', friendIds);
+
+      // Get user profiles excluding current user and existing friends
+      let query = supabase
         .from('user_profiles')
         .select('id, user_id, full_name, username, current_status, skills, career_goals, learning_goals, created_at')
         .neq('user_id', userId)
         .limit(10);
+
+      // Exclude existing friends
+      if (friendIds.length > 0) {
+        query = query.not('user_id', 'in', `(${friendIds.join(',')})`);
+      }
+
+      const { data: profiles, error } = await query;
 
       if (error) {
         console.error('Error fetching user profiles for suggestions:', error);
@@ -776,7 +898,7 @@ export default function FriendsPage() {
         return;
       }
 
-      console.log('Profiles for suggestions:', profiles);
+      console.log('Profiles for suggestions (after filtering friends):', profiles);
 
       if (!profiles || profiles.length === 0) {
         setSuggestions([]);
@@ -1142,7 +1264,7 @@ export default function FriendsPage() {
         throw insertResult.error;
       } else {
         console.log('Invitation sent successfully');
-        // Remove from suggestions or search results
+        // Remove from suggestions or search results (compare with profile.id since receiverId is profile ID)
         setSuggestions(prev => prev.filter(s => s.profile.id !== receiverId));
         setSearchResults(prev => prev.filter(s => s.profile.id !== receiverId));
         
@@ -1210,11 +1332,11 @@ export default function FriendsPage() {
       const invitation = invitationCheck[0];
       console.log('Found invitation:', invitation);
 
-      // Verify this is the correct receiver
-      if (invitation.receiver_id !== currentUser?.profile?.id) {
+      // Verify this is the correct receiver (invitation uses profile IDs, not auth IDs)
+      if (invitation.receiver_id !== currentUser?.id) {
         console.error('User is not the receiver of this invitation:', {
           invitationReceiver: invitation.receiver_id,
-          currentProfile: currentUser?.profile?.id
+          currentUserProfileId: currentUser?.id
         });
         alert('You are not authorized to accept this invitation.');
         return;
@@ -1244,27 +1366,54 @@ export default function FriendsPage() {
 
       console.log('Invitation status updated successfully');
 
-      // Create mutual friendship records in the friendships table
+      // Convert profile IDs from invitation to auth user IDs for friendship creation
+      console.log('Converting profile IDs to auth user IDs...');
+      const { data: senderProfile, error: senderError } = await supabase
+        .from('user_profiles')
+        .select('user_id')
+        .eq('id', invitation.sender_id)
+        .single();
+
+      const { data: receiverProfile, error: receiverError } = await supabase
+        .from('user_profiles')
+        .select('user_id')
+        .eq('id', invitation.receiver_id)
+        .single();
+
+      if (senderError || receiverError) {
+        console.error('Error converting profile IDs to auth IDs:', { senderError, receiverError });
+        alert('Failed to create friendship - could not resolve user IDs');
+        return;
+      }
+
+      console.log('Profile ID to Auth ID conversion:', {
+        senderProfileId: invitation.sender_id,
+        senderAuthId: senderProfile.user_id,
+        receiverProfileId: invitation.receiver_id,
+        receiverAuthId: receiverProfile.user_id
+      });
+
+      // Create mutual friendship records in the friendships table using auth user IDs
       const friendshipData = [
         {
-          user_id: invitation.sender_id,
-          friend_id: invitation.receiver_id,
+          user_id: senderProfile.user_id,
+          friend_id: receiverProfile.user_id,
           status: 'accepted'
         },
         {
-          user_id: invitation.receiver_id,
-          friend_id: invitation.sender_id,
+          user_id: receiverProfile.user_id,
+          friend_id: senderProfile.user_id,
           status: 'accepted'
         }
       ];
 
       console.log('Creating friendships:', friendshipData);
 
-      // Check if friendships already exist to avoid duplicates
+      // Check if friendships already exist to avoid duplicates (using auth user IDs)
       const { data: existingFriendships, error: friendshipCheckError } = await supabase
         .from('friendships')
         .select('*')
-        .or(`and(user_id.eq.${invitation.sender_id},friend_id.eq.${invitation.receiver_id}),and(user_id.eq.${invitation.receiver_id},friend_id.eq.${invitation.sender_id})`);
+        .or(`and(user_id.eq.${senderProfile.user_id},friend_id.eq.${receiverProfile.user_id}),and(user_id.eq.${receiverProfile.user_id},friend_id.eq.${senderProfile.user_id})`);
 
       if (friendshipCheckError) {
         console.error('Error checking existing friendships:', friendshipCheckError);
@@ -1318,7 +1467,7 @@ export default function FriendsPage() {
       await Promise.all([
         fetchFriends(),
         fetchInvitations(),
-        fetchSuggestions(currentUser.authId) // Also refresh suggestions so UI updates
+        fetchSuggestions(currentUser.authId) // Refresh suggestions to remove the new friend
       ]);
 
       alert('Study buddy request accepted! You are now connected.');
@@ -1357,6 +1506,96 @@ export default function FriendsPage() {
 
   const handleChat = (username: string) => {
     router.push(`/messenger/${username}`);
+  };
+
+  const removeFriend = async (friendshipId: string, friendName: string) => {
+    if (!currentUser) return;
+
+    const confirmed = confirm(`Are you sure you want to remove ${friendName} as a study buddy? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      console.log('=== REMOVING FRIEND ===');
+      console.log('Friendship ID:', friendshipId);
+      console.log('Current user auth ID:', currentUser.authId);
+
+      // First, get the friendship record to find the friend's ID
+      const { data: friendship, error: fetchError } = await supabase
+        .from('friendships')
+        .select('user_id, friend_id')
+        .eq('id', friendshipId)
+        .single();
+
+      if (fetchError || !friendship) {
+        console.error('Error fetching friendship:', fetchError);
+        alert('Failed to find friendship record.');
+        return;
+      }
+
+      const friendId = friendship.user_id === currentUser.authId ? friendship.friend_id : friendship.user_id;
+      console.log('Friend ID to remove:', friendId);
+
+      // Get the friend's profile ID for invitation cleanup (invitations use profile IDs)
+      const { data: friendProfile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', friendId)
+        .single();
+
+      if (profileError) {
+        console.warn('Could not find friend profile for invitation cleanup:', profileError);
+      }
+
+      const friendProfileId = friendProfile?.id;
+      const currentUserProfileId = currentUser.profile?.id;
+
+      console.log('Profile IDs for invitation cleanup:', {
+        currentUserProfileId,
+        friendProfileId
+      });
+
+      // Delete ALL friendships between these two users (both directions)
+      const { error: deleteError } = await supabase
+        .from('friendships')
+        .delete()
+        .or(`and(user_id.eq.${currentUser.authId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${currentUser.authId})`);
+
+      if (deleteError) {
+        console.error('Error removing friend:', deleteError);
+        alert(`Failed to remove study buddy: ${deleteError.message}`);
+        return;
+      }
+
+      console.log('✅ Friendships removed successfully (both directions)');
+
+      // Also remove any related friend invitations (both directions)
+      if (currentUserProfileId && friendProfileId) {
+        const { error: inviteDeleteError } = await supabase
+          .from('friend_invitations')
+          .delete()
+          .or(`and(sender_id.eq.${currentUserProfileId},receiver_id.eq.${friendProfileId}),and(sender_id.eq.${friendProfileId},receiver_id.eq.${currentUserProfileId})`);
+
+        if (inviteDeleteError) {
+          console.warn('Error removing related invitations (non-critical):', inviteDeleteError);
+          // Don't fail the operation for invitation cleanup errors
+        } else {
+          console.log('✅ Related invitations cleaned up successfully');
+        }
+      }
+      
+      // Close the dropdown menu
+      setOpenDropdownId(null);
+      
+      // Refresh both friends and invitations lists
+      await Promise.all([fetchFriends(), fetchInvitations()]);
+      
+      // Show success message
+      alert(`${friendName} has been removed from your study buddies.`);
+      
+    } catch (error) {
+      console.error('Error removing friend:', error);
+      alert('Failed to remove study buddy. Please try again.');
+    }
   };
 
   // Fix the debouncing issue with useRef
@@ -1404,7 +1643,7 @@ export default function FriendsPage() {
           await Promise.all([
             fetchFriends(),
             fetchInvitations(),
-            fetchSuggestions(currentUser.authId)
+            fetchSuggestions(currentUser.profile.user_id)
           ]);
           
           console.log('✅ Initial data loading complete');
@@ -1415,7 +1654,7 @@ export default function FriendsPage() {
       
       loadInitialData();
     }
-  }, [currentUser?.id, currentUser?.authId, fetchInvitations, fetchFriends, fetchSuggestions]);
+  }, [currentUser?.id, currentUser?.profile?.user_id, fetchInvitations, fetchFriends, fetchSuggestions]);
 
   if (loading) {
     return (
@@ -1428,6 +1667,27 @@ export default function FriendsPage() {
       </div>
     );
   }
+
+  // Debug: Log current state before render
+  console.log('🎨 RENDER DEBUG:', {
+    friends: friends,
+    friendsCount: friends.length,
+    invitations: invitations,
+    invitationsCount: invitations.length,
+    suggestions: suggestions,
+    suggestionsCount: suggestions.length,
+    currentUser: currentUser,
+    loading: loading
+  });
+
+  console.log('🔍 DETAILED FRIENDS DEBUG:', friends.map(f => ({
+    id: f.id,
+    user_id: f.user_id,
+    friend_id: f.friend_id,
+    status: f.status,
+    friend_name: f.friend_profile?.full_name,
+    friend_username: f.friend_profile?.username
+  })));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30">
@@ -1663,6 +1923,9 @@ export default function FriendsPage() {
                         <FriendCard
                           friend={friend}
                           onChat={handleChat}
+                          onRemove={removeFriend}
+                          isDropdownOpen={openDropdownId === friend.id}
+                          onToggleDropdown={() => setOpenDropdownId(openDropdownId === friend.id ? null : friend.id)}
                         />
                       </motion.div>
                     ))}
