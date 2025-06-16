@@ -1,9 +1,22 @@
-"use client";
+'use client';
 
-import { useParams, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { FaPaperPlane, FaSearch, FaEllipsisV, FaPhone, FaVideo, FaUsers, FaSmile, FaMicrophone, FaImage, FaCheck, FaStop } from 'react-icons/fa';
-import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
+import Image from 'next/image';
+import {
+  IoSend,
+  IoMic,
+  IoHappyOutline,
+  IoAttach,
+  IoCall,
+  IoVideocam,
+  IoEllipsisVertical,
+  IoArrowBack,
+  IoCheckmark,
+  IoCheckmarkDone,
+} from 'react-icons/io5';
 
 interface Friend {
   name: string;

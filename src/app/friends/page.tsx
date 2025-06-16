@@ -550,20 +550,6 @@ export default function FriendsPage() {
     // Combine all shared interests
     const allSharedInterests = [...new Set([...sharedSkills, ...sharedCareerGoals, ...sharedLearningGoals])];
 
-    console.log(`🎯 Compatibility calculation for ${targetProfile.full_name}:`, {
-      userSkills,
-      targetSkills,
-      sharedSkills,
-      userCareerGoals,
-      targetCareerGoals,
-      sharedCareerGoals,
-      userLearningGoals,
-      targetLearningGoals,
-      sharedLearningGoals,
-      finalScore: compatibilityScore,
-      allSharedInterests
-    });
-
     return {
       score: compatibilityScore,
       sharedInterests: allSharedInterests,
@@ -607,36 +593,24 @@ export default function FriendsPage() {
   };
 
   const initializeUser = useCallback(async () => {
-    console.log('🚀 ===== INITIALIZING USER =====');
     try {
       setLoading(true);
       
-      console.log('🚀 Getting Supabase session...');
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      console.log('🚀 Session check result:', { 
-        sessionExists: !!session, 
-        userExists: !!session?.user, 
-        userId: session?.user?.id, 
-        error: sessionError 
-      });
-      
       if (sessionError) {
-        console.error('🚀 Session error:', sessionError);
+        console.error('Session error:', sessionError);
         router.push('/auth/login');
         return;
       }
       
       if (!session?.user) {
-        console.log('🚀 No session found, redirecting to login');
         router.push('/auth/login');
         return;
       }
 
       const userId = session.user.id;
-      console.log('🚀 Valid user ID found:', userId);
       
-      console.log('🚀 Fetching user profile...');
       // Get user profile
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
@@ -644,16 +618,10 @@ export default function FriendsPage() {
         .eq('user_id', userId)
         .single();
 
-      console.log('🚀 Profile fetch result:', { 
-        profileExists: !!profile, 
-        profile: profile, 
-        error: profileError 
-      });
-
       if (profileError) {
-        console.error('🚀 Profile fetch error:', profileError);
+        console.error('Profile fetch error:', profileError);
         if (profileError.code === 'PGRST116') {
-          console.log('🚀 No profile found for user, user may need to complete onboarding');
+          // No profile found - user may need to complete onboarding
         }
         setLoading(false);
         return;
@@ -662,23 +630,11 @@ export default function FriendsPage() {
       if (profile) {
         const currentUserData = { id: profile.id, authId: userId, profile }; // id = profile ID, authId = auth user ID
         setCurrentUser(currentUserData);
-        console.log('🚀 Current user set successfully:', currentUserData);
-        
-        // Fetch all data after setting current user
-        console.log('🚀 Fetching all data (friends, invitations, suggestions)...');
-        // Note: These functions are defined later, so they'll be called via useEffect
-        
-        console.log('🚀 All data will be fetched via useEffect hooks');
-      } else {
-        console.log('🚀 No profile data returned');
       }
       
       setLoading(false);
-      console.log('🚀 ===== INITIALIZATION COMPLETE =====');
     } catch (error) {
-      console.error('🚀 ===== INITIALIZATION ERROR =====');
-      console.error('🚀 Error initializing user:', error);
-      console.error('🚀 Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('Error initializing user:', error);
       setLoading(false);
     }
   }, [router]);
@@ -686,9 +642,6 @@ export default function FriendsPage() {
   // Helper functions that don't depend on currentUser state
   const fetchFriendsForUser = async (userId: string) => {
     try {
-      console.log('🔍 Fetching friends for user ID:', userId);
-      console.log('Fetching friends for user:', userId);
-      
       // Query for friendships in both directions (user_id and friend_id)
       const { data: friendships, error } = await supabase
         .from('friendships')
@@ -697,16 +650,12 @@ export default function FriendsPage() {
         .eq('status', 'accepted');
 
       if (error) {
-        console.error('❌ Error fetching friends:', error);
+        console.error('Error fetching friends:', error);
         setFriends([]);
         return;
       }
-
-      console.log('📊 Raw friendships data:', friendships);
-      console.log('Raw friendships data:', friendships);
       
       if (!friendships || friendships.length === 0) {
-        console.log('❌ No friendships found - setting empty friends array');
         setFriends([]);
         return;
       }
@@ -715,8 +664,6 @@ export default function FriendsPage() {
       const friendIds = friendships.map(f => 
         f.user_id === userId ? f.friend_id : f.user_id
       );
-      
-      console.log('👥 Friend IDs extracted:', friendIds);
 
       const { data: profiles, error: profileError } = await supabase
         .from('user_profiles')
@@ -724,12 +671,10 @@ export default function FriendsPage() {
         .in('user_id', friendIds);
 
       if (profileError) {
-        console.error('❌ Error fetching friend profiles:', profileError);
+        console.error('Error fetching friend profiles:', profileError);
         setFriends([]);
         return;
       }
-
-      console.log('👤 Friend profiles fetched:', profiles);
 
       // Combine data manually and remove duplicates
       const seenFriendIds = new Set();
@@ -737,8 +682,6 @@ export default function FriendsPage() {
         // Get the friend's ID (the "other" user in the friendship)
         const friendId = friendship.user_id === userId ? friendship.friend_id : friendship.user_id;
         const profile = profiles?.find(p => p.user_id === friendId);
-        
-        console.log(`🔗 Processing friendship ${friendship.id}: friendId=${friendId}, profile found:`, !!profile);
         
         return {
           id: friendship.id,
@@ -754,15 +697,12 @@ export default function FriendsPage() {
         // Remove duplicates based on friend's user_id
         const friendUserId = f.friend_profile.user_id;
         if (seenFriendIds.has(friendUserId)) {
-          console.log(`🚫 Removing duplicate friend: ${f.friend_profile.full_name} (${friendUserId})`);
           return false;
         }
         seenFriendIds.add(friendUserId);
         return true;
       });
 
-      console.log('✅ Transformed friends (final):', transformedFriends);
-      console.log('📊 Setting friends state with', transformedFriends.length, 'friends');
       setFriends(transformedFriends);
     } catch (error) {
       console.error('Error fetching friends:', error);
@@ -772,8 +712,6 @@ export default function FriendsPage() {
 
   const fetchInvitationsForUser = async (userId: string) => {
     try {
-      console.log('Fetching invitations for user:', userId);
-      
       // Simple query without complex joins first
       const { data: invitations, error } = await supabase
         .from('friend_invitations')
@@ -786,8 +724,6 @@ export default function FriendsPage() {
         setInvitations([]);
         return;
       }
-
-      console.log('Raw invitations data:', invitations);
 
       if (!invitations || invitations.length === 0) {
         setInvitations([]);
@@ -821,7 +757,6 @@ export default function FriendsPage() {
         };
       }).filter(inv => inv.sender_profile); // Filter out invitations without profiles
 
-      console.log('Transformed invitations:', transformedInvitations);
       setInvitations(transformedInvitations);
     } catch (error) {
       console.error('Error fetching invitations:', error);
@@ -830,20 +765,11 @@ export default function FriendsPage() {
   };
 
   const fetchFriends = useCallback(async () => {
-    console.log('🚀 Starting fetchFriends...');
-    console.log('Current user data:', { 
-      authId: currentUser?.authId, 
-      profileId: currentUser?.profile?.id, 
-      username: currentUser?.profile?.username 
-    });
-    
     if (!currentUser) {
-      console.log('❌ No currentUser, aborting fetchFriends');
       return;
     }
     
     if (!currentUser.authId) {
-      console.log('❌ No currentUser.authId, aborting fetchFriends');
       return;
     }
     
@@ -852,14 +778,11 @@ export default function FriendsPage() {
 
   const fetchInvitations = useCallback(async () => {
     if (!currentUser) return;
-    console.log('📨 Fetching invitations for user profile ID:', currentUser.id);
     await fetchInvitationsForUser(currentUser.id); // Use profile ID for invitations
   }, [currentUser]);
 
   const fetchSuggestions = useCallback(async (userId: string) => {
     try {
-      console.log('Fetching suggestions for user:', userId);
-      
       // Get current user's existing friends to exclude them from suggestions
       const { data: existingFriends, error: friendsError } = await supabase
         .from('friendships')
@@ -875,8 +798,6 @@ export default function FriendsPage() {
       const friendIds = existingFriends ? existingFriends.map(f => 
         f.user_id === userId ? f.friend_id : f.user_id
       ) : [];
-
-      console.log('Excluding friend IDs from suggestions:', friendIds);
 
       // Get user profiles excluding current user and existing friends
       let query = supabase
@@ -898,8 +819,6 @@ export default function FriendsPage() {
         return;
       }
 
-      console.log('Profiles for suggestions (after filtering friends):', profiles);
-
       if (!profiles || profiles.length === 0) {
         setSuggestions([]);
         return;
@@ -911,8 +830,6 @@ export default function FriendsPage() {
         .select('*')
         .eq('user_id', userId)
         .single();
-
-      console.log('📊 Current user profile for compatibility:', userProfile);
 
       // Create suggestions with advanced compatibility scoring using unified function
       const suggestions: UserSuggestion[] = await Promise.all(
@@ -934,7 +851,6 @@ export default function FriendsPage() {
         .sort((a, b) => b.compatibility_score - a.compatibility_score)
         .slice(0, 6);
 
-      console.log('Generated suggestions:', sortedSuggestions);
       setSuggestions(sortedSuggestions);
     } catch (error) {
       console.error('Error fetching suggestions:', error);
@@ -946,8 +862,6 @@ export default function FriendsPage() {
     // Set up real-time subscription for new invitations
     const setupRealTimeUpdates = () => {
       if (!currentUser?.id) return;
-
-      console.log('🔔 Setting up real-time invitations subscription...');
 
       // Subscribe to new friend invitations
       const invitationsSubscription = supabase
@@ -961,8 +875,6 @@ export default function FriendsPage() {
             filter: `receiver_id=eq.${currentUser.id}`
           },
           (payload) => {
-            console.log('🔔 Real-time invitation update:', payload);
-            
             if (payload.eventType === 'INSERT') {
               // New invitation received - refresh invitations
               fetchInvitations();
@@ -984,105 +896,17 @@ export default function FriendsPage() {
   }, [currentUser?.id, fetchInvitations]);
 
   useEffect(() => {
-    // Debug Supabase connection on component mount
-    const debugSupabaseConnection = async () => {
-      console.log('🔧 ===== DEBUGGING SUPABASE CONNECTION =====');
-      console.log('🔧 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-      console.log('🔧 Supabase Key (first 20 chars):', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 20));
-      console.log('🔧 Supabase client:', supabase);
-      
-      try {
-        console.log('🔧 Testing basic connection...');
-        const { data, error } = await supabase
-          .from('user_profiles')
-          .select('count')
-          .limit(1);
-        
-        console.log('🔧 Connection test result:', { data, error });
-        
-        if (error) {
-          console.error('🔧 Connection failed:', error);
-        } else {
-          console.log('🔧 ✅ Supabase connection successful!');
-        }
-      } catch (err) {
-        console.error('🔧 Connection exception:', err);
-      }
-    };
-    
-    // Diagnostic function to check database content
-    const debugDatabaseContent = async () => {
-      try {
-        console.log('🔍 ===== DATABASE CONTENT DIAGNOSTIC =====');
-        
-        // Check user_profiles table
-        const { data: allProfiles, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('*');
-        
-        console.log('🔍 All user profiles in database:');
-        console.log('🔍 Count:', allProfiles?.length || 0);
-        console.log('🔍 Data:', allProfiles);
-        console.log('🔍 Error:', profileError);
-
-        // Check if current user has a profile
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { data: currentUserProfile, error: currentUserError } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('user_id', session.user.id);
-          
-          console.log('🔍 Current user profile:');
-          console.log('🔍 User ID:', session.user.id);
-          console.log('🔍 Profile data:', currentUserProfile);
-          console.log('🔍 Profile error:', currentUserError);
-        }
-
-        // Test manual profile creation
-        console.log('🔍 Testing manual profile lookup...');
-        const { data: testProfile, error: testError } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .ilike('full_name', '%emily%');
-        
-        console.log('🔍 Emily search test:');
-        console.log('🔍 Results:', testProfile);
-        console.log('🔍 Error:', testError);
-
-        // Check if there are any other tables with users
-        const { data: authUsers, error: authError } = await supabase.auth.getUser();
-        console.log('🔍 Current auth user:', authUsers);
-        console.log('🔍 Auth error:', authError);
-
-      } catch (error) {
-        console.error('🔍 Database diagnostic error:', error);
-      }
-    };
-    
-    debugSupabaseConnection();
-    debugDatabaseContent();
     initializeUser();
   }, [initializeUser]);
 
   const searchUsers = async (query: string) => {
-    console.log('🔍 ===== SEARCH FUNCTION CALLED =====');
-    console.log('🔍 Query:', query);
-    console.log('🔍 Query length:', query.length);
-    console.log('🔍 Query trimmed:', query.trim());
-    console.log('🔍 Current user:', currentUser);
-    console.log('🔍 Supabase client:', supabase);
-    
     if (!query.trim()) {
-      console.log('🔍 Empty query detected, clearing results');
       setSearchResults([]);
       setSearching(false);
       return;
     }
     
     if (!currentUser) {
-      console.log('🔍 No current user found, cannot search');
-      console.log('🔍 currentUser state:', currentUser);
       setSearchResults([]);
       setSearching(false);
       return;
@@ -1090,26 +914,19 @@ export default function FriendsPage() {
 
     try {
       setSearching(true);
-      console.log('🔍 ===== STARTING SUPABASE SEARCH =====');
-      console.log('🔍 Search query:', query);
-      console.log('🔍 Current user ID:', currentUser.id);
       
       // Test Supabase connection first
-      const { data: testData, error: testError } = await supabase
+      const { error: testError } = await supabase
         .from('user_profiles')
         .select('count')
         .limit(1);
       
-      console.log('🔍 Supabase connection test:', { testData, testError });
-      
       if (testError) {
-        console.error('🔍 Supabase connection failed:', testError);
+        console.error('Supabase connection failed:', testError);
         setSearchResults([]);
         setSearching(false);
         return;
       }
-      
-      console.log('🔍 Executing search query...');
       
       // Simple search without complex filtering first
       const { data: searchProfiles, error } = await supabase
@@ -1119,22 +936,14 @@ export default function FriendsPage() {
         .neq('user_id', currentUser.authId)
         .limit(10);
 
-      console.log('🔍 ===== SUPABASE SEARCH COMPLETE =====');
-      console.log('🔍 Profiles found:', searchProfiles);
-      console.log('🔍 Profiles count:', searchProfiles?.length || 0);
-      console.log('🔍 Search error:', error);
-
       if (error) {
-        console.error('🔍 Error searching users:', error);
-        console.error('🔍 Error details:', JSON.stringify(error, null, 2));
+        console.error('Error searching users:', error);
         setSearchResults([]);
         setSearching(false);
         return;
       }
 
       const searchProfilesList = (searchProfiles as UserProfile[]) || [];
-      console.log('🔍 Transformed profiles:', searchProfilesList);
-      console.log('🔍 Profiles count:', searchProfilesList.length);
 
       // Calculate compatibility for each search result
       const resultsWithCompatibility = await Promise.all(
@@ -1150,19 +959,11 @@ export default function FriendsPage() {
           };
         })
       );
-
-      console.log('🔍 Results with compatibility:', resultsWithCompatibility);
-      console.log('🔍 Setting search results...');
       
       setSearchResults(resultsWithCompatibility);
       setSearching(false);
-      
-      console.log('🔍 ===== SEARCH RESULTS SET =====');
-      console.log('🔍 Final results:', resultsWithCompatibility);
     } catch (error) {
-      console.error('🔍 ===== SEARCH EXCEPTION =====');
-      console.error('🔍 Exception in search:', error);
-      console.error('🔍 Exception stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('Exception in search:', error);
       setSearchResults([]);
       setSearching(false);
     }
@@ -1174,8 +975,6 @@ export default function FriendsPage() {
     setConnectingUsers(prev => new Set(prev).add(receiverId));
     
     try {
-      console.log('Sending invitation from', currentUser.id, 'to', receiverId);
-      
       // First, check if there's already an existing invitation between these users
       const { data: existingInvitations, error: checkError } = await supabase
         .from('friend_invitations')
@@ -1191,11 +990,9 @@ export default function FriendsPage() {
       if (existingInvitations && existingInvitations.length > 0) {
         const existing = existingInvitations[0];
         if (existing.status === 'pending') {
-          console.log('Invitation already exists and is pending');
           alert('An invitation is already pending between you and this user.');
           return;
         } else if (existing.status === 'accepted') {
-          console.log('Users are already friends');
           alert('You are already friends with this user.');
           return;
         }
@@ -1263,7 +1060,6 @@ export default function FriendsPage() {
         alert(errorMessage);
         throw insertResult.error;
       } else {
-        console.log('Invitation sent successfully');
         // Remove from suggestions or search results (compare with profile.id since receiverId is profile ID)
         setSuggestions(prev => prev.filter(s => s.profile.id !== receiverId));
         setSearchResults(prev => prev.filter(s => s.profile.id !== receiverId));
@@ -1294,22 +1090,11 @@ export default function FriendsPage() {
     if (!currentUser) return;
 
     try {
-      console.log('=== ACCEPTING INVITATION ===');
-      console.log('Invitation ID:', invitationId);
-      console.log('Current user:', currentUser.id);
-      console.log('Current profile:', currentUser?.profile?.id);
-      
       // First, try to get the invitation without .single() to see what's there
       const { data: invitationCheck, error: checkError } = await supabase
         .from('friend_invitations')
         .select('*')
         .eq('id', invitationId);
-
-      console.log('Invitation check result:', {
-        data: invitationCheck,
-        error: checkError,
-        count: invitationCheck?.length || 0
-      });
 
       if (checkError) {
         console.error('Error checking invitation:', checkError);
@@ -1330,7 +1115,6 @@ export default function FriendsPage() {
       }
 
       const invitation = invitationCheck[0];
-      console.log('Found invitation:', invitation);
 
       // Verify this is the correct receiver (invitation uses profile IDs, not auth IDs)
       if (invitation.receiver_id !== currentUser?.id) {
@@ -1350,8 +1134,6 @@ export default function FriendsPage() {
         await Promise.all([fetchFriends(), fetchInvitations()]);
         return;
       }
-
-      console.log('Updating invitation status to accepted...');
       // Update invitation status to accepted
       const { error: updateError } = await supabase
         .from('friend_invitations')
@@ -1364,10 +1146,7 @@ export default function FriendsPage() {
         return;
       }
 
-      console.log('Invitation status updated successfully');
-
       // Convert profile IDs from invitation to auth user IDs for friendship creation
-      console.log('Converting profile IDs to auth user IDs...');
       const { data: senderProfile, error: senderError } = await supabase
         .from('user_profiles')
         .select('user_id')
@@ -1386,13 +1165,6 @@ export default function FriendsPage() {
         return;
       }
 
-      console.log('Profile ID to Auth ID conversion:', {
-        senderProfileId: invitation.sender_id,
-        senderAuthId: senderProfile.user_id,
-        receiverProfileId: invitation.receiver_id,
-        receiverAuthId: receiverProfile.user_id
-      });
-
       // Create mutual friendship records in the friendships table using auth user IDs
       const friendshipData = [
         {
@@ -1407,8 +1179,6 @@ export default function FriendsPage() {
         }
       ];
 
-      console.log('Creating friendships:', friendshipData);
-
       // Check if friendships already exist to avoid duplicates (using auth user IDs)
       const { data: existingFriendships, error: friendshipCheckError } = await supabase
         .from('friendships')
@@ -1418,7 +1188,6 @@ export default function FriendsPage() {
       if (friendshipCheckError) {
         console.error('Error checking existing friendships:', friendshipCheckError);
         // If we can't check, revert the invitation status
-        console.log('Reverting invitation status due to check error...');
         await supabase
           .from('friend_invitations')
           .update({ status: 'pending' })
@@ -1428,11 +1197,9 @@ export default function FriendsPage() {
       }
 
       if (existingFriendships && existingFriendships.length > 0) {
-        console.log('Friendships already exist:', existingFriendships);
-        console.log('✅ Invitation accepted - friendships were already created');
+        // Friendships already exist
       } else {
         // Create new friendships only if they don't exist
-        console.log('Creating new friendships...');
         const { error: friendshipError } = await supabase
           .from('friendships')
           .insert(friendshipData);
@@ -1442,11 +1209,9 @@ export default function FriendsPage() {
           
           // Check if it's a duplicate key error
           if (friendshipError.code === '23505') {
-            console.log('Duplicate friendship detected - this is expected if friendship was created elsewhere');
-            console.log('✅ Invitation accepted - friendships already exist');
+            // Duplicate friendship detected - this is expected if friendship was created elsewhere
           } else {
             // For other errors, revert the invitation status
-            console.log('Reverting invitation status due to friendship error...');
             await supabase
               .from('friend_invitations')
               .update({ status: 'pending' })
@@ -1454,16 +1219,10 @@ export default function FriendsPage() {
             alert(`Failed to create friendship: ${friendshipError.message}`);
             return;
           }
-        } else {
-          console.log('✅ New friendships created successfully');
         }
       }
-
-      console.log('=== INVITATION ACCEPTED SUCCESSFULLY ===');
-      console.log('Friendship status verified/created successfully');
       
       // Refresh data to show the changes
-      console.log('Refreshing friends and invitations data...');
       await Promise.all([
         fetchFriends(),
         fetchInvitations(),
@@ -1473,8 +1232,7 @@ export default function FriendsPage() {
       alert('Study buddy request accepted! You are now connected.');
 
     } catch (error) {
-      console.error('=== ERROR ACCEPTING INVITATION ===');
-      console.error('Caught exception:', error);
+      console.error('Error accepting invitation:', error);
       alert('Failed to accept invitation. Please try again.');
     }
   };
@@ -1483,8 +1241,6 @@ export default function FriendsPage() {
     if (!currentUser) return;
 
     try {
-      console.log('Declining invitation:', invitationId);
-      
       const { error } = await supabase
         .from('friend_invitations')
         .update({ status: 'declined' })
@@ -1494,8 +1250,6 @@ export default function FriendsPage() {
         console.error('Error declining invitation:', error);
         return;
       }
-
-      console.log('Invitation declined successfully');
       
       // Refresh invitations list
       await fetchInvitations();
@@ -1515,10 +1269,6 @@ export default function FriendsPage() {
     if (!confirmed) return;
 
     try {
-      console.log('=== REMOVING FRIEND ===');
-      console.log('Friendship ID:', friendshipId);
-      console.log('Current user auth ID:', currentUser.authId);
-
       // First, get the friendship record to find the friend's ID
       const { data: friendship, error: fetchError } = await supabase
         .from('friendships')
@@ -1533,7 +1283,6 @@ export default function FriendsPage() {
       }
 
       const friendId = friendship.user_id === currentUser.authId ? friendship.friend_id : friendship.user_id;
-      console.log('Friend ID to remove:', friendId);
 
       // Get the friend's profile ID for invitation cleanup (invitations use profile IDs)
       const { data: friendProfile, error: profileError } = await supabase
@@ -1549,11 +1298,6 @@ export default function FriendsPage() {
       const friendProfileId = friendProfile?.id;
       const currentUserProfileId = currentUser.profile?.id;
 
-      console.log('Profile IDs for invitation cleanup:', {
-        currentUserProfileId,
-        friendProfileId
-      });
-
       // Delete ALL friendships between these two users (both directions)
       const { error: deleteError } = await supabase
         .from('friendships')
@@ -1566,8 +1310,6 @@ export default function FriendsPage() {
         return;
       }
 
-      console.log('✅ Friendships removed successfully (both directions)');
-
       // Also remove any related friend invitations (both directions)
       if (currentUserProfileId && friendProfileId) {
         const { error: inviteDeleteError } = await supabase
@@ -1578,8 +1320,6 @@ export default function FriendsPage() {
         if (inviteDeleteError) {
           console.warn('Error removing related invitations (non-critical):', inviteDeleteError);
           // Don't fail the operation for invitation cleanup errors
-        } else {
-          console.log('✅ Related invitations cleaned up successfully');
         }
       }
       
@@ -1603,50 +1343,31 @@ export default function FriendsPage() {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
-    console.log('🔍 ===== SEARCH INPUT CHANGED =====');
-    console.log('🔍 New query value:', query);
-    console.log('🔍 Event target:', e.target);
-    console.log('🔍 Previous query:', searchQuery);
     
     setSearchQuery(query);
-    console.log('🔍 Query state updated to:', query);
     
     // Clear previous timeout
     if (searchTimeoutRef.current) {
-      console.log('🔍 Clearing previous timeout');
       clearTimeout(searchTimeoutRef.current);
     }
     
     // Set new timeout
-    console.log('🔍 Setting new timeout for 300ms');
     searchTimeoutRef.current = setTimeout(() => {
-      console.log('🔍 ===== DEBOUNCED SEARCH TRIGGERED =====');
-      console.log('🔍 Executing search for:', query);
-      console.log('🔍 Current user available:', !!currentUser);
-      console.log('🔍 Supabase client available:', !!supabase);
       searchUsers(query);
     }, 300);
-    
-    console.log('🔍 Timeout set, waiting for debounce...');
   };
 
   useEffect(() => {
     // Load initial data when currentUser is available
     if (currentUser?.id) {
-      console.log('🔄 Loading initial data for user:', currentUser.id);
-      
       const loadInitialData = async () => {
         try {
-          console.log('📊 Fetching friends, invitations, and suggestions...');
-          
           // Load all data in parallel
           await Promise.all([
             fetchFriends(),
             fetchInvitations(),
             fetchSuggestions(currentUser.profile.user_id)
           ]);
-          
-          console.log('✅ Initial data loading complete');
         } catch (error) {
           console.error('❌ Error loading initial data:', error);
         }
@@ -1667,27 +1388,6 @@ export default function FriendsPage() {
       </div>
     );
   }
-
-  // Debug: Log current state before render
-  console.log('🎨 RENDER DEBUG:', {
-    friends: friends,
-    friendsCount: friends.length,
-    invitations: invitations,
-    invitationsCount: invitations.length,
-    suggestions: suggestions,
-    suggestionsCount: suggestions.length,
-    currentUser: currentUser,
-    loading: loading
-  });
-
-  console.log('🔍 DETAILED FRIENDS DEBUG:', friends.map(f => ({
-    id: f.id,
-    user_id: f.user_id,
-    friend_id: f.friend_id,
-    status: f.status,
-    friend_name: f.friend_profile?.full_name,
-    friend_username: f.friend_profile?.username
-  })));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30">
@@ -1947,29 +1647,14 @@ export default function FriendsPage() {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => {
-                        console.log('🎯 ===== DISCOVER STUDY PARTNERS CLICKED =====');
-                        console.log('🎯 Current user:', currentUser);
-                        console.log('🎯 Current suggestions:', suggestions);
-                        console.log('🎯 Suggestions length:', suggestions.length);
-                        
                         const suggestionsElement = document.getElementById('suggestions');
-                        console.log('🎯 Suggestions element found:', suggestionsElement);
                         
                         if (suggestionsElement) {
-                          console.log('🎯 Suggestions element exists, scrolling...');
                           suggestionsElement.scrollIntoView({ behavior: 'smooth' });
-                          console.log('🎯 Scroll command executed');
                         } else {
-                          console.log('🎯 No suggestions element found, checking current state...');
-                          console.log('🎯 Current user ID:', currentUser?.id);
-                          console.log('🎯 Will fetch suggestions...');
-                          
                           // If no suggestions are available, trigger a new fetch
                           if (currentUser) {
-                            console.log('🎯 Fetching suggestions for user:', currentUser.id);
                             fetchSuggestions(currentUser.authId);
-                          } else {
-                            console.log('🎯 No current user, cannot fetch suggestions');
                           }
                         }
                       }}

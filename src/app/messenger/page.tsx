@@ -26,7 +26,7 @@ interface Conversation {
     username: string;
     full_name: string;
     avatar_url?: string;
-    status: 'online' | 'away' | 'offline';
+    status: 'online' | 'idle' | 'dnd' | 'away' | 'offline';
     last_seen: string;
   };
   lastMessage: {
@@ -55,13 +55,14 @@ export default function MessengerPage() {
 
   useEffect(() => {
     initializeMessenger();
-    setupRealtimeSubscriptions();
+    const cleanup = setupRealtimeSubscriptions();
 
     return () => {
       // Cleanup subscriptions
+      if (cleanup) cleanup();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentUser]);
 
   const initializeMessenger = async () => {
     try {
@@ -81,14 +82,14 @@ export default function MessengerPage() {
 
       if (userProfile) {
         setCurrentUser({
-          id: userProfile.id,
+          id: user.id, // Keep the auth user ID for consistency
           username: userProfile.username,
           full_name: userProfile.full_name,
           avatar_url: userProfile.avatar_url,
         });
 
-        // Load conversations
-        await loadConversations(userProfile.id);
+        // Load conversations using auth user ID
+        await loadConversations(user.id);
       }
     } catch (error) {
       console.error('Error initializing messenger:', error);
@@ -99,56 +100,100 @@ export default function MessengerPage() {
 
   const loadConversations = async (userId: string) => {
     try {
-      // Get all friends first
-      const { data: friendsData } = await supabase
-        .from('friendships')
-        .select(`
-          *,
-          friend:user_profiles!friendships_friend_id_fkey(id, username, full_name, avatar_url),
-          user:user_profiles!friendships_user_id_fkey(id, username, full_name, avatar_url)
-        `)
-        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
-        .eq('status', 'accepted');
+      // Get current user's profile ID
+      const { data: currentUserProfile } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
 
-      if (!friendsData || friendsData.length === 0) {
+      if (!currentUserProfile) {
+        console.error('Current user profile not found');
         setConversations([]);
         return;
       }
 
+      const currentProfileId = currentUserProfile.id;
+
+      // Get all accepted friendships where current user is involved (using auth user_id)
+      const { data: friendsData, error: friendsError } = await supabase
+        .from('friendships')
+        .select('*')
+        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+        .eq('status', 'accepted');
+
+      console.log('Friends data:', friendsData, 'Error:', friendsError);
+
+      if (!friendsData || friendsData.length === 0) {
+        console.log('No friends found');
+        setConversations([]);
+        return;
+      }
+
+      // Get friend user_ids - need to get the "other" user in each friendship
+      const friendUserIds = friendsData.map(f => 
+        f.user_id === userId ? f.friend_id : f.user_id
+      );
+
+      console.log('Friend user IDs:', friendUserIds);
+
+      // Get friend profiles using user_id
+      const { data: friendProfiles, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .in('user_id', friendUserIds);
+
+      if (profileError) {
+        console.error('Error fetching friend profiles:', profileError);
+        setConversations([]);
+        return;
+      }
+
+      console.log('Friend profiles:', friendProfiles);
+
       // Build conversations from friends
-      const conversationsPromises = friendsData.map(async (friendship) => {
-        const friend = friendship.user_id === userId ? friendship.friend : friendship.user;
-        
-        // For now, we'll create mock conversations since messages table might not be set up yet
-        // You can replace this with actual message queries once the schema is properly set up
+      const conversationsPromises = friendProfiles.map(async (friendProfile) => {
+        // Get the latest message between current user and this friend (using profile IDs)
+        const { data: latestMessage } = await supabase
+          .from('messages')
+          .select('*')
+          .or(`and(sender_id.eq.${currentProfileId},receiver_id.eq.${friendProfile.id}),and(sender_id.eq.${friendProfile.id},receiver_id.eq.${currentProfileId})`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        // Get unread message count for this conversation (using profile IDs)
+        const { count: unreadCount } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('sender_id', friendProfile.id)
+          .eq('receiver_id', currentProfileId)
+          .eq('is_read', false);
+
+        // Get friend's online status (using profile ID)
+        const { data: friendStatus } = await supabase
+          .from('user_status')
+          .select('status, last_seen')
+          .eq('user_profile_id', friendProfile.id)
+          .single();
+
         const conversation: Conversation = {
-          id: `${userId}-${friend.id}`,
+          id: `${currentProfileId}-${friendProfile.id}`,
           participant: {
-            id: friend.id,
-            username: friend.username,
-            full_name: friend.full_name,
-            avatar_url: friend.avatar_url,
-            status: Math.random() > 0.5 ? 'online' : Math.random() > 0.5 ? 'away' : 'offline',
-            last_seen: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+            id: friendProfile.id,
+            username: friendProfile.username,
+            full_name: friendProfile.full_name,
+            avatar_url: friendProfile.avatar_url,
+            status: friendStatus?.status || 'offline',
+            last_seen: friendStatus?.last_seen || new Date().toISOString(),
           },
-          lastMessage: Math.random() > 0.3 ? {
-            content: [
-              "Hey! How's your study going?",
-              "Want to work on the project together?",
-              "Found some great resources to share!",
-              "Let's schedule a study session",
-              "Thanks for the help earlier! 😊",
-              "Are you free for group study tomorrow?",
-              "Just finished the assignment, want to review?",
-              "Check out this amazing course I found!",
-              "Coffee break before the exam?",
-              "Let's create a study group chat!"
-            ][Math.floor(Math.random() * 10)],
-            timestamp: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000).toISOString(),
-            isFromCurrentUser: Math.random() > 0.5,
-            isRead: Math.random() > 0.3,
+          lastMessage: latestMessage ? {
+            content: latestMessage.content,
+            timestamp: latestMessage.created_at,
+            isFromCurrentUser: latestMessage.sender_id === currentProfileId,
+            isRead: latestMessage.is_read,
           } : null,
-          unreadCount: Math.floor(Math.random() * 5),
+          unreadCount: unreadCount || 0,
         };
 
         return conversation;
@@ -167,23 +212,73 @@ export default function MessengerPage() {
       setConversations(conversationsList);
     } catch (error) {
       console.error('Error loading conversations:', error);
+      setConversations([]);
     }
   };
 
   const setupRealtimeSubscriptions = () => {
+    if (!currentUser) return;
+
     // Subscribe to friendship changes
-    supabase
+    const friendshipSubscription = supabase
       .channel('friendships')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'friendships' },
         () => {
           // Reload conversations when friendships change
+          loadConversations(currentUser.id);
+        }
+      )
+      .subscribe();
+
+    // Subscribe to new messages
+    const messagesSubscription = supabase
+      .channel('messages')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        () => {
+          // Reload conversations when new messages arrive
           if (currentUser) {
             loadConversations(currentUser.id);
           }
         }
       )
       .subscribe();
+
+    // Subscribe to message read status changes
+    const readStatusSubscription = supabase
+      .channel('message_read_status')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'message_read_status' },
+        () => {
+          // Reload conversations when read status changes
+          if (currentUser) {
+            loadConversations(currentUser.id);
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to user status changes
+    const statusSubscription = supabase
+      .channel('user_status')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'user_status' },
+        () => {
+          // Reload conversations when user status changes
+          if (currentUser) {
+            loadConversations(currentUser.id);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      friendshipSubscription.unsubscribe();
+      messagesSubscription.unsubscribe();
+      readStatusSubscription.unsubscribe();
+      statusSubscription.unsubscribe();
+    };
   };
 
   const handleConversationClick = (conversation: Conversation) => {
@@ -236,6 +331,8 @@ export default function MessengerPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'online': return 'bg-green-400';
+      case 'idle': return 'bg-yellow-400';
+      case 'dnd': return 'bg-red-400';
       case 'away': return 'bg-yellow-400';
       default: return 'bg-gray-300';
     }
@@ -244,6 +341,8 @@ export default function MessengerPage() {
   const getStatusDot = (status: string) => {
     switch (status) {
       case 'online': return 'ring-green-100';
+      case 'idle': return 'ring-yellow-100';
+      case 'dnd': return 'ring-red-100';
       case 'away': return 'ring-yellow-100';
       default: return 'ring-gray-100';
     }
@@ -450,6 +549,8 @@ export default function MessengerPage() {
                               <div className="flex items-center justify-between mt-2">
                                 <span className="text-xs text-gray-500">
                                   {conversation.participant.status === 'online' ? 'Online now' : 
+                                   conversation.participant.status === 'idle' ? 'Idle' :
+                                   conversation.participant.status === 'dnd' ? 'Do not disturb' :
                                    conversation.participant.status === 'away' ? 'Away' :
                                    `Last seen ${formatTime(conversation.participant.last_seen)}`}
                                 </span>
