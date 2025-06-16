@@ -1,820 +1,1008 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
-import Image from 'next/image';
-import {
-  IoSend,
-  IoMic,
-  IoHappyOutline,
-  IoAttach,
-  IoCall,
-  IoVideocam,
-  IoEllipsisVertical,
-  IoArrowBack,
-  IoCheckmark,
-  IoCheckmarkDone,
-} from 'react-icons/io5';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { 
+  FaArrowLeft, FaPaperPlane, FaCircle, FaPhone, FaVideo, FaInfo, 
+  FaMicrophone, FaMicrophoneSlash, FaVideoSlash, FaTimes
+} from "react-icons/fa";
+import { supabase } from "@/lib/supabase";
+import Header from "@/components/Header";
 
-interface Friend {
-  name: string;
-  lastMessage: string;
-  status: 'online' | 'idle' | 'dnd' | 'offline';
+// Interfaces
+interface UserProfile {
+  id: string;
+  user_id: string;
+  full_name: string;
+  username: string;
+  current_status: string;
+  skills: string[];
+  career_goals: string[];
+  learning_goals: string[];
+  created_at: string;
+}
+
+interface CurrentUser {
+  id: string;
+  authId: string;
+  profile: UserProfile;
 }
 
 interface Message {
-  sender: 'You' | 'Them';
-  text: string;
-  username: string; // Add username field
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  message_type: 'text' | 'image' | 'file' | 'voice' | 'video' | 'system' | 'deleted';
+  file_url?: string;
+  file_name?: string;
+  file_size?: number;
+  file_type?: string;
+  thumbnail_url?: string;
+  reply_to_message_id?: string;
+  forwarded_from_message_id?: string;
+  is_edited: boolean;
+  edited_at?: string;
+  is_deleted: boolean;
+  deleted_at?: string;
+  delivered_at?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  sender_profile?: UserProfile;
 }
 
-export default function MessengerPage() {
-  const params = useParams() as { friendName: string }; // Cast to include friendName
-  const friendName = params.friendName;
-  const searchParams = useSearchParams();
-  const lastMessage = searchParams?.get('lastMessage') || '';
+interface UserStatus {
+  user_id: string;
+  status: 'online' | 'idle' | 'dnd' | 'offline';
+  last_seen: string;
+  status_message?: string;
+  updated_at: string;
+}
+
+export default function ChatPage() {
+  const params = useParams();
+  const router = useRouter();
+  const friendName = params.friendName as string;
+  
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [friend, setFriend] = useState<UserProfile | null>(null);
+  const [friendStatus, setFriendStatus] = useState<UserStatus | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [currentFriend, setCurrentFriend] = useState(friendName);
-  const [friendStatus, setFriendStatus] = useState<'online' | 'idle' | 'dnd' | 'offline'>('offline');
-  const chatBottomRef = useRef<HTMLDivElement>(null);
-  const [isRecording, setIsRecording] = useState(false); // State for voice message recording
-
-  // Added API base and current user id from localStorage
-  const API_BASE_URL = "http://localhost:8000";
-  const [userId, setUserId] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem("auth_user_id");
-      return stored ? parseInt(stored, 10) : 0;
-    }
-    return 0;
-  });
-
+  const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  
+  // Call states
+  const [isInCall, setIsInCall] = useState(false);
+  const [callType, setCallType] = useState<'voice' | 'video' | null>(null);
+  const [incomingCall, setIncomingCall] = useState<{type: 'voice' | 'video', from: string, fromName: string, offer?: RTCSessionDescriptionInit} | null>(null);
   const [peerConnection, setPeerConnection] = useState<RTCPeerConnection | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [webSocket, setWebSocket] = useState<WebSocket | null>(null);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(false);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const [offerSent, setOfferSent] = useState(false);
-  const [wsConnected, setWsConnected] = useState(false); // Track WebSocket connection state
-  const offerTimeout = useRef<NodeJS.Timeout | null>(null); // useRef to hold the timeout
-  const [incomingCall, setIncomingCall] = useState(false); // State to track incoming call
-  const [callerId, setCallerId] = useState<number | null>(null); // State to store the caller's ID
 
+  // Initialize user and fetch friend data
   useEffect(() => {
-    // Cleanup timeout on unmount
-    return () => {
-      if (offerTimeout.current) {
-        clearTimeout(offerTimeout.current);
+    const initializeChat = async () => {
+      try {
+        // Get current user session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session?.user) {
+          router.push('/auth/login');
+          return;
+        }
+
+        // Get current user profile
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (profileError || !profile) {
+          console.error('Profile fetch error:', profileError);
+          return;
+        }
+
+        setCurrentUser({
+          id: profile.id,
+          authId: session.user.id,
+          profile: profile
+        });
+
+        // Find friend by username
+        const { data: friendProfile, error: friendError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('username', friendName)
+          .single();
+
+        if (friendError || !friendProfile) {
+          console.error('Friend not found:', friendError);
+          router.push('/messenger');
+          return;
+        }
+
+        setFriend(friendProfile);
+
+        // Fetch friend status
+        await fetchFriendStatus(friendProfile.user_id);
+
+        // Fetch messages between current user and friend
+        await fetchMessages(session.user.id, friendProfile.user_id);
+
+      } catch (error) {
+        console.error('Error initializing chat:', error);
+      } finally {
+        setLoading(false);
       }
     };
-  }, []);
 
-  useEffect(() => {
-    setCurrentFriend(friendName);
-  }, [friendName]);
+    if (friendName) {
+      initializeChat();
+    }
+  }, [friendName, router]);
 
+  const fetchFriendStatus = async (friendUserId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_status')
+        .select('*')
+        .eq('user_id', friendUserId)
+        .maybeSingle(); // Use maybeSingle() instead of single() to handle 0 rows
+
+      if (error) {
+        console.error('Error fetching friend status:', error);
+        return;
+      }
+
+      // If no status record exists, create a default offline status
+      if (!data) {
+        setFriendStatus({
+          user_id: friendUserId,
+          status: 'offline',
+          last_seen: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      } else {
+        setFriendStatus(data);
+      }
+    } catch (error) {
+      console.error('Error fetching friend status:', error);
+    }
+  };
+
+  const fetchMessages = async (currentUserId: string, friendUserId: string) => {
+    try {
+      // First, get or create a conversation between the two users
+      const { data: conversationId, error: convError } = await supabase
+        .rpc('create_direct_conversation', {
+          user1_id: currentUserId,
+          user2_id: friendUserId
+        });
+
+      if (convError) {
+        console.error('Error creating/getting conversation:', convError);
+        return;
+      }
+
+      // Now fetch messages for this conversation
+      const { data: messagesData, error } = await supabase
+        .from('messages')
+        .select(`
+          *
+        `)
+        .eq('conversation_id', conversationId)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching messages:', error);
+        return;
+      }
+
+      // Fetch sender profiles separately to avoid foreign key issues
+      const senderIds = [...new Set(messagesData?.map(m => m.sender_id) || [])];
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .in('user_id', senderIds);
+
+      // Combine messages with sender profiles
+      const messagesWithProfiles = messagesData?.map(message => ({
+        ...message,
+        sender_profile: profiles?.find(p => p.user_id === message.sender_id)
+      })) || [];
+
+      setMessages(messagesWithProfiles);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !currentUser || !friend || sending) return;
+
+    setSending(true);
+
+    try {
+      // First, get or create the conversation
+      const { data: conversationId, error: convError } = await supabase
+        .rpc('create_direct_conversation', {
+          user1_id: currentUser.authId,
+          user2_id: friend.user_id
+        });
+
+      if (convError) {
+        console.error('Error getting conversation:', convError);
+        setSending(false);
+        return;
+      }
+
+      // Insert the message
+      const { data: messageData, error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: currentUser.authId,
+          content: newMessage.trim(),
+          message_type: 'text'
+        })
+        .select('*')
+        .single();
+
+      if (messageError) {
+        console.error('Error sending message:', messageError);
+        setSending(false);
+        return;
+      }
+
+      // Get sender profile separately
+      const { data: senderProfile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', currentUser.authId)
+        .single();
+
+      // Add message with profile to local state
+      const messageWithProfile = {
+        ...messageData,
+        sender_profile: senderProfile
+      };
+
+      setMessages(prev => [...prev, messageWithProfile]);
+      setNewMessage("");
+
+      // Mark message as read for the sender
+      await markMessageAsRead(messageData.id);
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const markMessageAsRead = async (messageId: string) => {
+    if (!currentUser) return;
+
+    try {
+      await supabase
+        .from('message_read_receipts')
+        .upsert({
+          message_id: messageId,
+          user_id: currentUser.authId
+        });
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    // Scroll to the bottom of the chat when messages change
-    if (chatBottomRef.current) {
-      chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
 
-  // Fetch conversation messages from backend
+  // Set up real-time subscription for new messages
   useEffect(() => {
-    if(userId && friendName) {
-      fetch(`${API_BASE_URL}/messenger/${friendName}/messages?user_id=${userId}`)
-        .then(res => res.json())
-        .then(data => {
-          if(data.messages) {
-            setMessages(data.messages.map((m: any) => ({
-              sender: m.sender_id === userId ? "You" : "Them",
-              text: m.text,
-              username: m.sender_id === userId ? "You" : friendName // Use "You" for current user and friendName for friend
-            })));
-          }
-        })
-        .catch(err => console.error("Error fetching messenger messages:", err));
-    }
-  }, [userId, friendName]);
+    if (!currentUser || !friend) return;
 
-  // Fetch friend's status from backend
-  useEffect(() => {
-    if(friendName) {
-      fetch(`${API_BASE_URL}/user/status?username=${friendName}`)
-        .then(res => res.json())
-        .then(data => {
-          if(data.status) {
-            setFriendStatus(data.status);
-          } else {
-            setFriendStatus('offline'); // Default to offline if no status is found
-          }
-        })
-        .catch(err => {
-          console.error("Error fetching friend status:", err);
-          setFriendStatus('offline'); // Default to offline on error
+    const markMessageAsReadCallback = async (messageId: string) => {
+      if (!currentUser) return;
+
+      try {
+        await supabase
+          .from('message_read_receipts')
+          .upsert({
+            message_id: messageId,
+            user_id: currentUser.authId
+          });
+      } catch (error) {
+        console.error('Error marking message as read:', error);
+      }
+    };
+
+    let cleanup: (() => void) | null = null;
+
+    // Get conversation ID for filtering real-time messages
+    const setupRealtime = async () => {
+      try {
+        const { data: conversationId } = await supabase
+          .rpc('create_direct_conversation', {
+            user1_id: currentUser.authId,
+            user2_id: friend.user_id
+          });
+
+        if (!conversationId) return;
+
+        const channel = supabase
+          .channel(`messages-${conversationId}-${Date.now()}`) // Unique channel name
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'messages',
+              filter: `conversation_id=eq.${conversationId}`
+            },
+            async (payload) => {
+              // Fetch the sender profile separately
+              const { data: senderProfile } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('user_id', payload.new.sender_id)
+                .single();
+
+              const messageWithProfile: Message = {
+                ...payload.new as Message,
+                sender_profile: senderProfile
+              };
+
+              setMessages(prev => {
+                // Check if message already exists to avoid duplicates
+                if (prev.some(msg => msg.id === messageWithProfile.id)) {
+                  return prev;
+                }
+                return [...prev, messageWithProfile];
+              });
+
+              // Mark as read if we're not the sender
+              if (payload.new.sender_id !== currentUser.authId) {
+                await markMessageAsReadCallback(payload.new.id);
+              }
+            }
+          )
+          .subscribe();
+
+        cleanup = () => {
+          supabase.removeChannel(channel);
+        };
+      } catch (error) {
+        console.error('Error setting up realtime:', error);
+      }
+    };
+
+    setupRealtime();
+
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [currentUser, friend]);
+
+  // WebRTC Configuration
+  const iceServers = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ];
+
+  // Initialize WebRTC connection
+  const initializePeerConnection = () => {
+    const pc = new RTCPeerConnection({ iceServers });
+    
+    pc.onicecandidate = (event) => {
+      if (event.candidate && friend) {
+        // Send ICE candidate through Supabase signaling
+        sendSignalingMessage('ice-candidate', {
+          candidate: event.candidate.candidate,
+          sdpMid: event.candidate.sdpMid,
+          sdpMLineIndex: event.candidate.sdpMLineIndex
         });
-    }
-  }, [friendName]);
-
-  // Fetch friends or recent conversations
-  useEffect(() => {
-    if(userId) {
-      fetch(`${API_BASE_URL}/friends?user_id=${userId}`)
-        .then(res => res.json())
-        .then(data => {
-          if(data.friends) {
-            setFriends(data.friends.map((f: any) => ({
-              name: f.username,
-              lastMessage: "Last message preview", // Placeholder for last message
-              status: 'offline' // Default to offline, can be updated with actual status
-            })));
-          }
-        })
-        .catch(err => console.error("Error fetching friends:", err));
-    }
-  }, [userId]);
-
-  const initializeWebSocket = () => {
-    const ws = new WebSocket(`ws://localhost:8000/ws/${userId}`);
-    setWebSocket(ws);
-
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-      setWsConnected(true);
-    };
-
-    ws.onmessage = (event) => {
-      const handleMessage = async (message: any) => {
-        try {
-          console.log('Received message:', message);
-          if (message.type === 'message' && message.to === userId) {
-            setMessages(prev => [...prev, {
-              sender: message.from === userId ? 'You' : 'Them',
-              text: message.text,
-              username: message.from === userId ? 'You' : currentFriend
-            }]);
-          } else if (message.type === 'offer' && peerConnection && peerConnection.signalingState === 'stable') {
-            console.log('ws.onmessage: offer');
-            try {
-              await peerConnection.setRemoteDescription(new RTCSessionDescription(message));
-              const answer = await peerConnection.createAnswer();
-              await peerConnection.setLocalDescription(answer);
-              ws.send(JSON.stringify(peerConnection.localDescription));
-            } catch (e) {
-              console.error('Error handling offer:', e);
-            }
-          } else if (message.type === 'answer' && peerConnection && peerConnection.signalingState === 'have-remote-offer') {
-            console.log('ws.onmessage: answer');
-            try {
-              await peerConnection.setRemoteDescription(new RTCSessionDescription(message));
-            } catch (e) {
-              console.error('Error handling answer:', e);
-            }
-          } else if (message.type === 'candidate') {
-            console.log('ws.onmessage: candidate');
-            try {
-              await peerConnection?.addIceCandidate(new RTCIceCandidate(message.candidate));
-            } catch (e) {
-              console.error('Error adding ICE candidate:', e);
-            }
-          } else if (message.type === 'ringing') {
-            // Handle incoming call notification
-            console.log('Incoming call from:', message.from);
-            setIncomingCall(true);
-            setCallerId(message.from);
-          } else if (message.type === 'accept') {
-            // Handle call accept
-            console.log('Call accepted');
-            clearTimeout(offerTimeout.current as NodeJS.Timeout);
-          } else if (message.type === 'reject') {
-            // Handle call reject
-            console.log('Call rejected');
-            clearTimeout(offerTimeout.current as NodeJS.Timeout);
-            hangUp();
-          } else if (message.type === 'hangup') {
-            // Handle call hangup
-            console.log('Call ended by remote peer');
-            hangUp();
-          } else {
-            console.warn('Received unknown message type:', message.type);
-          }
-        } catch (e) {
-          console.error('ws.onmessage: error', e);
-        }
-      };
-
-      const message = JSON.parse(event.data);
-      handleMessage(message);
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      setWsConnected(false);
-      // Reinitialize WebSocket connection if it gets closed
-      initializeWebSocket();
-    };
-  };
-
-  useEffect(() => {
-    initializeWebSocket();
-  }, [userId, currentFriend]);
-
-  const sendMessage = () => {
-    if (input.trim() !== '') {
-      // Fetch the friend's user ID and send it as the 'to' field
-      fetch(`${API_BASE_URL}/user/profile?username=${currentFriend}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.user_id) {
-            const recipientId = data.user_id;
-            const message = {
-              type: 'message',
-              to: recipientId, // Send to the friend's user ID
-              from: userId,
-              text: input
-            };
-            webSocket?.send(JSON.stringify(message));
-            setMessages(prevMessages => [...prevMessages, { sender: 'You', text: input, username: 'You' }]);
-            setInput('');
-          } else {
-            console.error("Could not fetch recipient's user ID.");
-          }
-        })
-        .catch(err => console.error("Error fetching recipient's user ID:", err));
-    }
-  };
-
-  const initiateVoiceCall = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      setLocalStream(stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
       }
-      const pc = new RTCPeerConnection();
-      setPeerConnection(pc);
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+    };
 
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          console.log('ICE candidate:', event.candidate);
-          webSocket?.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
-        }
-      };
-
-      pc.onicegatheringstatechange = () => {
-        console.log('ICE gathering state:', pc.iceGatheringState);
-      };
-
-      pc.onconnectionstatechange = () => {
-        console.log('Connection State Change:', pc.connectionState);
-      };
-
-      pc.oniceconnectionstatechange = () => {
-        console.log('ICE Connection State Change:', pc.iceConnectionState);
-      };
-
-      pc.ontrack = (event) => {
-        console.log('ontrack', event);
+    pc.ontrack = (event) => {
+      if (event.streams && event.streams[0]) {
         setRemoteStream(event.streams[0]);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-        }
-      };
-
-      const ws = new WebSocket(`ws://localhost:8000/ws/${userId}`);
-      setWebSocket(ws);
-
-      ws.onopen = async () => {
-        console.log('ws.onopen');
-        setWsConnected(true); // Set WebSocket connected state
-
-        ws.onmessage = async (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            console.log('Received message:', message);
-
-            if (message.type === 'offer' && pc.signalingState === 'stable') {
-              console.log('ws.onmessage: offer');
-              try {
-                await pc.setRemoteDescription(new RTCSessionDescription(message));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                ws.send(JSON.stringify(pc.localDescription));
-              } catch (e) {
-                console.error('Error handling offer:', e);
-              }
-            } else if (message.type === 'answer' && pc.signalingState === 'have-remote-offer') {
-              console.log('ws.onmessage: answer');
-              try {
-                await pc.setRemoteDescription(new RTCSessionDescription(message));
-              } catch (e) {
-                console.error('Error handling answer:', e);
-              }
-            } else if (message.type === 'candidate') {
-              console.log('ws.onmessage: candidate');
-              try {
-                await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
-              } catch (e) {
-                console.error('Error adding ICE candidate:', e);
-              }
-            } else if (message.type === 'ringing') {
-              // Handle incoming call notification
-              console.log('Incoming call from:', message.from);
-              setIncomingCall(true);
-              setCallerId(message.from);
-            } else if (message.type === 'accept') {
-              // Handle call accept
-              console.log('Call accepted');
-              clearTimeout(offerTimeout.current as NodeJS.Timeout);
-            } else if (message.type === 'reject') {
-              // Handle call reject
-              console.log('Call rejected');
-              clearTimeout(offerTimeout.current as NodeJS.Timeout);
-              hangUp();
-            } else if (message.type === 'hangup') {
-              // Handle call hangup
-              console.log('Call ended by remote peer');
-              hangUp();
-            } else {
-              console.warn('Received unknown message type:', message.type);
-            }
-          } catch (e) {
-            console.error('ws.onmessage: error', e);
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error('ws.onerror', error);
-        };
-
-        ws.onclose = () => {
-          console.log('ws.onclose');
-          setWsConnected(false); // Reset WebSocket connected state
-          setOfferSent(false);
-          setIncomingCall(false);
-          setCallerId(null);
-        };
-
-        // Send "ringing" notification
-        // Fetch the friend's user ID and send it as the 'to' field
-        fetch(`${API_BASE_URL}/user/profile?username=${friendName}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data && data.user_id) {
-              const recipientId = data.user_id;
-              ws.send(JSON.stringify({ type: 'ringing', to: recipientId, from: userId }));
-            } else {
-              console.error("Could not fetch recipient's user ID.");
-            }
-          })
-          .catch(err => console.error("Error fetching recipient's user ID:", err));
-
-        // Send offer only once
-        if (!offerSent) {
-          try {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            ws.send(JSON.stringify(pc.localDescription));
-            setOfferSent(true);
-
-            // Set a timeout to stop sending offers after 10 seconds
-            offerTimeout.current = setTimeout(() => {
-              console.log('Offer timeout reached. Stopping offer attempts.');
-              setOfferSent(false);
-              hangUp(); // Hang up the call
-            }, 10000);
-          } catch (e) {
-            console.error('Error creating and sending offer:', e);
-          }
-        }
-      };
-    } catch (err) {
-      console.error('initiateVoiceCall: error', err);
-    }
-  };
-
-  const acceptCall = async () => {
-    console.log('Accepting call');
-    webSocket?.send(JSON.stringify({ type: 'accept', to: callerId, from: userId }));
-    setIncomingCall(false);
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      setLocalStream(stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
       }
-      const pc = new RTCPeerConnection();
-      setPeerConnection(pc);
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+    };
 
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          console.log('ICE candidate:', event.candidate);
-          webSocket?.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
-        }
-      };
-
-      pc.onicegatheringstatechange = () => {
-        console.log('ICE gathering state:', pc.iceGatheringState);
-      };
-
-      pc.onconnectionstatechange = () => {
-        console.log('Connection State Change:', pc.connectionState);
-      };
-
-      pc.oniceconnectionstatechange = () => {
-        console.log('ICE Connection State Change:', pc.iceConnectionState);
-      };
-
-      pc.ontrack = (event) => {
-        console.log('ontrack', event);
-        setRemoteStream(event.streams[0]);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-        }
-      };
-
-      const ws = new WebSocket(`ws://localhost:8000/ws/${userId}`);
-      setWebSocket(ws);
-
-      ws.onopen = async () => {
-        console.log('ws.onopen');
-        setWsConnected(true); // Set WebSocket connected state
-
-        ws.onmessage = async (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            console.log('Received message:', message);
-
-            if (message.type === 'offer' && pc.signalingState === 'stable') {
-              console.log('ws.onmessage: offer');
-              try {
-                await pc.setRemoteDescription(new RTCSessionDescription(message));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                ws.send(JSON.stringify(pc.localDescription));
-              } catch (e) {
-                console.error('Error handling offer:', e);
-              }
-            } else if (message.type === 'answer' && pc.signalingState === 'have-remote-offer') {
-              console.log('ws.onmessage: answer');
-              try {
-                await pc.setRemoteDescription(new RTCSessionDescription(message));
-              } catch (e) {
-                console.error('Error handling answer:', e);
-              }
-            } else if (message.type === 'candidate') {
-              console.log('ws.onmessage: candidate');
-              try {
-                await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
-              } catch (e) {
-                console.error('Error adding ICE candidate:', e);
-              }
-            } else if (message.type === 'ringing') {
-              // Handle incoming call notification
-              console.log('Incoming call from:', message.from);
-              setIncomingCall(true);
-              setCallerId(message.from);
-            } else if (message.type === 'accept') {
-              // Handle call accept
-              console.log('Call accepted');
-              clearTimeout(offerTimeout.current as NodeJS.Timeout);
-            } else if (message.type === 'reject') {
-              // Handle call reject
-              console.log('Call rejected');
-              clearTimeout(offerTimeout.current as NodeJS.Timeout);
-              hangUp();
-            } else if (message.type === 'hangup') {
-              // Handle call hangup
-              console.log('Call ended by remote peer');
-              hangUp();
-            } else {
-              console.warn('Received unknown message type:', message.type);
-            }
-          } catch (e) {
-            console.error('ws.onmessage: error', e);
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error('ws.onerror', error);
-        };
-
-        ws.onclose = () => {
-          console.log('ws.onclose');
-          setWsConnected(false); // Reset WebSocket connected state
-          setOfferSent(false);
-          setIncomingCall(false);
-          setCallerId(null);
-        };
-      };
-    } catch (err) {
-      console.error('acceptCall: error', err);
-    }
+    setPeerConnection(pc);
+    return pc;
   };
 
-  // Added rejectCall function to handle call rejection
-  const rejectCall = () => {
-    console.log('Rejecting call');
-    webSocket?.send(JSON.stringify({ type: 'reject', to: callerId, from: userId }));
-    setIncomingCall(false);
-    setCallerId(null);
-    hangUp(); // Optionally close and clean up the call
-  };
+  // Send signaling messages through Supabase
+  const sendSignalingMessage = useCallback(async (type: string, data: Record<string, unknown>) => {
+    if (!friend || !currentUser) return;
 
-  const initiateVideoCall = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      setLocalStream(stream);
-      const pc = new RTCPeerConnection();
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
-      setPeerConnection(pc);
-
-      const ws = new WebSocket(`ws://localhost:8000/ws/${userId}`);
-      setWebSocket(ws);
-
-      ws.onopen = async () => {
-        // Set up ws.onmessage and pc callbacks inside onopen
-        ws.onmessage = async (event) => {
-          const message = JSON.parse(event.data);
-          if (message.type === 'offer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(message));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            ws.send(JSON.stringify(pc.localDescription));
-          } else if (message.type === 'answer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(message));
-          } else if (message.type === 'candidate') {
-            await pc.addIceCandidate(new RTCIceCandidate(message.candidate));
-          }
-        };
-
-        pc.onicecandidate = (event) => {
-          if (event.candidate) {
-            ws.send(JSON.stringify({ type: 'candidate', candidate: event.candidate }));
-          }
-        };
-
-        pc.ontrack = (event) => {
-          setRemoteStream(event.streams[0]);
-        };
-
-        // Create and send offer only when ws is open
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        ws.send(JSON.stringify(pc.localDescription));
-      };
-
-      ws.onerror = (err) => {
-        console.error("Error in WebSocket connection:", err);
-      };
-    } catch (err) {
-      console.error("Error initiating video call:", err);
-    }
-  };
-
-  const hangUp = () => {
-    console.log('hangUp');
-    peerConnection?.close();
-    setPeerConnection(null);
-    localStream?.getTracks().forEach((track) => track.stop());
-    setLocalStream(null);
-    setRemoteStream(null);
-    setOfferSent(false);
-    setIncomingCall(false);
-    setCallerId(null);
-    webSocket?.send(JSON.stringify({ type: 'hangup', to: callerId, from: userId })); // Send hangup message
-  };
-
-  const currentFriendData = friends.find(friend => friend.name === currentFriend);
-  const status = currentFriendData ? currentFriendData.status : 'offline';
-  const chatBackgroundStyle = {
-    backgroundImage: 'url("https://picsum.photos/800/600")', // Updated with a valid URL
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    opacity: 0.3, // Adjust opacity for a subtle effect
-  };
-
-  const handleSwipeLeft = (index: number) => {};
-
-  const handleHold = (index: number) => {};
-
-  const handleDoubleTap = (index: number) => {};
-
-  const handleVoiceMessage = () => {
-    // Implement voice message recording logic
-    setIsRecording(!isRecording);
-    alert('Voice message recording started/stopped');
-  };
-
-  // Function to update user activity status
-  const updateUserActivity = async () => {
-    try {
-      const formData = new FormData();
-      formData.append("user_id", userId.toString());
-      await fetch(`${API_BASE_URL}/user/activity`, {
-        method: "POST",
-        body: formData,
+    await supabase
+      .from('signaling_messages')
+      .insert({
+        from_user_id: currentUser.authId,
+        to_user_id: friend.user_id,
+        type,
+        data,
+        created_at: new Date().toISOString()
       });
-    } catch (err) {
-      console.error("Error updating user activity status:", err);
+  }, [friend, currentUser]);
+
+  // Start a video call
+  const startVideoCall = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, 
+        audio: true 
+      });
+      
+      setLocalStream(stream);
+      setCallType('video');
+      setIsInCall(true);
+
+      const pc = initializePeerConnection();
+      
+      // Add local stream to peer connection
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream);
+      });
+
+      // Create offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      // Send call invitation
+      await sendSignalingMessage('call-offer', {
+        type: 'video',
+        offer: offer,
+        from: currentUser?.profile.full_name || 'Unknown User'
+      });
+
+    } catch (error) {
+      console.error('Error starting video call:', error);
+      alert('Failed to start video call. Please check your camera and microphone permissions.');
     }
   };
 
+  // Start a voice call
+  const startVoiceCall = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: false, 
+        audio: true 
+      });
+      
+      setLocalStream(stream);
+      setCallType('voice');
+      setIsInCall(true);
+
+      const pc = initializePeerConnection();
+      
+      // Add local stream to peer connection
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream);
+      });
+
+      // Create offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      // Send call invitation
+      await sendSignalingMessage('call-offer', {
+        type: 'voice',
+        offer: offer,
+        from: currentUser?.profile.full_name || 'Unknown User'
+      });
+
+    } catch (error) {
+      console.error('Error starting voice call:', error);
+      alert('Failed to start voice call. Please check your microphone permissions.');
+    }
+  };
+
+  // Answer incoming call
+  const answerCall = async (offer: RTCSessionDescriptionInit) => {
+    try {
+      const constraints = callType === 'video' ? 
+        { video: true, audio: true } : 
+        { video: false, audio: true };
+        
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      setLocalStream(stream);
+
+      const pc = initializePeerConnection();
+      
+      // Add local stream to peer connection
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream);
+      });
+
+      // Set remote offer and create answer
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      // Send answer
+      await sendSignalingMessage('call-answer', {
+        type: answer.type,
+        sdp: answer.sdp
+      });
+      
+      setIsInCall(true);
+      setIncomingCall(null);
+
+    } catch (error) {
+      console.error('Error answering call:', error);
+      alert('Failed to answer call. Please check your camera and microphone permissions.');
+    }
+  };
+
+  // Toggle audio mute
+  const toggleAudio = useCallback(() => {
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsAudioMuted(!audioTrack.enabled);
+      }
+    }
+  }, [localStream]);
+
+  // Toggle video mute
+  const toggleVideo = useCallback(() => {
+    if (localStream) {
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoMuted(!videoTrack.enabled);
+      }
+    }
+  }, [localStream]);
+
+  // End call
+  const endCall = useCallback(() => {
+    // Stop local stream
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+      setLocalStream(null);
+    }
+
+    // Close peer connection
+    if (peerConnection) {
+      peerConnection.close();
+      setPeerConnection(null);
+    }
+
+    // Reset states
+    setRemoteStream(null);
+    setIsInCall(false);
+    setCallType(null);
+    setIncomingCall(null);
+    setIsAudioMuted(false);
+    setIsVideoMuted(false);
+
+    // Send end call message
+    if (friend) {
+      sendSignalingMessage('call-end', {});
+    }
+  }, [localStream, peerConnection, friend, sendSignalingMessage]);
+
+  // Decline incoming call
+  const declineCall = () => {
+    setIncomingCall(null);
+    if (friend) {
+      sendSignalingMessage('call-decline', {});
+    }
+  };
+
+  // Handle incoming signaling messages
   useEffect(() => {
-    // Periodically update user activity status
-    const interval = setInterval(() => {
-      updateUserActivity();
-    }, 30000); // Update every 30 seconds
+    if (!currentUser || !friend) return;
 
-    return () => clearInterval(interval);
-  }, [userId]);
+    const channel = supabase
+      .channel('signaling')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'signaling_messages',
+          filter: `to_user_id=eq.${currentUser.authId}`
+        },
+        async (payload) => {
+          const message = payload.new;
+          if (message.from_user_id !== friend.user_id) return;
 
-  return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-900 to-black text-white font-sans overflow-hidden">
-      {/* Left Sidebar - Friends List */}
-      <aside className="w-64 border-r border-gray-700 flex flex-col glassmorphism">
-        {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-gray-700">
-          <h3 className="text-xl font-bold">Study Buddies</h3>
-          <button className="text-gray-400 hover:text-white">
-            <FaEllipsisV />
+          switch (message.type) {
+            case 'call-offer':
+              setIncomingCall({
+                type: message.data.type,
+                from: message.from_user_id,
+                fromName: message.data.from,
+                offer: message.data.offer
+              });
+              setCallType(message.data.type);
+              break;
+
+            case 'call-answer':
+              if (peerConnection) {
+                await peerConnection.setRemoteDescription(
+                  new RTCSessionDescription(message.data)
+                );
+              }
+              break;
+
+            case 'ice-candidate':
+              if (peerConnection) {
+                await peerConnection.addIceCandidate(
+                  new RTCIceCandidate({
+                    candidate: message.data.candidate,
+                    sdpMid: message.data.sdpMid,
+                    sdpMLineIndex: message.data.sdpMLineIndex
+                  })
+                );
+              }
+              break;
+
+            case 'call-end':
+            case 'call-decline':
+              endCall();
+              break;
+          }
+
+          // Delete the signaling message after processing
+          await supabase
+            .from('signaling_messages')
+            .delete()
+            .eq('id', message.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser, friend, peerConnection, endCall]);
+
+  // Update video elements when streams change
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'online': return 'bg-green-500';
+      case 'idle': return 'bg-yellow-500';
+      case 'dnd': return 'bg-red-500';
+      default: return 'bg-gray-400';
+    }
+  };
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDate = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full"
+        />
+      </div>
+    );
+  }
+
+  if (!friend) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">User not found</h2>
+          <button
+            onClick={() => router.push('/messenger')}
+            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Back to Messages
           </button>
         </div>
-        {/* Search Bar with AI Suggestions */}
-        <div className="flex items-center mb-2 px-4 py-1">
-          <FaSearch className="text-gray-400 mr-2" />
-          <input
-            type="text"
-            placeholder="Find friends learning Deep Learning 🚀"
-            className="bg-gray-800 text-white rounded-full px-3 py-2 w-full focus:outline-none"
-          />
-        </div>
-        {/* Friends List */}
-        <ul className="flex-1 overflow-y-auto">
-          {friends.map((friend, index) => (
-            <li
-              key={index}
-              className={`px-4 py-3 hover:bg-gray-800 transition-colors duration-200 cursor-pointer ${
-                currentFriend === friend.name ? 'bg-gray-800' : ''
-              }`}
-            >
-              <Link href={`/messenger/${friend.name}?lastMessage=${friend.lastMessage}`} className="block">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-700 relative">
-                    {/* 3D Profile Avatars with Live Status Animations */}
-                    <div
-                      className={`absolute inset-0 rounded-full border-2 ${
-                        friend.status === 'online' ? 'border-green-500 animate-pulse' : 'border-transparent'
-                      }`}
-                    />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      
+      <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl overflow-hidden" style={{ height: 'calc(100vh - 120px)' }}>
+        {/* Chat Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push('/messenger')}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <FaArrowLeft className="text-gray-600" />
+              </button>
+              
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                    {friend.full_name?.charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <div className="font-medium">{friend.name}</div>
-                    <div className="text-sm text-gray-400">
-                      {/* Last Message Preview & Read Receipts */}
-                      {friend.lastMessage} <FaCheck className="inline-block ml-1" />
+                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 border-2 border-white rounded-full ${getStatusColor(friendStatus?.status || 'offline')}`}></div>
+                </div>
+                
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">{friend.full_name}</h1>
+                  <p className="text-sm text-gray-500">
+                    {friendStatus?.status === 'online' ? 'Active now' : 
+                     friendStatus?.last_seen ? `Last seen ${formatTime(friendStatus.last_seen)}` : 'Offline'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <button 
+                onClick={startVoiceCall}
+                className="p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                disabled={isInCall}
+              >
+                <FaPhone className="text-gray-600" />
+              </button>
+              <button 
+                onClick={startVideoCall}
+                className="p-3 hover:bg-gray-100 rounded-lg transition-colors"
+                disabled={isInCall}
+              >
+                <FaVideo className="text-gray-600" />
+              </button>
+              <button className="p-3 hover:bg-gray-100 rounded-lg transition-colors">
+                <FaInfo className="text-gray-600" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4" style={{ height: 'calc(100vh - 280px)' }}>
+          {messages.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FaCircle className="text-gray-400 text-2xl" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">Start a conversation</h3>
+              <p className="text-gray-500">Send a message to {friend.full_name} to get started!</p>
+            </div>
+          ) : (
+            <>
+              {messages.map((message, index) => {
+                const isCurrentUser = message.sender_id === currentUser?.authId;
+                const showDate = index === 0 || 
+                  formatDate(message.created_at) !== formatDate(messages[index - 1].created_at);
+
+                return (
+                  <div key={message.id}>
+                    {showDate && (
+                      <div className="text-center my-4">
+                        <span className="bg-gray-100 text-gray-600 text-sm px-3 py-1 rounded-full">
+                          {formatDate(message.created_at)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
+                        isCurrentUser 
+                          ? 'bg-indigo-600 text-white' 
+                          : 'bg-gray-100 text-gray-900'
+                      }`}>
+                        <p className="text-sm">{message.content}</p>
+                        <p className={`text-xs mt-1 ${
+                          isCurrentUser ? 'text-indigo-200' : 'text-gray-500'
+                        }`}>
+                          {formatTime(message.created_at)}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </aside>
-
-      {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col relative">
-        {/* Dynamic Chat Background */}
-        <div className="absolute inset-0" style={chatBackgroundStyle} />
-        {/* Chat Header */}
-        <header className="bg-gray-800 p-4 border-b border-gray-700 flex items-center justify-between relative z-10">
-          <div className="flex items-center">
-            <Link href={`/profile/${currentFriend}`} className="text-2xl font-bold mr-3 hover:underline">
-              {currentFriend}
-            </Link>
-            <div
-              className={`w-3 h-3 rounded-full ${
-                friendStatus === "online"
-                  ? "bg-green-500"
-                  : friendStatus === "idle"
-                  ? "bg-yellow-500"
-                  : friendStatus === "dnd"
-                  ? "bg-red-500"
-                  : "bg-gray-500"
-              }`}
-            />
-          </div>
-          <div className="flex space-x-3">
-            {/* Floating Call Button */}
-            <button className="p-2 text-gray-400 hover:text-white" onClick={initiateVoiceCall}>
-              <FaPhone />
-            </button>
-            <button className="p-2 text-gray-400 hover:text-white" onClick={initiateVideoCall}>
-              <FaVideo />
-            </button>
-            <Link href="/discussion" className="p-2 text-gray-400 hover:text-white">
-              <FaUsers />
-            </Link>
-          </div>
-        </header>
-
-        {/* Messages List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 relative z-10">
-          {messages.map((msg, index) => (
-            <div key={index} className={`flex items-start ${msg.sender === 'You' ? 'flex-row-reverse' : ''}`}>
-              <div className={`w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center ${msg.sender === 'You' ? 'ml-3' : 'mr-3'}`}>
-                {msg.username.charAt(0).toUpperCase()}
-              </div>
-              <div className={`rounded-lg p-3 ${msg.sender === 'You' ? 'bg-purple-700 text-right self-end' : 'bg-gray-800 text-left self-start'} cinematic-chat-bubble`}>
-                {msg.text}
-              </div>
-            </div>
-          ))}
-          <div ref={chatBottomRef} /> {/* Scroll anchor */}
+                );
+              })}
+            </>
+          )}
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* Chat Input */}
-        <footer className="border-t border-gray-700 p-3 relative z-10">
-          <div className="flex items-center">
-            {/* Expandable Input Box */}
-            <input
-              type="text"
-              placeholder="Type a message... Need help with Python? 💡"
-              className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-md focus:outline-none shadow-md expandable-input"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            />
-            {/* Send Button Animation */}
-            <button
+        {/* Message Input */}
+        <div className="bg-white border-t border-gray-200 px-6 py-4">
+          <div className="flex items-end space-x-3">
+            <div className="flex-1 relative">
+              <textarea
+                ref={messageInputRef}
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder={`Message ${friend.full_name}...`}
+                className="w-full px-4 py-3 border border-gray-300 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                rows={1}
+                style={{ minHeight: '48px', maxHeight: '120px' }}
+                disabled={sending}
+              />
+            </div>
+            
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={sendMessage}
-              className="ml-2 p-2 bg-purple-500 hover:bg-purple-600 text-white rounded-md shadow-md glowing-paper-plane"
+              disabled={!newMessage.trim() || sending}
+              className="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              <FaPaperPlane className="h-5 w-5" />
-            </button>
-            {/* Additional Actions */}
-            <div className="flex space-x-2 ml-2">
-              <button className="p-2 text-gray-400 hover:text-white">
-                <FaSmile />
-              </button>
-              <button className="p-2 text-gray-400 hover:text-white" onClick={handleVoiceMessage}>
-                {isRecording ? <FaStop /> : <FaMicrophone />}
-              </button>
-              <button className="p-2 text-gray-400 hover:text-white">
-                <FaImage />
-              </button>
-            </div>
-          </div>
-          {/* Smart Reply Buttons */}
-          <div className="mt-2 flex space-x-2">
-            <button className="smart-reply-button">Let's study now! 📚</button>
-            <button className="smart-reply-button">Need help with this topic? 🤔</button>
-            <button className="smart-reply-button">Taking a break, be back later! ☕</button>
-          </div>
-        </footer>
-      </main>
-
-      {/* Video Call Modal */}
-      {localStream && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
-            <h2 className="text-xl font-bold mb-4">Video Call</h2>
-            <div className="flex space-x-4">
-              <video className="w-64 h-48 bg-black" ref={localVideoRef} muted autoPlay />
-              <video className="w-64 h-48 bg-black" ref={remoteVideoRef} autoPlay />
-            </div>
-            <button onClick={hangUp} className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full">
-              End Call
-            </button>
+              <FaPaperPlane className="text-sm" />
+            </motion.button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Incoming Call Modal */}
       {incomingCall && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
-            <h2 className="text-xl font-bold mb-4">Incoming Call</h2>
-            <p className="mb-4">Accept or Reject the call.</p>
-            <div className="flex space-x-4">
-              <button onClick={acceptCall} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full">
-                Accept
-              </button>
-              <button onClick={rejectCall} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full">
-                Reject
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl p-8 max-w-sm mx-4"
+          >
+            <div className="text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-2xl mx-auto mb-4">
+                {incomingCall.fromName?.charAt(0).toUpperCase()}
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">{incomingCall.fromName}</h3>
+              <p className="text-gray-600 mb-6">
+                Incoming {incomingCall.type} call
+              </p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={declineCall}
+                  className="flex-1 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Decline
+                </button>
+                <button
+                  onClick={() => incomingCall?.offer && answerCall(incomingCall.offer)}
+                  className="flex-1 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  Answer
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Active Call Modal */}
+      {isInCall && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex flex-col z-50">
+          <div className="flex-1 relative">
+            {/* Remote Video */}
+            {callType === 'video' && (
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            )}
+            
+            {/* Local Video (Picture-in-Picture) */}
+            {callType === 'video' && localStream && (
+              <div className="absolute top-4 right-4 w-32 h-24 bg-gray-800 rounded-lg overflow-hidden">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            
+            {/* Voice Call UI */}
+            {callType === 'voice' && (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center text-white">
+                  <div className="w-32 h-32 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-4xl mx-auto mb-4">
+                    {friend?.full_name?.charAt(0).toUpperCase()}
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">{friend?.full_name}</h2>
+                  <p className="text-gray-300">Voice call in progress...</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Call Controls */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+            <div className="flex items-center space-x-6">
+              {callType === 'video' && (
+                <>
+                  <button
+                    onClick={toggleVideo}
+                    className={`p-4 ${isVideoMuted ? 'bg-red-600' : 'bg-gray-600'} text-white rounded-full hover:bg-gray-700 transition-colors`}
+                  >
+                    {isVideoMuted ? <FaVideoSlash className="text-xl" /> : <FaVideo className="text-xl" />}
+                  </button>
+                  <button
+                    onClick={toggleAudio}
+                    className={`p-4 ${isAudioMuted ? 'bg-red-600' : 'bg-gray-600'} text-white rounded-full hover:bg-gray-700 transition-colors`}
+                  >
+                    {isAudioMuted ? <FaMicrophoneSlash className="text-xl" /> : <FaMicrophone className="text-xl" />}
+                  </button>
+                </>
+              )}
+              
+              {callType === 'voice' && (
+                <button
+                  onClick={toggleAudio}
+                  className={`p-4 ${isAudioMuted ? 'bg-red-600' : 'bg-gray-600'} text-white rounded-full hover:bg-gray-700 transition-colors`}
+                >
+                  {isAudioMuted ? <FaMicrophoneSlash className="text-xl" /> : <FaMicrophone className="text-xl" />}
+                </button>
+              )}
+              
+              <button
+                onClick={endCall}
+                className="p-4 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
+              >
+                <FaTimes className="text-xl" />
               </button>
             </div>
           </div>
@@ -823,5 +1011,3 @@ export default function MessengerPage() {
     </div>
   );
 }
-
-
