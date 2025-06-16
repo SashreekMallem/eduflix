@@ -1,948 +1,1556 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import styles from './learning-pathway.module.css';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
-import gsap from 'gsap';
-import { DragControls } from 'three/examples/jsm/controls/DragControls';
+import { 
+  FaBrain, 
+  FaBullseye,
+  FaCheckCircle, 
+  FaTimes, 
+  FaPlus, 
+  FaSave,
+  FaArrowRight,
+  FaLightbulb,
+  FaGraduationCap,
+  FaRocket,
+  FaChartLine,
+  FaCog,
+  FaBookOpen,
+  FaClock,
+  FaUser
+} from 'react-icons/fa';
+import { supabase } from '@/lib/supabase';
+import toast from 'react-hot-toast';
 
-// Define an interface for a learning module
+// Types
+interface UserProfile {
+  full_name: string;
+  current_status: string;
+  skills: string[];
+  career_goals: string[];
+  learning_goals: string[];
+  learning_pace: string;
+  learning_commitment: string;
+  learning_methods: string[];
+}
+
+interface SkillGap {
+  skill: string;
+  currentLevel: string;
+  requiredLevel: string;
+  priority: 'high' | 'medium' | 'low';
+  category: string;
+}
+
 interface LearningModule {
-    title: string;
-    description?: string;
-    subtopics?: LearningModule[];
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimatedHours: number;
+  prerequisites: string[];
+  skills: string[];
+  priority: 'high' | 'medium' | 'low';
+  status: 'suggested' | 'added' | 'completed' | 'skipped';
+  subtopics: SubTopic[];
 }
 
-// Define a more flexible interface for the learning pathway that doesn't rely on predefined levels
+interface SubTopic {
+  id: string;
+  title: string;
+  description: string;
+  estimatedHours: number;
+  resources: Resource[];
+  status: 'pending' | 'in_progress' | 'completed';
+}
+
+interface Resource {
+  type: 'video' | 'article' | 'exercise' | 'project' | 'book';
+  title: string;
+  url?: string;
+  duration?: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+}
+
 interface LearningPathway {
-    [key: string]: { modules: LearningModule[] };
-    career_goal?: string;
+  id: string;
+  userId: string;
+  title: string;
+  description: string;
+  careerGoal: string;
+  estimatedCompletionTime: string;
+  modules: LearningModule[];
+  skillGaps: SkillGap[];
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Add interface for selected module tracking
-interface SelectedModule {
-  id: string; // Unique identifier for the module
-  level: string; // beginner, intermediate, advanced
-  moduleIndex?: number; // Index within the level's modules array
-  object: THREE.Object3D; // Reference to the THREE.js object
-}
+const LearningPathwayCreator = () => {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [userId, setUserId] = useState<string>('');
+  
+  // Data states
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [skillGaps, setSkillGaps] = useState<SkillGap[]>([]);
+  const [suggestedModules, setSuggestedModules] = useState<LearningModule[]>([]);
+  const [customModules, setCustomModules] = useState<LearningModule[]>([]);
+  
+  // UI states
+  const [currentStep, setCurrentStep] = useState(1); // 1: Analysis, 2: Review, 3: Customize, 4: Finalize
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showAddModuleModal, setShowAddModuleModal] = useState(false);
+  
+  // Neural network animation
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationRef = useRef<number | null>(null);
 
-const LearningPathwayPage: React.FC = () => {
-    const [learningPathway, setLearningPathway] = useState<LearningPathway | null>(null);
-    const searchParams = useSearchParams();
-    const userId = searchParams.get("userId");
-    const router = useRouter();
-    const [isLoading, setIsLoading] = useState(true);
-    
-    // NEW: Add state for selection mode
-    const [selectionMode, setSelectionMode] = useState<boolean>(false);
-    const [selectedModules, setSelectedModules] = useState<SelectedModule[]>([]);
-    
-    // NEW: Add a ref to hold the initial learning pathway data
-    const initialLearningPathway = useRef<LearningPathway | null>(null);
-    
-    // Reference for 3D elements
-    const threeContainerRef = useRef<HTMLDivElement>(null);
-    const sceneRef = useRef<THREE.Scene | null>(null);
-    const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-    const controlsRef = useRef<OrbitControls | null>(null);
-    const atomsRef = useRef<{[key: string]: THREE.Object3D}>({});
-    const frameIdRef = useRef<number | null>(null);
-
-    // Add new state for the dialog box and level selection
-    const [showAddDialog, setShowAddDialog] = useState<boolean>(false);
-    const [newLevelName, setNewLevelName] = useState<string>("");
-    const [newModuleName, setNewModuleName] = useState<string>("");
-
-    // NEW: Add a ref to store the createAtom function
-    const createAtomRef = useRef<any>(null);
-
-    // Fetch learning pathway data
-    useEffect(() => {
-        if (!userId) {
-            console.error("User ID not found in search params");
-            return;
-        }
-
-        const fetchCareerGoals = async () => {
-            try {
-                const res = await fetch(`/api/get-career-goals?userId=${userId}`);
-                if (!res.ok) throw new Error(`Failed to fetch career goals: ${res.status}`);
-                return await res.json();
-            } catch (err) {
-                console.error("Error fetching career goals:", err);
-                return { career_goal: "Your Career Goal" };
-            }
-        };
-
-        const fetchLearningPathway = async () => {
-            try {
-                const verifiedResponse = await fetch(`/api/generate-learning-pathway?userId=${userId}`);
-                if (!verifiedResponse.ok) throw new Error(`Failed to fetch learning pathway: ${verifiedResponse.status}`);
-                const verifiedData = await verifiedResponse.json();
-
-                const careerData = await fetchCareerGoals();
-                // Merge verified pathway with career goals from user_profiles
-                const initialPathway = { ...verifiedData, career_goal: careerData.career_goal };
-                setLearningPathway(initialPathway);
-                initialLearningPathway.current = initialPathway; // Store initial data in ref
-                setIsLoading(false); // Added to stop loading indicator
-            } catch (error: any) {
-                console.error("Error fetching learning pathway:", error);
-            }
-        };
-
-        fetchLearningPathway();
-    }, [userId]);
-
-    // Save learning pathway
-    const handleSave = async () => {
-        if (!userId || !learningPathway) return;
-
-        try {
-            const response = await fetch(`/api/save-learning-pathway?userId=${userId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(learningPathway),
-            });
-
-            if (response.ok) {
-                console.log("Learning pathway saved successfully");
-                router.push("/home");
-            } else {
-                throw new Error(`Failed to save learning pathway: ${response.status}`);
-            }
-        } catch (error: any) {
-            console.error("Error saving learning pathway:", error);
-        }
+  // Get user data on component mount
+  useEffect(() => {
+    // AI-powered skill gap analysis
+    const analyzeSkillGaps = async (profile: UserProfile) => {
+      setIsAnalyzing(true);
+      
+      try {
+        // Mock AI analysis - in production, this would call your AI service
+        const gaps = await performSkillGapAnalysis(profile);
+        setSkillGaps(gaps);
+        
+        // Generate suggested modules based on gaps
+        const modules = await generateLearningModules(gaps, profile);
+        setSuggestedModules(modules);
+        
+        setCurrentStep(2);
+      } catch (error) {
+        console.error('Error in skill gap analysis:', error);
+        toast.error('Failed to analyze skill gaps');
+      } finally {
+        setIsAnalyzing(false);
+      }
     };
 
-    // Molecule visualization setup
-    useEffect(() => {
-        if (!threeContainerRef.current || !learningPathway) return;
+    const fetchUserProfile = async (uid: string) => {
+      try {
+        // Fetch main profile
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', uid)
+          .single();
+
+        if (profileError) throw profileError;
+
+        setUserProfile(profile);
+
+        // TODO: These will be used in the full AI analysis implementation
+        // const { data: education } = await supabase
+        //   .from('user_education')
+        //   .select('*')
+        //   .eq('user_id', uid);
+
+        // const { data: workExperience } = await supabase
+        //   .from('user_work_experience')
+        //   .select('*')
+        //   .eq('user_id', uid);
+
+        // const { data: certifications } = await supabase
+        //   .from('user_certifications')
+        //   .select('*')
+        //   .eq('user_id', uid);
+
+        // const { data: skillProficiencies } = await supabase
+        //   .from('user_skill_proficiencies')
+        //   .select('*')
+        //   .eq('user_id', uid);
+
+        // Start gap analysis
+        await analyzeSkillGaps(profile);
         
-        // Clear container
-        while (threeContainerRef.current.firstChild) {
-            threeContainerRef.current.removeChild(threeContainerRef.current.firstChild);
+      } catch (error: unknown) {
+        console.error('Error fetching user profile:', error);
+        toast.error('Failed to fetch user profile');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const initializeData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.push('/auth');
+          return;
         }
         
-        // Setup scene
-        const scene = new THREE.Scene();
-        sceneRef.current = scene;
-        
-        // Setup camera
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 0, 20);
-        cameraRef.current = camera;
-        
-        // Setup renderer
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setClearColor(0xffffff, 1);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        rendererRef.current = renderer;
-        threeContainerRef.current.appendChild(renderer.domElement);
-        
-        // Create CSS2D renderer for labels
-        const labelRenderer = new CSS2DRenderer();
-        labelRenderer.setSize(window.innerWidth, window.innerHeight);
-        labelRenderer.domElement.style.position = 'absolute';
-        labelRenderer.domElement.style.top = '0';
-        labelRenderer.domElement.style.pointerEvents = 'none';
-        threeContainerRef.current.appendChild(labelRenderer.domElement);
-        
-        // Add lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        
-        const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight1.position.set(1, 1, 1);
-        scene.add(directionalLight1);
-        
-        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.6);
-        directionalLight2.position.set(-1, -1, -1);
-        scene.add(directionalLight2);
-        
-        // Create central atom (career goal) - MODIFIED with selection tracking
-        const createAtom = (name: string, color: number, size: number, position: THREE.Vector3, isCentral: boolean = false, level?: string, moduleIndex?: number) => {
-            const group = new THREE.Group();
-            
-            // Nucleus
-            const geometry = new THREE.IcosahedronGeometry(size, 0);
-            const material = new THREE.MeshPhysicalMaterial({
-                color: color,
-                metalness: 0.7,
-                roughness: 0.3,
-                clearcoat: 0.5,
-                clearcoatRoughness: 0.3,
-                reflectivity: 0.5,
-            });
-            
-            const nucleus = new THREE.Mesh(geometry, material);
-            group.add(nucleus);
-            
-            // Store original color for selection toggle
-            group.userData.originalColor = new THREE.Color(color);
-            group.userData.isCentral = isCentral;
-            group.userData.level = level;
-            group.userData.moduleIndex = moduleIndex;
-            group.userData.name = name;
-            
-            // Generate a unique ID for the module
-            group.userData.id = `${level || 'central'}-${moduleIndex !== undefined ? moduleIndex : 'goal'}-${Math.random().toString(36).substr(2, 9)}`;
-            
-            // Label
-            const textDiv = document.createElement('div');
-            textDiv.className = styles.atomLabel;
-            textDiv.textContent = name;
-            textDiv.style.color = '#333';
-            textDiv.style.background = 'rgba(255,255,255,0.8)';
-            textDiv.style.padding = '3px 6px';
-            textDiv.style.borderRadius = '4px';
-            textDiv.style.fontWeight = 'bold';
-            
-            const label = new CSS2DObject(textDiv);
-            label.position.set(0, -size - 0.5, 0);
-            group.add(label);
-            
-            group.position.copy(position);
-            scene.add(group);
-            
-            // Make non-central atoms clickable for selection - FIXED: add click handler to the nucleus
-            if (!isCentral) {
-                // Add click handler to toggle selection for both group and nucleus
-                const toggleSelection = () => {
-                    // Only allow selection when in selection mode
-                    if (!selectionMode) return;
-                    
-                    console.log(`Toggling selection for: ${name}`);
-                    
-                    if (group.userData.isSelected) {
-                        // Deselect
-                        material.color.copy(group.userData.originalColor);
-                        group.userData.isSelected = false;
-                        setSelectedModules(prev => prev.filter(m => m.id !== group.userData.id));
-                    } else {
-                        // Select
-                        material.color.set(0xff0000); // Red for selected
-                        group.userData.isSelected = true;
-                        setSelectedModules(prev => [...prev, {
-                            id: group.userData.id,
-                            level: group.userData.level,
-                            moduleIndex: group.userData.moduleIndex,
-                            object: group
-                        }]);
-                    }
-                };
-                
-                // Set the onClick handler on both the group and the nucleus
-                group.userData.onClick = toggleSelection;
-                nucleus.userData.onClick = toggleSelection;
-                
-                // Add click interaction area data to both objects
-                group.userData.clickable = true;
-                nucleus.userData.clickable = true;
-            }
-            
-            return { group, nucleus };
-        };
-        
-        // Store the function in a ref so it can be accessed outside this useEffect
-        createAtomRef.current = createAtom;
-        
-        // Use career goal from the output if available, fallback if not.
-        const careerGoalLabel = learningPathway.career_goal || "Your Career Goal";
-        const centralPosition = new THREE.Vector3(0, 0, 0);
-        const { group: centralGroup } = createAtom(
-            careerGoalLabel,
-            0x9370DB,
-            2.5,
-            centralPosition,
-            true // is central
-        );
-        atomsRef.current.central = centralGroup;
-        
-        // Create level atoms with consistent orbits
-        const levels = Object.keys(learningPathway).filter(k => k !== "career_goal");
-        const levelRadius = 8;
-        const levelColors = {
-            beginner: 0x6366f1,
-            intermediate: 0x8b5cf6,
-            advanced: 0xd946ef
-        };
-        
-        levels.forEach((level, index) => {
-            const angle = (index / levels.length) * Math.PI * 2;
-            const x = Math.cos(angle) * levelRadius;
-            const y = Math.sin(angle) * levelRadius;
-            
-            const position = new THREE.Vector3(x, y, 0);
-            const { group: levelGroup, nucleus: levelNucleus } = createAtom(
-                level.charAt(0).toUpperCase() + level.slice(1),
-                levelColors[level as keyof typeof levelColors], 
-                1.5, 
-                position,
-                false, // not central
-                level  // level name
-            );
-            
-            // Add complete orbit ring around central atom - but make it invisible (opacity 0)
-            const ringGeometry = new THREE.TorusGeometry(
-                levelRadius, // radius
-                0.05, // tube thickness
-                16, // tubular segments
-                100, // radial segments
-                Math.PI * 2 // Full circle (2π)
-            );
-            
-            const ringMaterial = new THREE.MeshBasicMaterial({
-                color: levelColors[level as keyof typeof levelColors],
-                transparent: true,
-                opacity: 0, // Set opacity to 0 to make invisible
-            });
-            
-            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-            ring.rotation.x = Math.PI / 2; // Rotate to lie flat on XZ plane
-            centralGroup.add(ring);
-            
-            atomsRef.current[level] = levelGroup;
-            
-            // Safely retrieve modules array; default to empty if undefined
-            const modules = Array.isArray(learningPathway[level]?.modules) ? learningPathway[level].modules : [];
-            
-            // Create module atoms for this level
-            const moduleRadius = 3.5;
-            
-            // Create a complete orbit ring for modules around this level - but make it invisible
-            const moduleOrbitGeometry = new THREE.TorusGeometry(
-                moduleRadius, // radius
-                0.03, // tube thickness
-                16, // tubular segments
-                100, // radial segments
-                Math.PI * 2 // Full circle (2π)
-            );
-            
-            const moduleOrbitMaterial = new THREE.MeshBasicMaterial({
-                color: levelColors[level as keyof typeof levelColors],
-                transparent: true,
-                opacity: 0, // Set opacity to 0 to make invisible
-            });
-            
-            const moduleOrbitRing = new THREE.Mesh(moduleOrbitGeometry, moduleOrbitMaterial);
-            moduleOrbitRing.rotation.x = Math.PI / 2; // Rotate to lie flat on XZ plane
-            levelGroup.add(moduleOrbitRing);
-            
-            // Place modules evenly around the orbit
-            modules.forEach((module, moduleIndex) => {
-                const moduleAngle = (moduleIndex / modules.length) * Math.PI * 2;
-                const moduleX = Math.cos(moduleAngle) * moduleRadius;
-                const moduleY = Math.sin(moduleAngle) * moduleRadius;
-                
-                const modulePosition = new THREE.Vector3(moduleX, moduleY, 0);
-                const { group: moduleGroup } = createAtom(
-                    module.title,
-                    levelColors[level as keyof typeof levelColors], 
-                    0.5, 
-                    modulePosition,
-                    false, // not central
-                    level,  // level name
-                    moduleIndex // module index
-                );
-                
-                // Use a pivot group for clean orbital motion
-                const pivotGroup = new THREE.Group();
-                pivotGroup.add(moduleGroup);
-                levelGroup.add(pivotGroup);
-                
-                // Store consistent orbital speeds
-                moduleGroup.userData = {
-                    pivot: pivotGroup,
-                    orbitalSpeed: 0.005, // Constant speed for all modules
-                    selfRotationSpeed: 0.01, // Constant rotation speed
-                    initialAngle: moduleAngle
-                };
+        setUserId(user.id);
+        await fetchUserProfile(user.id);
+      } catch (error) {
+        console.error('Error initializing:', error);
+        toast.error('Failed to load user data');
+      }
+    };
+    
+    initializeData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
-                // After creating the module atom, check for subtopics:
-                if (module.subtopics && module.subtopics.length > 0) {
-                    const subRadius = 1.5;
-                    module.subtopics.forEach((subtopic, subIndex) => {
-                        const subAngle = (subIndex / module.subtopics.length) * Math.PI * 2;
-                        const subX = Math.cos(subAngle) * subRadius;
-                        const subY = Math.sin(subAngle) * subRadius;
-                        const subPosition = new THREE.Vector3(subX, subY, 0);
-                        // Create a smaller sub atom for the subtopic
-                        const { group: subGroup } = createAtom(
-                            subtopic.title,
-                            levelColors[level as keyof typeof levelColors],
-                            0.3,
-                            subPosition
-                        );
-                        // Position the sub atom relative to its module
-                        subGroup.position.add(moduleGroup.position);
-                        // Attach the sub atom to the module group so it moves together
-                        moduleGroup.add(subGroup);
-                    });
-                }
-            });
-            
-            // Setup consistent level orbit
-            const levelPivot = new THREE.Group();
-            levelPivot.add(levelGroup);
-            centralGroup.add(levelPivot);
-            
-            // Store consistent speeds for level orbits
-            levelGroup.userData = {
-                pivot: levelPivot,
-                orbitalSpeed: 0.001, // Constant orbit speed for all levels
-                selfRotationSpeed: 0.005, // Constant rotation speed
-                initialAngle: angle
-            };
-        });
-
-        // Store original positions for snap-back functionality
-        const originalPositions = new Map();
-        
-        // Drag controls with improved vacuum effect and freezing motion during drag
-        const dragControls = new DragControls(Object.values(atomsRef.current), camera, renderer.domElement);
-        dragControls.addEventListener('dragstart', (event) => {
-            controlsRef.current.enabled = false;
-            const object = event.object;
-            // Store original position when starting drag
-            originalPositions.set(object.id, object.position.clone());
-            
-            // Store original animation parameters
-            if (object.userData) {
-                object.userData.originalOrbitalSpeed = object.userData.orbitalSpeed;
-                object.userData.originalSelfRotationSpeed = object.userData.selfRotationSpeed;
-                
-                // Freeze all animation during drag
-                object.userData.orbitalSpeed = 0;
-                object.userData.selfRotationSpeed = 0;
-                
-                // Also freeze the parent pivot if it exists
-                if (object.userData.pivot) {
-                    object.userData.pivot.userData = object.userData.pivot.userData || {};
-                    object.userData.pivot.userData.originalRotationZ = object.userData.pivot.rotation.z;
-                    object.userData.pivot.userData.originalOrbitalSpeed = object.userData.pivot.userData.orbitalSpeed || 0;
-                    object.userData.pivot.userData.orbitalSpeed = 0; // Freeze orbit
-                }
-            }
-        });
-        
-        dragControls.addEventListener('dragend', (event) => {
-            controlsRef.current.enabled = true;
-            const object = event.object;
-            const originalPos = originalPositions.get(object.id);
-            
-            // If dragged far enough left, vacuum to black hole
-            if (object.position.x < -10) {
-                // Create black hole vacuum effect
-                gsap.to(object.scale, {
-                    x: 0,
-                    y: 0,
-                    z: 0,
-                    duration: 0.7,
-                    ease: "power3.in",
-                    onComplete: () => {
-                        scene.remove(object);
-                    }
-                });
-                gsap.to(object.position, {
-                    x: -15,
-                    y: 0,
-                    z: 0,
-                    duration: 0.7,
-                    ease: "power3.in",
-                    onComplete: () => {
-                        // Ensure the object is removed from the scene
-                        scene.remove(object);
-                    }
-                });
-            } 
-            // Otherwise snap back to original position
-            else if (originalPos) {
-                gsap.to(object.position, {
-                    x: originalPos.x,
-                    y: originalPos.y,
-                    z: originalPos.z,
-                    duration: 0.5,
-                    ease: "elastic.out(1, 0.5)",
-                    onComplete: () => {
-                        // Restore original animation parameters after snap back animation completes
-                        if (object.userData) {
-                            object.userData.orbitalSpeed = object.userData.originalOrbitalSpeed || 0;
-                            object.userData.selfRotationSpeed = object.userData.originalSelfRotationSpeed || 0;
-                            if (object.userData.pivot) {
-                                object.userData.pivot.userData.orbitalSpeed = object.userData.pivot.userData.originalOrbitalSpeed || 0;
-                            }
-                        }
-                    }
-                });
-            }
-        });
-        
-        // During drag, add visual feedback
-        dragControls.addEventListener('drag', (event) => {
-            const object = event.object;
-            
-            // Visual feedback - scale down slightly when moving towards the black hole
-            if (object.position.x < 0) {
-                const scaleFactor = Math.max(0.8, 1 - Math.abs(object.position.x) / 20);
-                object.scale.set(scaleFactor, scaleFactor, scaleFactor);
-            } else {
-                // Reset scale when not moving towards the black hole
-                object.scale.set(1, 1, 1);
-            }
-        });
-
-        // Add click handler detection for selection - IMPROVED RAYCASTER SETTINGS
-        const raycaster = new THREE.Raycaster();
-        // Increase precision by adjusting the threshold
-        raycaster.params.Points.threshold = 0.1;
-        raycaster.params.Line.threshold = 0.1;
-        const mouse = new THREE.Vector2();
-        
-        const handleClick = (event: MouseEvent) => {
-            // Calculate mouse position in normalized device coordinates
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-            
-            console.log('Click detected at', mouse.x, mouse.y);
-            
-            // Update the picking ray
-            raycaster.setFromCamera(mouse, camera);
-            
-            // Find intersections - INCLUDE ALL OBJECTS, NOT JUST CHILDREN
-            const intersects = raycaster.intersectObjects(scene.children, true);
-            console.log('Intersections found:', intersects.length);
-            
-            if (intersects.length > 0) {
-                // Improved traversal to find clickable objects
-                for (const intersect of intersects) {
-                    let currentObject: THREE.Object3D | null = intersect.object;
-                    
-                    // Check if this object or any of its parents have an onClick handler
-                    while (currentObject) {
-                        if (currentObject.userData && currentObject.userData.onClick) {
-                            console.log('Found clickable object:', currentObject.userData.name || 'unnamed');
-                            currentObject.userData.onClick();
-                            return; // Stop after handling one click
-                        }
-                        currentObject = currentObject.parent;
-                    }
-                }
-                console.log('No clickable objects found in intersections');
-            }
-        };
-        
-        // Attach the click handler
-        renderer.domElement.addEventListener('click', handleClick);
-        
-        // Animation loop with consistent speeds
-        const animate = () => {
-            if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
-            
-            // Rotate central atom
-            if (atomsRef.current.central) {
-                atomsRef.current.central.rotation.y += 0.003;
-            }
-            
-            // Update animation for all objects with consistent orbital motion
-            scene.traverse((object) => {
-                if (object instanceof THREE.Group && object.userData && object.userData.pivot) {
-                    // Orbital animation - now with consistent speeds
-                    if (object.userData.pivot) {
-                        object.userData.pivot.rotation.z += object.userData.orbitalSpeed;
-                    }
-                    
-                    // Self rotation animation - now with consistent speeds
-                    object.rotation.y += object.userData.selfRotationSpeed;
-                }
-            });
-            
-            renderer.render(scene, camera);
-            labelRenderer.render(scene, camera);
-            
-            frameIdRef.current = requestAnimationFrame(animate);
-        };
-        
-        // Start animation
-        frameIdRef.current = requestAnimationFrame(animate);
-        
-        // Add orbit controls for interactive camera movement
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.minDistance = 5;
-        controls.maxDistance = 30;
-        controlsRef.current = controls;
-        
-        // Handle window resize
-        const handleResize = () => {
-            if (!cameraRef.current || !rendererRef.current) return;
-            
-            cameraRef.current.aspect = window.innerWidth / window.innerHeight;
-            cameraRef.current.updateProjectionMatrix();
-            rendererRef.current.setSize(window.innerWidth, window.innerHeight);
-            labelRenderer.setSize(window.innerWidth, window.innerHeight);
-        };
-        
-        window.addEventListener('resize', handleResize);
-        
-        // Cleanup function
-        return () => {
-            window.removeEventListener('resize', handleResize);
-            
-            if (frameIdRef.current !== null) {
-                cancelAnimationFrame(frameIdRef.current);
-            }
-            
-            if (controlsRef.current) {
-                controlsRef.current.dispose();
-            }
-            
-            if (rendererRef.current) {
-                rendererRef.current.dispose();
-            }
-            
-            // Dispose geometries and materials
-            scene.traverse((object) => {
-                if (object instanceof THREE.Mesh) {
-                    object.geometry.dispose();
-                    
-                    if (Array.isArray(object.material)) {
-                        object.material.forEach(material => material.dispose());
-                    } else {
-                        object.material.dispose();
-                    }
-                }
-            });
-
-            renderer.domElement.removeEventListener('click', handleClick);
-        };
-    }, [learningPathway, selectionMode]); // Add selectionMode to dependency array
-
-    // Add helper to dispose of a 3D object
-    function disposeObject(object: THREE.Object3D) {
-        // Dispose geometries and materials for each mesh in this object
-        object.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-                child.geometry.dispose();
-                if (Array.isArray(child.material)) {
-                    child.material.forEach(material => material.dispose());
-                } else {
-                    child.material.dispose();
-                }
-            }
-        });
+  // Manual analysis function for the button
+  const startManualAnalysis = async () => {
+    if (!userProfile) return;
+    
+    setIsAnalyzing(true);
+    try {
+      const gaps = await performSkillGapAnalysis(userProfile);
+      setSkillGaps(gaps);
+      
+      const modules = await generateLearningModules(gaps, userProfile);
+      setSuggestedModules(modules);
+      
+      setCurrentStep(2);
+    } catch (error) {
+      console.error('Error in skill gap analysis:', error);
+      toast.error('Failed to analyze skill gaps');
+    } finally {
+      setIsAnalyzing(false);
     }
+  };
 
-    // Updated function to toggle selection mode instead of immediately removing
-    const handleRemoveModeToggle = () => {
-        // If already in selection mode with modules selected, show confirmation dialog
-        if (selectionMode && selectedModules.length > 0) {
-            if (confirm(`Are you sure you want to remove ${selectedModules.length} selected module(s)?`)) {
-                // Create a copy of the pathway from the ref
-                const updatedPathway = {
-                    ...initialLearningPathway.current,
-                    beginner: { ...initialLearningPathway.current?.beginner },
-                    intermediate: { ...initialLearningPathway.current?.intermediate },
-                    advanced: { ...initialLearningPathway.current?.advanced }
-                };
-        
-                // Sort selectedModules by moduleIndex in descending order to avoid index shifting issues
-                const sortedSelectedModules = [...selectedModules].sort((a, b) => (b.moduleIndex || 0) - (a.moduleIndex || 0));
-        
-                // Remove selected modules from the 3D scene and data structure
-                sortedSelectedModules.forEach(selectedModule => {
-                    const { level, moduleIndex, object } = selectedModule;
-        
-                    // Remove from 3D scene
-                    if (object && object.parent) {
-                        object.parent.remove(object);
-                        disposeObject(object);
-                    } else {
-                        sceneRef.current?.remove(object);
-                        disposeObject(object);
-                    }
-        
-                    // Remove from data structure
-                    if (level && moduleIndex !== undefined && updatedPathway[level]?.modules) {
-                        updatedPathway[level].modules.splice(moduleIndex, 1);
-                    }
-                });
-        
-                // Update learning pathway state
-                setLearningPathway(updatedPathway);
-        
-                // Clear selection
-                setSelectedModules([]);
-                // Exit selection mode
-                setSelectionMode(false);
-            }
-        }
-        // If in selection mode but nothing selected, simply cancel selection mode:
-        else if (selectionMode) {
-            setSelectionMode(false);
-            selectedModules.forEach(module => {
-                if (module.object && module.object.userData && module.object.userData.originalColor) {
-                    const material = (module.object.children[0] as THREE.Mesh).material as THREE.MeshPhysicalMaterial;
-                    material.color.copy(module.object.userData.originalColor);
-                    module.object.userData.isSelected = false;
-                }
-            });
-            setSelectedModules([]);
-        }
-        // Otherwise, enter selection mode:
-        else {
-            setSelectionMode(true);
-        }
+  // Mock skill gap analysis function (replace with actual AI logic)
+  const performSkillGapAnalysis = async (profile: UserProfile): Promise<SkillGap[]> => {
+    // Simulate AI analysis delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const careerGoalSkillMap: Record<string, string[]> = {
+      'Senior Software Engineer': ['Advanced JavaScript', 'System Design', 'Leadership', 'Architecture Patterns', 'Performance Optimization'],
+      'Data Scientist': ['Machine Learning', 'Python', 'Statistics', 'Deep Learning', 'Data Visualization'],
+      'Product Manager': ['Product Strategy', 'Market Research', 'Analytics', 'User Research', 'Agile Methodologies'],
+      'DevOps Engineer': ['Kubernetes', 'Docker', 'CI/CD', 'Infrastructure as Code', 'Monitoring'],
+      'Full Stack Developer': ['React', 'Node.js', 'Database Design', 'API Development', 'Testing'],
+      'Software Engineer': ['JavaScript', 'React', 'Node.js', 'Git', 'Testing'],
+      'Machine Learning Engineer': ['Python', 'TensorFlow', 'PyTorch', 'MLOps', 'Statistics'],
+      'UI/UX Designer': ['Figma', 'User Research', 'Prototyping', 'Design Systems', 'Usability Testing'],
+      'Cloud Architect': ['AWS', 'Docker', 'Kubernetes', 'Terraform', 'System Design'],
+      'Cybersecurity Specialist': ['Network Security', 'Penetration Testing', 'Risk Assessment', 'Compliance', 'Incident Response']
     };
 
-    // Create an actual 3D module directly in the scene - UPDATED to make moduleName optional
-    const addMolecule = (levelName: string, moduleName?: string) => {
-        if (!learningPathway || !levelName.trim() || !createAtomRef.current) return;
+    // Learning goal to skills mapping
+    const learningGoalSkillMap: Record<string, string[]> = {
+      'Learn a new programming language': ['Python', 'JavaScript', 'Java', 'Go', 'Rust'],
+      'Master data science': ['Python', 'R', 'SQL', 'Statistics', 'Machine Learning', 'Data Visualization'],
+      'Improve problem-solving skills': ['Algorithms', 'Data Structures', 'System Design', 'Debugging'],
+      'Build portfolio projects': ['Project Management', 'Git', 'Deployment', 'Testing', 'Documentation'],
+      'Prepare for certifications': ['AWS Certified', 'Google Cloud', 'Azure', 'CompTIA', 'Cisco'],
+      'Advance career prospects': ['Leadership', 'Communication', 'Team Management', 'Strategic Thinking']
+    };
 
-        // Use the createAtom function from the ref
-        const createAtom = createAtomRef.current;
+    const currentSkills = profile.skills || [];
+    const userCareerGoals = profile.career_goals || [];
+    const userLearningGoals = profile.learning_goals || [];
+    
+    const gaps: SkillGap[] = [];
+    
+    // Analyze career goals
+    userCareerGoals.forEach((goal: string) => {
+      const requiredSkills = careerGoalSkillMap[goal] || [];
+      
+      requiredSkills.forEach(skill => {
+        const hasSkill = currentSkills.some((userSkill: string) => 
+          userSkill.toLowerCase().includes(skill.toLowerCase()) || 
+          skill.toLowerCase().includes(userSkill.toLowerCase())
+        );
         
-        // 1. Create a copy of the current pathway
-        const updatedPathway = { ...learningPathway };
-        
-        // 2. Check if level exists, if not create it
-        if (!updatedPathway[levelName]) {
-          updatedPathway[levelName] = { modules: [] };
-        }
-        
-        // 3. Add new module to the level ONLY if moduleName is provided
-        if (moduleName && moduleName.trim()) {
-          const newModuleIndex = updatedPathway[levelName].modules.length;
-          updatedPathway[levelName].modules.push({ title: moduleName, subtopics: [] });
-        }
-        
-        // 4. Update both the state and the ref
-        setLearningPathway(updatedPathway);
-        initialLearningPathway.current = updatedPathway;
-        
-        // 5. Create visual representation in the 3D scene
-        if (!sceneRef.current) return;
-        
-        // Create a new level atom if it doesn't exist
-        if (!atomsRef.current[levelName]) {
-          // Calculate position for the new level
-          const existingLevels = Object.keys(atomsRef.current).filter(key => key !== 'central');
-          const levelRadius = 8;
-          const angle = (existingLevels.length / (existingLevels.length + 1)) * Math.PI * 2;
-          const x = Math.cos(angle) * levelRadius;
-          const y = Math.sin(angle) * levelRadius;
-          const position = new THREE.Vector3(x, y, 0);
-          
-          // Generate a random color for the new level
-          const levelColor = new THREE.Color(
-            0.4 + Math.random() * 0.6,
-            0.4 + Math.random() * 0.6,
-            0.4 + Math.random() * 0.6
-          ).getHex();
-          
-          // Create the level atom
-          const { group: levelGroup } = createAtom(
-            levelName,
-            levelColor,
-            1.5,
-            position,
-            false,
-            levelName
-          );
-          
-          // Add orbit ring
-          const ringGeometry = new THREE.TorusGeometry(
-            levelRadius,
-            0.05,
-            16,
-            100,
-            Math.PI * 2
-          );
-          
-          const ringMaterial = new THREE.MeshBasicMaterial({
-            color: levelColor,
-            transparent: true,
-            opacity: 0,
+        if (!hasSkill) {
+          gaps.push({
+            skill,
+            currentLevel: 'none',
+            requiredLevel: 'intermediate',
+            priority: requiredSkills.indexOf(skill) < 2 ? 'high' : 'medium',
+            category: getCategoryForSkill(skill)
           });
-          
-          const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-          ring.rotation.x = Math.PI / 2;
-          atomsRef.current.central.add(ring);
-          
-          // Setup level orbit
-          const levelPivot = new THREE.Group();
-          levelPivot.add(levelGroup);
-          atomsRef.current.central.add(levelPivot);
-          
-          // Store level speeds
-          levelGroup.userData = {
-            pivot: levelPivot,
-            orbitalSpeed: 0.001,
-            selfRotationSpeed: 0.005,
-            initialAngle: angle
-          };
-          
-          // Store in the refs
-          atomsRef.current[levelName] = levelGroup;
-          
-          console.log(`Added new level: ${levelName}`);
         }
+      });
+    });
+
+    // Analyze learning goals
+    userLearningGoals.forEach((goal: string) => {
+      const requiredSkills = learningGoalSkillMap[goal] || [];
+      
+      requiredSkills.forEach(skill => {
+        const hasSkill = currentSkills.some((userSkill: string) => 
+          userSkill.toLowerCase().includes(skill.toLowerCase()) || 
+          skill.toLowerCase().includes(userSkill.toLowerCase())
+        );
         
-        // Only add a module if moduleName is provided
-        if (moduleName && moduleName.trim()) {
-          // Now add the module to the level
-          const levelGroup = atomsRef.current[levelName];
-          const moduleRadius = 3.5;
-          const modules = updatedPathway[levelName].modules;
-          const newModuleIndex = modules.length - 1; // Module was already added to array
-          const moduleAngle = (newModuleIndex / modules.length) * Math.PI * 2;
-          const moduleX = Math.cos(moduleAngle) * moduleRadius;
-          const moduleY = Math.sin(moduleAngle) * moduleRadius;
-          const modulePosition = new THREE.Vector3(moduleX, moduleY, 0);
-          
-          // Create module
-          // ...existing module creation code...
-          
-          console.log(`Added module: ${moduleName} to level: ${levelName}`);
+        // Check if this skill gap already exists from career goals
+        const existingGap = gaps.find(gap => gap.skill === skill);
+        
+        if (!hasSkill && !existingGap) {
+          gaps.push({
+            skill,
+            currentLevel: 'none',
+            requiredLevel: 'beginner',
+            priority: 'medium',
+            category: getCategoryForSkill(skill)
+          });
+        } else if (existingGap) {
+          // If skill gap exists from career goals, potentially upgrade priority
+          existingGap.priority = existingGap.priority === 'low' ? 'medium' : existingGap.priority;
         }
+      });
+    });
+
+    return gaps;
+  };
+
+  // Generate learning modules based on skill gaps
+  const generateLearningModules = async (gaps: SkillGap[], profile: UserProfile): Promise<LearningModule[]> => {
+    const modules: LearningModule[] = [];
+    
+    gaps.forEach((gap, index) => {
+      const careerGoalText = profile.career_goals?.[0] ? `career goal (${profile.career_goals[0]})` : 'career goals';
+      const learningGoalText = profile.learning_goals?.length > 0 ? ` and learning objectives` : '';
+      
+      const learningModule: LearningModule = {
+        id: `module_${index + 1}`,
+        title: `Master ${gap.skill}`,
+        description: `Comprehensive course to develop ${gap.skill} skills for your ${careerGoalText}${learningGoalText}`,
+        category: gap.category,
+        difficulty: gap.requiredLevel as 'beginner' | 'intermediate' | 'advanced',
+        estimatedHours: getEstimatedHours(gap.skill, gap.requiredLevel),
+        prerequisites: getPrerequisites(gap.skill),
+        skills: [gap.skill],
+        priority: gap.priority,
+        status: 'suggested',
+        subtopics: generateSubTopics(gap.skill)
+      };
+      
+      modules.push(learningModule);
+    });
+
+    return modules.sort((a, b) => {
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      return priorityOrder[b.priority] - priorityOrder[a.priority];
+    });
+  };
+
+  // Helper functions
+  const getCategoryForSkill = (skill: string): string => {
+    const categoryMap: Record<string, string> = {
+      'JavaScript': 'Programming',
+      'React': 'Frontend',
+      'Node.js': 'Backend',
+      'Python': 'Programming',
+      'Machine Learning': 'AI/ML',
+      'System Design': 'Architecture',
+      'Leadership': 'Soft Skills',
+      'Docker': 'DevOps',
+      'Kubernetes': 'DevOps',
+      'Product Strategy': 'Product',
+    };
+    
+    return categoryMap[skill] || 'General';
+  };
+
+  const getEstimatedHours = (skill: string, level: string): number => {
+    const baseHours: Record<string, number> = {
+      'beginner': 20,
+      'intermediate': 40,
+      'advanced': 80
+    };
+    
+    const skillMultiplier: Record<string, number> = {
+      'System Design': 1.5,
+      'Machine Learning': 2,
+      'Leadership': 1.2,
+    };
+    
+    return Math.round(baseHours[level] * (skillMultiplier[skill] || 1));
+  };
+
+  const getPrerequisites = (skill: string): string[] => {
+    const prerequisiteMap: Record<string, string[]> = {
+      'Advanced JavaScript': ['JavaScript Fundamentals', 'ES6+'],
+      'React': ['JavaScript', 'HTML/CSS'],
+      'System Design': ['Software Architecture', 'Database Design'],
+      'Machine Learning': ['Python', 'Statistics', 'Linear Algebra'],
+      'Leadership': ['Communication Skills', 'Team Collaboration'],
+    };
+    
+    return prerequisiteMap[skill] || [];
+  };
+
+  const generateSubTopics = (skill: string): SubTopic[] => {
+    const subtopicMap: Record<string, SubTopic[]> = {
+      'Advanced JavaScript': [
+        {
+          id: 'js_1',
+          title: 'Closures and Scope',
+          description: 'Master JavaScript closures and lexical scoping',
+          estimatedHours: 8,
+          resources: [
+            { type: 'video', title: 'JavaScript Closures Explained', duration: '45 min', difficulty: 'intermediate' },
+            { type: 'exercise', title: 'Closure Practice Problems', duration: '2 hours', difficulty: 'intermediate' }
+          ],
+          status: 'pending'
+        },
+        {
+          id: 'js_2',
+          title: 'Asynchronous Programming',
+          description: 'Promises, async/await, and event loop',
+          estimatedHours: 12,
+          resources: [
+            { type: 'video', title: 'Async JavaScript Deep Dive', duration: '1.5 hours', difficulty: 'advanced' },
+            { type: 'project', title: 'Build Async Data Fetcher', duration: '4 hours', difficulty: 'advanced' }
+          ],
+          status: 'pending'
+        }
+      ],
+      'System Design': [
+        {
+          id: 'sd_1',
+          title: 'Scalability Principles',
+          description: 'Learn horizontal and vertical scaling strategies',
+          estimatedHours: 15,
+          resources: [
+            { type: 'article', title: 'Scalability Patterns', duration: '30 min', difficulty: 'intermediate' },
+            { type: 'video', title: 'System Design Interview Prep', duration: '2 hours', difficulty: 'advanced' }
+          ],
+          status: 'pending'
+        }
+      ]
+    };
+    
+    return subtopicMap[skill] || [
+      {
+        id: `${skill.replace(/\s+/g, '_').toLowerCase()}_1`,
+        title: `${skill} Fundamentals`,
+        description: `Core concepts and principles of ${skill}`,
+        estimatedHours: 10,
+        resources: [
+          { type: 'video', title: `${skill} Introduction`, duration: '1 hour', difficulty: 'beginner' },
+          { type: 'exercise', title: `${skill} Practice`, duration: '2 hours', difficulty: 'beginner' }
+        ],
+        status: 'pending'
+      }
+    ];
+  };
+
+  // Neural network background animation
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
     };
 
-    if (isLoading) {
-        return (
-            <div className={styles.loadingContainer}>
-                <div className={styles.loadingSpinner}></div>
-                <p>Loading your personalized learning pathway...</p>
-            </div>
-        );
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Neural network nodes
+    const nodes: Array<{x: number, y: number, vx: number, vy: number, connections: number[], intensity: number}> = [];
+    const nodeCount = 30;
+    
+    for (let i = 0; i < nodeCount; i++) {
+      nodes.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        connections: [],
+        intensity: Math.random()
+      });
     }
 
-    return (
-        <div className={styles.fullscreenContainer}>
-            {/* 3D visualization container */}
-            <div ref={threeContainerRef} className={styles.fullscreenThreeContainer}></div>
-            
-            {/* UI overlay */}
-            <div className={styles.pageTitle}>Your Learning Pathway</div>
-            
-            <div className={styles.controls}>
-                <button onClick={handleSave} className={styles.saveButton}>Save Pathway</button>
-                <button onClick={() => router.push("/home")} className={styles.backButton}>Back to Home</button>
-            </div>
-            
-            {/* Info panel - UPDATED to show selection mode info */}
-            <div className={styles.infoPanel}>
-                {selectionMode ? (
-                    <p className={styles.selectionModeText}>
-                        Selection mode active. Click on modules to select them for removal.
-                        {selectedModules.length > 0 && ` (${selectedModules.length} selected)`}
-                    </p>
-                ) : (
-                    <p>Click and drag to rotate the view. Zoom with mouse wheel.</p>
-                )}
-                <p>Explore your personalized learning pathway with interconnected topics.</p>
-            </div>
-            
-            {/* Hovering buttons - UPDATED for selection mode */}
-            <div className={styles.hoveringButtons}>
-                <button 
-                  className={styles.hoveringButton}
-                  onClick={() => setShowAddDialog(true)}>
-                  Add
-                </button>
-                <button 
-                  className={`${styles.hoveringButton} ${selectionMode ? styles.hoveringButtonActive : ''}`}
-                  onClick={handleRemoveModeToggle}>
-                  {selectionMode 
-                    ? `Confirm Removal${selectedModules.length > 0 ? ` (${selectedModules.length})` : ''}`
-                    : 'Remove'}
-                </button>
-                {/* Show cancel button when in selection mode */}
-                {selectionMode && (
-                    <button 
-                      className={styles.hoveringButtonCancel}
-                      onClick={() => {
-                        setSelectionMode(false);
-                        // Reset any selections
-                        selectedModules.forEach(module => {
-                            if (module.object && module.object.userData && module.object.userData.originalColor) {
-                                const material = (module.object.children[0] as THREE.Mesh).material as THREE.MeshPhysicalMaterial;
-                                material.color.copy(module.object.userData.originalColor);
-                                module.object.userData.isSelected = false;
-                            }
-                        });
-                        setSelectedModules([]);
-                      }}>
-                      Cancel
-                    </button>
-                )}
-            </div>
+    // Create connections
+    nodes.forEach((node, i) => {
+      const connectionCount = Math.floor(Math.random() * 3) + 1;
+      for (let j = 0; j < connectionCount; j++) {
+        const target = Math.floor(Math.random() * nodeCount);
+        if (target !== i && !node.connections.includes(target)) {
+          node.connections.push(target);
+        }
+      }
+    });
 
-            {/* Add the dialog box for adding modules */}
-            {showAddDialog && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0, left: 0,
-                    width: '100%', height: '100%',
-                    backgroundColor: "rgba(0,0,0,0.5)",
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    zIndex: 100
-                }}>
-                    <div style={{
-                        background: 'white',
-                        padding: '20px',
-                        borderRadius: '8px',
-                        minWidth: '300px'
-                    }}>
-                        <label style={{ display: 'block', marginBottom: '10px' }}>Level Name:</label>
-                        <input 
-                            type="text" 
-                            value={newLevelName} 
-                            placeholder="Enter a new level name"
-                            onChange={e => setNewLevelName(e.target.value)}
-                            style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
-                        />
-                        
-                        <label style={{ display: 'block', marginBottom: '10px' }}>Module Name (Optional):</label>
-                        <input 
-                            type="text" 
-                            value={newModuleName} 
-                            placeholder="Enter module name (optional)"
-                            onChange={e => setNewModuleName(e.target.value)}
-                            style={{ width: '100%', padding: '8px', marginBottom: '20px' }}
-                        />
-                        
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                            <button onClick={() => {
-                                setShowAddDialog(false);
-                                setNewLevelName("");
-                                setNewModuleName("");
-                            }}>Cancel</button>
-                            <button onClick={() => {
-                                if(newLevelName.trim()){
-                                  // Call addMolecule with or without moduleName
-                                  addMolecule(newLevelName.trim(), newModuleName.trim() || undefined);
-                                  setShowAddDialog(false);
-                                  setNewLevelName("");
-                                  setNewModuleName("");
-                                }
-                            }}>Submit</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Update node positions
+      nodes.forEach(node => {
+        node.x += node.vx;
+        node.y += node.vy;
+        
+        // Bounce off edges
+        if (node.x <= 0 || node.x >= canvas.width) node.vx *= -1;
+        if (node.y <= 0 || node.y >= canvas.height) node.vy *= -1;
+        
+        // Keep in bounds
+        node.x = Math.max(0, Math.min(canvas.width, node.x));
+        node.y = Math.max(0, Math.min(canvas.height, node.y));
+        
+        // Update intensity based on analysis progress
+        node.intensity = 0.3 + (currentStep / 4) * 0.7;
+      });
+
+      // Draw connections
+      ctx.strokeStyle = `rgba(99, 102, 241, ${0.1 + (currentStep / 4) * 0.3})`;
+      ctx.lineWidth = 1;
+      nodes.forEach(node => {
+        node.connections.forEach(targetIndex => {
+          const target = nodes[targetIndex];
+          const distance = Math.sqrt((target.x - node.x) ** 2 + (target.y - node.y) ** 2);
+          if (distance < 200) {
+            const opacity = (200 - distance) / 200 * node.intensity;
+            ctx.strokeStyle = `rgba(99, 102, 241, ${opacity * 0.3})`;
+            ctx.beginPath();
+            ctx.moveTo(node.x, node.y);
+            ctx.lineTo(target.x, target.y);
+            ctx.stroke();
+          }
+        });
+      });
+
+      // Draw nodes
+      nodes.forEach(node => {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 2 + node.intensity * 2, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(99, 102, 241, ${node.intensity})`;
+        ctx.fill();
+      });
+
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [currentStep]);
+
+  // Save pathway
+  const savePathway = async () => {
+    if (!userId || !userProfile) return;
+    
+    setIsSaving(true);
+    try {
+      const pathwayTitle = userProfile.career_goals?.[0] 
+        ? `${userProfile.career_goals[0]} Learning Path`
+        : userProfile.learning_goals?.[0]
+        ? `${userProfile.learning_goals[0]} Pathway`
+        : 'Personalized Learning Path';
+        
+      const pathwayDescription = `AI-generated learning pathway based on your ${
+        userProfile.career_goals?.length > 0 ? 'career goals' : ''
+      }${
+        userProfile.career_goals?.length > 0 && userProfile.learning_goals?.length > 0 ? ' and ' : ''
+      }${
+        userProfile.learning_goals?.length > 0 ? 'learning objectives' : ''
+      } with comprehensive skill gap analysis`;
+
+      const pathwayData: LearningPathway = {
+        id: `pathway_${userId}_${Date.now()}`,
+        userId,
+        title: pathwayTitle,
+        description: pathwayDescription,
+        careerGoal: userProfile.career_goals?.[0] || '',
+        estimatedCompletionTime: calculateTotalTime(),
+        modules: [...suggestedModules, ...customModules].filter(m => m.status === 'added'),
+        skillGaps,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Save to Supabase (you'll need to create this table)
+      const { error } = await supabase
+        .from('learning_pathways')
+        .upsert(pathwayData);
+
+      if (error) throw error;
+
+      toast.success('Learning pathway saved successfully!');
+      router.push('/home');
+    } catch (error: unknown) {
+      console.error('Error saving pathway:', error);
+      toast.error('Failed to save learning pathway');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const calculateTotalTime = (): string => {
+    const totalHours = [...suggestedModules, ...customModules]
+      .filter(m => m.status === 'added')
+      .reduce((sum, module) => sum + module.estimatedHours, 0);
+    
+    const weeks = Math.ceil(totalHours / 10); // Assuming 10 hours per week
+    return `${weeks} weeks (${totalHours} hours)`;
+  };
+
+  // Module management functions
+  const toggleModuleStatus = (moduleId: string, isSuggested: boolean = true) => {
+    const updateModules = isSuggested ? setSuggestedModules : setCustomModules;
+    
+    updateModules(prev => prev.map(module => 
+      module.id === moduleId 
+        ? { 
+            ...module, 
+            status: module.status === 'added' ? 'suggested' : 'added' 
+          }
+        : module
+    ));
+  };
+
+  const removeModule = (moduleId: string, isSuggested: boolean = true) => {
+    const updateModules = isSuggested ? setSuggestedModules : setCustomModules;
+    
+    updateModules(prev => prev.filter(module => module.id !== moduleId));
+  };
+
+  const addCustomModule = (module: Omit<LearningModule, 'id'>) => {
+    const newModule: LearningModule = {
+      ...module,
+      id: `custom_${Date.now()}`,
+      status: 'added'
+    };
+    
+    setCustomModules(prev => [...prev, newModule]);
+    setShowAddModuleModal(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-slate-300 text-lg">Loading your profile...</p>
         </div>
+      </div>
     );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 relative overflow-hidden">
+      {/* Neural Network Background */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full opacity-20"
+        style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)' }}
+      />
+      
+      {/* Premium Background Elements */}
+      <div className="absolute inset-0">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-500/10 to-purple-600/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-gradient-to-r from-indigo-500/10 to-cyan-500/10 rounded-full blur-3xl animate-pulse delay-2000"></div>
+      </div>
+
+      {/* Main Content */}
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-700/50">
+          <div className="max-w-7xl mx-auto flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">
+                <span className="text-slate-200">AI Learning</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400"> Pathway</span>
+              </h1>
+              <p className="text-slate-400">
+                {userProfile?.full_name && `Welcome ${userProfile.full_name.split(' ')[0]}! `}
+                Let&apos;s create your personalized learning journey
+              </p>
+            </div>
+            
+            {/* Progress Indicator */}
+            <div className="flex items-center space-x-4">
+              {[1, 2, 3, 4].map((step) => (
+                <div key={step} className="flex items-center">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300 ${
+                    currentStep >= step 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white' 
+                      : 'bg-slate-700 text-slate-400'
+                  }`}>
+                    {step}
+                  </div>
+                  {step < 4 && (
+                    <div className={`w-12 h-0.5 mx-2 transition-colors duration-300 ${
+                      currentStep > step ? 'bg-gradient-to-r from-blue-500 to-purple-500' : 'bg-slate-700'
+                    }`} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Step Content */}
+        <div className="max-w-7xl mx-auto p-6">
+          <AnimatePresence mode="wait">
+            {/* Step 1: Analysis */}
+            {currentStep === 1 && (
+              <AnalysisStep 
+                isAnalyzing={isAnalyzing}
+                userProfile={userProfile}
+                onStartAnalysis={startManualAnalysis}
+              />
+            )}
+
+            {/* Step 2: Review Gaps */}
+            {currentStep === 2 && (
+              <GapReviewStep 
+                skillGaps={skillGaps}
+                suggestedModules={suggestedModules}
+                onNext={() => setCurrentStep(3)}
+                onToggleModule={toggleModuleStatus}
+              />
+            )}
+
+            {/* Step 3: Customize Pathway */}
+            {currentStep === 3 && (
+              <CustomizeStep 
+                suggestedModules={suggestedModules}
+                customModules={customModules}
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+                onToggleModule={toggleModuleStatus}
+                onRemoveModule={removeModule}
+                onAddCustomModule={() => setShowAddModuleModal(true)}
+                onNext={() => setCurrentStep(4)}
+                onBack={() => setCurrentStep(2)}
+              />
+            )}
+
+            {/* Step 4: Finalize */}
+            {currentStep === 4 && (
+              <FinalizeStep 
+                suggestedModules={suggestedModules}
+                customModules={customModules}
+                estimatedTime={calculateTotalTime()}
+                onSave={savePathway}
+                onBack={() => setCurrentStep(3)}
+                isSaving={isSaving}
+              />
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Add Module Modal */}
+      {showAddModuleModal && (
+        <AddModuleModal 
+          onClose={() => setShowAddModuleModal(false)}
+          onAdd={addCustomModule}
+        />
+      )}
+    </div>
+  );
 };
 
-export default LearningPathwayPage;
+// Step Components will be added next...
+
+// Step 1: Analysis Component
+const AnalysisStep: React.FC<{
+  isAnalyzing: boolean;
+  userProfile: UserProfile | null;
+  onStartAnalysis: () => void;
+}> = ({ isAnalyzing, userProfile, onStartAnalysis }) => {
+  return (
+    <motion.div
+      key="analysis"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-8"
+    >
+      <div className="text-center mb-12">
+        <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+          <FaBrain className="text-3xl text-white" />
+        </div>
+        <h2 className="text-3xl font-bold text-slate-200 mb-4">AI Skill Analysis</h2>
+        <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+          Our AI will analyze your profile, education, work experience, and goals to identify skill gaps and create a personalized learning pathway.
+        </p>
+      </div>
+
+      {/* User Profile Summary */}
+      {userProfile && (
+        <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <h3 className="text-xl font-semibold text-slate-200 mb-4 flex items-center">
+            <FaUser className="mr-3 text-blue-400" />
+            Profile Summary
+          </h3>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div>
+              <h4 className="text-slate-300 font-medium mb-2">Career Goals</h4>
+              <div className="flex flex-wrap gap-2">
+                {userProfile.career_goals?.map((goal, index) => (
+                  <span key={index} className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">
+                    {goal}
+                  </span>
+                )) || <span className="text-slate-500">No goals set</span>}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-slate-300 font-medium mb-2">Learning Goals</h4>
+              <div className="flex flex-wrap gap-2">
+                {userProfile.learning_goals?.map((goal, index) => (
+                  <span key={index} className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm">
+                    {goal}
+                  </span>
+                )) || <span className="text-slate-500">No goals set</span>}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-slate-300 font-medium mb-2">Current Skills</h4>
+              <div className="flex flex-wrap gap-2">
+                {userProfile.skills?.slice(0, 6).map((skill, index) => (
+                  <span key={index} className="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">
+                    {skill}
+                  </span>
+                )) || <span className="text-slate-500">No skills listed</span>}
+                {userProfile.skills?.length > 6 && (
+                  <span className="px-3 py-1 bg-slate-600 text-slate-300 rounded-full text-sm">
+                    +{userProfile.skills.length - 6} more
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Analysis Status */}
+      {isAnalyzing ? (
+        <div className="text-center py-12">
+          <div className="relative w-32 h-32 mx-auto mb-6">
+            <div className="absolute inset-0 border-4 border-blue-500/30 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-transparent border-t-blue-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-4 border-4 border-transparent border-t-purple-500 rounded-full animate-spin animate-reverse"></div>
+            <div className="absolute inset-8 border-4 border-transparent border-t-pink-500 rounded-full animate-spin"></div>
+          </div>
+          <h3 className="text-xl font-semibold text-slate-200 mb-2">Analyzing Your Profile</h3>
+          <p className="text-slate-400">AI is processing your data to identify skill gaps and opportunities...</p>
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <button
+            onClick={onStartAnalysis}
+            className="group relative px-8 py-4 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white font-semibold rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/25"
+          >
+            <span className="flex items-center space-x-2">
+              <FaRocket className="text-lg group-hover:animate-pulse" />
+              <span>Start AI Analysis</span>
+            </span>
+          </button>
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+// Step 2: Gap Review Component
+const GapReviewStep: React.FC<{
+  skillGaps: SkillGap[];
+  suggestedModules: LearningModule[];
+  onNext: () => void;
+  onToggleModule: (moduleId: string, isSuggested?: boolean) => void;
+}> = ({ skillGaps, suggestedModules, onNext, onToggleModule }) => {
+  const groupedGaps = skillGaps.reduce((acc, gap) => {
+    if (!acc[gap.category]) acc[gap.category] = [];
+    acc[gap.category].push(gap);
+    return acc;
+  }, {} as Record<string, SkillGap[]>);
+
+  return (
+    <motion.div
+      key="review"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-8"
+    >
+      <div className="text-center mb-8">
+        <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+          <FaBullseye className="text-3xl text-white" />
+        </div>
+        <h2 className="text-3xl font-bold text-slate-200 mb-4">Skill Gap Analysis</h2>
+        <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+          Review the identified skill gaps and our AI-suggested learning modules to bridge them.
+        </p>
+      </div>
+
+      {/* Skill Gaps Overview */}
+      <div className="grid lg:grid-cols-2 gap-8">
+        {/* Skill Gaps */}
+        <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <h3 className="text-xl font-semibold text-slate-200 mb-6 flex items-center">
+            <FaChartLine className="mr-3 text-orange-400" />
+            Identified Gaps
+          </h3>
+          <div className="space-y-4">
+            {Object.entries(groupedGaps).map(([category, gaps]) => (
+              <div key={category} className="border border-slate-700/30 rounded-lg p-4">
+                <h4 className="font-medium text-slate-300 mb-3 flex items-center">
+                  <span className="w-2 h-2 bg-orange-400 rounded-full mr-2"></span>
+                  {category}
+                </h4>
+                <div className="space-y-2">
+                  {gaps.map((gap, index) => (
+                    <div key={index} className="flex items-center justify-between text-sm">
+                      <span className="text-slate-400">{gap.skill}</span>
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        gap.priority === 'high' ? 'bg-red-500/20 text-red-300' :
+                        gap.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                        'bg-green-500/20 text-green-300'
+                      }`}>
+                        {gap.priority}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Suggested Modules */}
+        <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <h3 className="text-xl font-semibold text-slate-200 mb-6 flex items-center">
+            <FaLightbulb className="mr-3 text-yellow-400" />
+            AI Suggestions
+          </h3>
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            {suggestedModules.map((module) => (
+              <div key={module.id} className="border border-slate-700/30 rounded-lg p-4 hover:border-blue-500/50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-slate-200 mb-1">{module.title}</h4>
+                    <p className="text-slate-400 text-sm mb-2">{module.description}</p>
+                    <div className="flex items-center space-x-4 text-xs text-slate-500">
+                      <span className="flex items-center">
+                        <FaClock className="mr-1" />
+                        {module.estimatedHours}h
+                      </span>
+                      <span className={`px-2 py-1 rounded-full ${
+                        module.difficulty === 'beginner' ? 'bg-green-500/20 text-green-300' :
+                        module.difficulty === 'intermediate' ? 'bg-yellow-500/20 text-yellow-300' :
+                        'bg-red-500/20 text-red-300'
+                      }`}>
+                        {module.difficulty}
+                      </span>
+                      <span className={`px-2 py-1 rounded-full ${
+                        module.priority === 'high' ? 'bg-red-500/20 text-red-300' :
+                        module.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                        'bg-green-500/20 text-green-300'
+                      }`}>
+                        {module.priority} priority
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onToggleModule(module.id)}
+                    className={`ml-4 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                      module.status === 'added'
+                        ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                        : 'bg-slate-700 text-slate-300 border border-slate-600 hover:bg-blue-500/20 hover:text-blue-300 hover:border-blue-500/30'
+                    }`}
+                  >
+                    {module.status === 'added' ? 'Added' : 'Add'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-center pt-8">
+        <button
+          onClick={onNext}
+          className="group px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-blue-500/25 flex items-center space-x-2"
+        >
+          <span>Customize Pathway</span>
+          <FaArrowRight className="group-hover:translate-x-1 transition-transform" />
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
+// Step 3: Customize Component
+const CustomizeStep: React.FC<{
+  suggestedModules: LearningModule[];
+  customModules: LearningModule[];
+  selectedCategory: string;
+  onCategoryChange: (category: string) => void;
+  onToggleModule: (moduleId: string, isSuggested?: boolean) => void;
+  onRemoveModule: (moduleId: string, isSuggested?: boolean) => void;
+  onAddCustomModule: () => void;
+  onNext: () => void;
+  onBack: () => void;
+}> = ({ 
+  suggestedModules, 
+  customModules, 
+  selectedCategory, 
+  onCategoryChange, 
+  onToggleModule, 
+  onRemoveModule, 
+  onAddCustomModule, 
+  onNext, 
+  onBack 
+}) => {
+  const categories = ['all', 'Programming', 'Frontend', 'Backend', 'AI/ML', 'DevOps', 'Product', 'Soft Skills'];
+  
+  const filteredSuggested = selectedCategory === 'all' 
+    ? suggestedModules 
+    : suggestedModules.filter(m => m.category === selectedCategory);
+
+  const filteredCustom = selectedCategory === 'all' 
+    ? customModules 
+    : customModules.filter(m => m.category === selectedCategory);
+
+  const addedModules = [...suggestedModules, ...customModules].filter(m => m.status === 'added');
+
+  return (
+    <motion.div
+      key="customize"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-8"
+    >
+      <div className="text-center mb-8">
+        <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+          <FaCog className="text-3xl text-white" />
+        </div>
+        <h2 className="text-3xl font-bold text-slate-200 mb-4">Customize Your Pathway</h2>
+        <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+          Fine-tune your learning journey by adding, removing, or customizing modules.
+        </p>
+      </div>
+
+      {/* Category Filter */}
+      <div className="flex flex-wrap justify-center gap-2 mb-8">
+        {categories.map((category) => (
+          <button
+            key={category}
+            onClick={() => onCategoryChange(category)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+              selectedCategory === category
+                ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Suggested Modules */}
+        <div className="lg:col-span-2">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-slate-200 flex items-center">
+              <FaLightbulb className="mr-3 text-yellow-400" />
+              Available Modules
+            </h3>
+            <button
+              onClick={onAddCustomModule}
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <FaPlus className="text-sm" />
+              <span>Add Custom</span>
+            </button>
+          </div>
+          
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            {/* Suggested Modules */}
+            {filteredSuggested.map((module) => (
+              <ModuleCard
+                key={module.id}
+                module={module}
+                onToggle={() => onToggleModule(module.id)}
+                onRemove={() => onRemoveModule(module.id)}
+                showRemove={false}
+              />
+            ))}
+            
+            {/* Custom Modules */}
+            {filteredCustom.map((module) => (
+              <ModuleCard
+                key={module.id}
+                module={module}
+                onToggle={() => onToggleModule(module.id, false)}
+                onRemove={() => onRemoveModule(module.id, false)}
+                showRemove={true}
+                isCustom={true}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Selected Modules Preview */}
+        <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <h3 className="text-xl font-semibold text-slate-200 mb-6 flex items-center">
+            <FaCheckCircle className="mr-3 text-green-400" />
+            Selected Modules ({addedModules.length})
+          </h3>
+          
+          {addedModules.length === 0 ? (
+            <div className="text-center py-8">
+              <FaGraduationCap className="text-4xl text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-500">No modules selected yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {addedModules.map((module) => (
+                <div key={module.id} className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30">
+                  <h4 className="font-medium text-slate-200 text-sm mb-1">{module.title}</h4>
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>{module.estimatedHours}h</span>
+                    <span className="capitalize">{module.difficulty}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div className="mt-6 pt-6 border-t border-slate-700/30">
+            <div className="text-sm text-slate-400 mb-2">Total Estimated Time:</div>
+            <div className="text-lg font-semibold text-blue-400">
+              {addedModules.reduce((sum, module) => sum + module.estimatedHours, 0)} hours
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex justify-between pt-8">
+        <button
+          onClick={onBack}
+          className="px-6 py-3 bg-slate-700 text-slate-300 font-semibold rounded-lg hover:bg-slate-600 transition-colors"
+        >
+          Back
+        </button>
+        <button
+          onClick={onNext}
+          disabled={addedModules.length === 0}
+          className="group px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-blue-500/25 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+        >
+          <span>Finalize Pathway</span>
+          <FaArrowRight className="group-hover:translate-x-1 transition-transform" />
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
+// Step 4: Finalize Component
+const FinalizeStep: React.FC<{
+  suggestedModules: LearningModule[];
+  customModules: LearningModule[];
+  estimatedTime: string;
+  onSave: () => void;
+  onBack: () => void;
+  isSaving: boolean;
+}> = ({ suggestedModules, customModules, estimatedTime, onSave, onBack, isSaving }) => {
+  const finalModules = [...suggestedModules, ...customModules].filter(m => m.status === 'added');
+  
+  return (
+    <motion.div
+      key="finalize"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-8"
+    >
+      <div className="text-center mb-8">
+        <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+          <FaRocket className="text-3xl text-white" />
+        </div>
+        <h2 className="text-3xl font-bold text-slate-200 mb-4">Finalize Your Learning Pathway</h2>
+        <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+          Review your personalized learning journey and start your path to success.
+        </p>
+      </div>
+
+      {/* Pathway Overview */}
+      <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 mb-8">
+        <div className="grid md:grid-cols-3 gap-6 mb-6">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-400 mb-2">{finalModules.length}</div>
+            <div className="text-slate-400">Learning Modules</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-400 mb-2">
+              {finalModules.reduce((sum, m) => sum + m.estimatedHours, 0)}h
+            </div>
+            <div className="text-slate-400">Total Hours</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-purple-400 mb-2">{estimatedTime.split(' ')[0]}</div>
+            <div className="text-slate-400">Estimated Weeks</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Module List */}
+      <div className="bg-slate-900/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+        <h3 className="text-xl font-semibold text-slate-200 mb-6 flex items-center">
+          <FaBookOpen className="mr-3 text-blue-400" />
+          Your Learning Modules
+        </h3>
+        
+        <div className="grid gap-4">
+          {finalModules.map((module, index) => (
+            <div key={module.id} className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/30">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start space-x-4">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-slate-200 mb-1">{module.title}</h4>
+                    <p className="text-slate-400 text-sm mb-2">{module.description}</p>
+                    <div className="flex items-center space-x-4 text-xs">
+                      <span className="flex items-center text-slate-500">
+                        <FaClock className="mr-1" />
+                        {module.estimatedHours}h
+                      </span>
+                      <span className={`px-2 py-1 rounded-full ${
+                        module.difficulty === 'beginner' ? 'bg-green-500/20 text-green-300' :
+                        module.difficulty === 'intermediate' ? 'bg-yellow-500/20 text-yellow-300' :
+                        'bg-red-500/20 text-red-300'
+                      }`}>
+                        {module.difficulty}
+                      </span>
+                      <span className="text-slate-500">{module.category}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-3 py-1 rounded-full text-xs ${
+                    module.priority === 'high' ? 'bg-red-500/20 text-red-300' :
+                    module.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                    'bg-green-500/20 text-green-300'
+                  }`}>
+                    {module.priority}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex justify-between pt-8">
+        <button
+          onClick={onBack}
+          disabled={isSaving}
+          className="px-6 py-3 bg-slate-700 text-slate-300 font-semibold rounded-lg hover:bg-slate-600 transition-colors disabled:opacity-50"
+        >
+          Back
+        </button>
+        <button
+          onClick={onSave}
+          disabled={isSaving}
+          className="group px-8 py-3 bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-green-500/25 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+        >
+          {isSaving ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              <span>Saving...</span>
+            </>
+          ) : (
+            <>
+              <FaSave />
+              <span>Save & Start Learning</span>
+            </>
+          )}
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
+// Module Card Component
+const ModuleCard: React.FC<{
+  module: LearningModule;
+  onToggle: () => void;
+  onRemove: () => void;
+  showRemove: boolean;
+  isCustom?: boolean;
+}> = ({ module, onToggle, onRemove, showRemove, isCustom = false }) => {
+  return (
+    <div className={`border rounded-lg p-4 transition-all duration-200 hover:shadow-lg ${
+      module.status === 'added' 
+        ? 'border-green-500/50 bg-green-500/5' 
+        : 'border-slate-700/50 bg-slate-800/50 hover:border-blue-500/50'
+    }`}>
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center space-x-2 mb-2">
+            <h4 className="font-semibold text-slate-200">{module.title}</h4>
+            {isCustom && (
+              <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full text-xs">
+                Custom
+              </span>
+            )}
+          </div>
+          <p className="text-slate-400 text-sm mb-3">{module.description}</p>
+          <div className="flex items-center space-x-4 text-xs text-slate-500">
+            <span className="flex items-center">
+              <FaClock className="mr-1" />
+              {module.estimatedHours}h
+            </span>
+            <span className={`px-2 py-1 rounded-full ${
+              module.difficulty === 'beginner' ? 'bg-green-500/20 text-green-300' :
+              module.difficulty === 'intermediate' ? 'bg-yellow-500/20 text-yellow-300' :
+              'bg-red-500/20 text-red-300'
+            }`}>
+              {module.difficulty}
+            </span>
+            <span className={`px-2 py-1 rounded-full ${
+              module.priority === 'high' ? 'bg-red-500/20 text-red-300' :
+              module.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+              'bg-green-500/20 text-green-300'
+            }`}>
+              {module.priority}
+            </span>
+            <span className="text-slate-400">{module.category}</span>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2 ml-4">
+          <button
+            onClick={onToggle}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+              module.status === 'added'
+                ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                : 'bg-slate-700 text-slate-300 border border-slate-600 hover:bg-blue-500/20 hover:text-blue-300 hover:border-blue-500/30'
+            }`}
+          >
+            {module.status === 'added' ? 'Added' : 'Add'}
+          </button>
+          {showRemove && (
+            <button
+              onClick={onRemove}
+              className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded transition-colors"
+            >
+              <FaTimes />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Add Module Modal Component
+const AddModuleModal: React.FC<{
+  onClose: () => void;
+  onAdd: (module: Omit<LearningModule, 'id'>) => void;
+}> = ({ onClose, onAdd }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category: 'Programming',
+    difficulty: 'beginner' as 'beginner' | 'intermediate' | 'advanced',
+    estimatedHours: 10,
+    skills: '',
+    priority: 'medium' as 'high' | 'medium' | 'low'
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const newModuleData: Omit<LearningModule, 'id'> = {
+      title: formData.title,
+      description: formData.description,
+      category: formData.category,
+      difficulty: formData.difficulty,
+      estimatedHours: formData.estimatedHours,
+      prerequisites: [],
+      skills: formData.skills.split(',').map(s => s.trim()).filter(s => s),
+      priority: formData.priority,
+      status: 'suggested',
+      subtopics: [{
+        id: 'custom_1',
+        title: `${formData.title} Fundamentals`,
+        description: `Core concepts of ${formData.title}`,
+        estimatedHours: Math.round(formData.estimatedHours * 0.6),
+        resources: [
+          { type: 'video', title: `${formData.title} Introduction`, duration: '1 hour', difficulty: formData.difficulty }
+        ],
+        status: 'pending'
+      }]
+    };
+
+    onAdd(newModuleData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className="bg-slate-900 rounded-xl p-6 w-full max-w-md border border-slate-700/50"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-semibold text-slate-200">Add Custom Module</h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-300 transition-colors"
+          >
+            <FaTimes />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-slate-300 text-sm font-medium mb-2">
+              Module Title *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
+              placeholder="e.g., Advanced React Patterns"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-300 text-sm font-medium mb-2">
+              Description *
+            </label>
+            <textarea
+              required
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500 h-20 resize-none"
+              placeholder="Describe what this module covers..."
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-slate-300 text-sm font-medium mb-2">
+                Category
+              </label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="Programming">Programming</option>
+                <option value="Frontend">Frontend</option>
+                <option value="Backend">Backend</option>
+                <option value="AI/ML">AI/ML</option>
+                <option value="DevOps">DevOps</option>
+                <option value="Product">Product</option>
+                <option value="Soft Skills">Soft Skills</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-slate-300 text-sm font-medium mb-2">
+                Difficulty
+              </label>
+              <select
+                value={formData.difficulty}
+                onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value as 'beginner' | 'intermediate' | 'advanced' }))}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-slate-300 text-sm font-medium mb-2">
+                Estimated Hours
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="200"
+                value={formData.estimatedHours}
+                onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: parseInt(e.target.value) }))}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-300 text-sm font-medium mb-2">
+                Priority
+              </label>
+              <select
+                value={formData.priority}
+                onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as 'high' | 'medium' | 'low' }))}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-slate-300 text-sm font-medium mb-2">
+              Skills (comma-separated)
+            </label>
+            <input
+              type="text"
+              value={formData.skills}
+              onChange={(e) => setFormData(prev => ({ ...prev, skills: e.target.value }))}
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
+              placeholder="e.g., React, State Management, Hooks"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:shadow-lg hover:shadow-blue-500/25 transition-all"
+            >
+              Add Module
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
+export default LearningPathwayCreator;

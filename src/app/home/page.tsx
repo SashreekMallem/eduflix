@@ -2,17 +2,23 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
-import { FaTimes, FaCrown, FaMedal, FaTrophy, FaUserFriends, FaCalendarAlt, FaChevronLeft, FaChevronRight, FaUser, FaPaperPlane, FaSearch, FaEllipsisV } from 'react-icons/fa'; // Import FaUser and FaPaperPlane, FaSearch, FaEllipsisV
+import { 
+  FaTimes, FaCrown, FaMedal, FaTrophy, FaUserFriends, FaCalendarAlt, 
+  FaChevronLeft, FaChevronRight, FaUser, FaPaperPlane, FaSearch, 
+  FaEllipsisV, FaPlay, FaBookmark, FaClock, FaStar, FaFire, 
+  FaGraduationCap, FaRocket, FaLightbulb, FaChartLine, FaBell,
+  FaHeart, FaShare, FaComment
+} from 'react-icons/fa';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import './calendar-theme.css'; // Import custom calendar theme
+import './calendar-theme.css';
 import * as THREE from 'three';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer'; // Import CSS2DRenderer and CSS2DObject
+import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 import Link from 'next/link';
 import gsap from 'gsap';
-import LlamaChat from '@/components/LlamaChat';
+import { createClient } from '@/lib/supabase';
 
 // New CourseCard component
 interface Reel {

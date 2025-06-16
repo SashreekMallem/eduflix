@@ -1,2 +1,0 @@
-2025-02-07 03:05:01.443 | INFO     | metagpt.team:invest:93 - Investment: $3.0.
-2025-02-07 03:05:01.444 | DEBUG    | metagpt.environment.base_env:publish_message:184 - publish_message: {"id":"034d5df15cad4c73be249fd081616959","content":"User Onboarding Analysis","role":"Human","cause_by":"metagpt.actions.add_requirement.UserRequirement","sent_from":"","send_to":["<all>"]}

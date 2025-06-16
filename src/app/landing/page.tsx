@@ -136,12 +136,12 @@ export default function LandingPage() {
           </nav>
           {/* Updated Login/Sign Up Buttons without Notification Badge */}
           <div className="flex items-center space-x-2 ml-4">
-            <Link href="/Login">
+            <Link href="/auth">
               <button className="bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold py-1 px-2 rounded-md shadow-md transition-colors duration-300 hover:from-purple-600 hover:to-blue-600 whitespace-nowrap text-sm">
                 Login
               </button>
             </Link>
-            <Link href="/Login">
+            <Link href="/auth">
               <button className="bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold py-1 px-2 rounded-md shadow-md transition-colors duration-300 hover:from-purple-600 hover:to-blue-600 whitespace-nowrap text-sm">
                 Sign Up
               </button>
