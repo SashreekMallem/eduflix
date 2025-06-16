@@ -12,6 +12,7 @@ import {
   HiChat, HiDotsHorizontal, HiChatAlt2, HiUserGroup
 } from 'react-icons/hi';
 import { supabase } from '@/lib/supabase';
+import Header from '@/components/Header';
 
 // Supabase Schema Interfaces
 interface UserProfile {
@@ -180,83 +181,124 @@ const FriendCard = ({ friend, onChat }: {
   </motion.div>
 );
 
-// Premium Invitation Card with enhanced visual appeal
+// Premium Invitation Card with profile preview and enhanced design
 const InvitationCard = ({ invitation, onAccept, onDecline }: {
   invitation: FriendInvitation;
   onAccept: (id: string) => void;
   onDecline: (id: string) => void;
-}) => (
-  <motion.div
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: 20 }}
-    whileHover={{ scale: 1.02 }}
-    className="bg-gradient-to-r from-white to-indigo-50/30 rounded-2xl p-5 shadow-lg border border-indigo-100 hover:shadow-xl transition-all duration-300 relative overflow-hidden"
-  >
-    {/* Decorative accent */}
-    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-indigo-500 to-purple-500" />
-    
-    <div className="flex items-center space-x-4">
-      <div className="relative">
-        <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
-          {invitation.sender_profile.full_name?.charAt(0) || 'U'}
-        </div>
-        {/* New invitation indicator */}
-        <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-        </div>
-      </div>
+}) => {
+  const router = useRouter();
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      whileHover={{ scale: 1.02 }}
+      className="bg-white rounded-2xl p-4 shadow-lg border border-indigo-100 hover:shadow-xl transition-all duration-300 relative overflow-hidden"
+    >
+      {/* Decorative accent */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500" />
       
-      <div className="flex-1 min-w-0">
-        <h4 className="text-base font-bold text-gray-900 mb-1">
-          {invitation.sender_profile.full_name}
-        </h4>
-        <p className="text-sm text-gray-600 mb-2">@{invitation.sender_profile.username}</p>
-        <div className="flex items-center space-x-1 text-xs text-gray-500">
-          <HiSparkles className="w-3 h-3 text-yellow-500" />
-          <span>Wants to connect</span>
+      <div className="flex flex-col space-y-3">
+        {/* Header with user info - more compact */}
+        <div className="flex items-center space-x-3">
+          <div className="relative">
+            <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
+              {invitation.sender_profile.full_name?.charAt(0) || 'U'}
+            </div>
+            {/* New invitation indicator */}
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+            </div>
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-gray-900 truncate">
+              {invitation.sender_profile.full_name}
+            </h4>
+            <p className="text-xs text-gray-600 truncate">@{invitation.sender_profile.username}</p>
+            <div className="flex items-center space-x-1 text-xs text-gray-500">
+              <HiSparkles className="w-3 h-3 text-yellow-500" />
+              <span>Study buddy request</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick preview of their info - more compact */}
+        <div className="bg-gradient-to-r from-gray-50 to-indigo-50 rounded-lg p-3">
+          <div className="text-xs text-gray-700">
+            <p className="mb-1 truncate"><span className="font-semibold">Status:</span> {invitation.sender_profile.current_status}</p>
+            {invitation.sender_profile.skills && invitation.sender_profile.skills.length > 0 && (
+              <div>
+                <span className="font-semibold">Skills:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {invitation.sender_profile.skills.slice(0, 2).map((skill, index) => (
+                    <span key={index} className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                      {skill}
+                    </span>
+                  ))}
+                  {invitation.sender_profile.skills.length > 2 && (
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                      +{invitation.sender_profile.skills.length - 2}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Message if exists - more compact */}
+        {invitation.message && (
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-3 border border-purple-100">
+            <p className="text-xs text-gray-700 italic leading-relaxed line-clamp-2">
+              &ldquo;{invitation.message}&rdquo;
+            </p>
+          </div>
+        )}
+
+        {/* Action buttons - compact and properly spaced */}
+        <div className="flex flex-col space-y-2 pt-1">
+          <button
+            onClick={() => router.push(`/profile/${invitation.sender_profile.username}`)}
+            className="w-full py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors duration-200 text-xs"
+          >
+            View Full Profile
+          </button>
+          
+          <div className="flex space-x-2">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => onAccept(invitation.id)}
+              className="flex-1 py-2 px-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center space-x-1 text-xs"
+            >
+              <FaCheck className="w-3 h-3" />
+              <span>Accept</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => onDecline(invitation.id)}
+              className="flex-1 py-2 px-3 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center space-x-1 text-xs"
+            >
+              <FaTimes className="w-3 h-3" />
+              <span>Decline</span>
+            </motion.button>
+          </div>
         </div>
       </div>
-      
-      <div className="flex space-x-2">
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onAccept(invitation.id)}
-          className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl flex items-center justify-center text-sm transition-all duration-200 shadow-lg hover:shadow-xl"
-        >
-          <FaCheck />
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onDecline(invitation.id)}
-          className="w-10 h-10 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white rounded-xl flex items-center justify-center text-sm transition-all duration-200 shadow-lg hover:shadow-xl"
-        >
-          <FaTimes />
-        </motion.button>
-      </div>
-    </div>
-    
-    {invitation.message && (
-      <motion.div
-        initial={{ opacity: 0, height: 0 }}
-        animate={{ opacity: 1, height: 'auto' }}
-        className="mt-4 p-3 bg-gradient-to-r from-gray-50 to-indigo-50/50 rounded-xl border border-gray-100"
-      >
-        <p className="text-sm text-gray-700 italic leading-relaxed">
-          &ldquo;{invitation.message}&rdquo;
-        </p>
-      </motion.div>
-    )}
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 // Premium Suggestion Card with world-class design
-const SuggestionCard = ({ suggestion, onConnect, connecting }: {
+const SuggestionCard = ({ suggestion, onConnect, connecting, inviteSent }: {
   suggestion: UserSuggestion;
   onConnect: (userId: string) => void;
   connecting: boolean;
+  inviteSent?: boolean;
 }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.95 }}
@@ -357,18 +399,25 @@ const SuggestionCard = ({ suggestion, onConnect, connecting }: {
       <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => onConnect(suggestion.profile.user_id)}
-        disabled={connecting}
+        onClick={() => onConnect(suggestion.profile.id)} // Use profile.id instead of user_id
+        disabled={connecting || inviteSent}
         className={`w-full py-4 px-6 rounded-2xl font-bold text-sm transition-all duration-300 shadow-lg hover:shadow-xl transform ${
-          connecting
+          inviteSent
+            ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white cursor-not-allowed'
+            : connecting
             ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
             : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white'
         }`}
       >
-        {connecting ? (
+        {inviteSent ? (
           <div className="flex items-center justify-center space-x-2">
             <FaCheck className="w-4 h-4" />
-            <span>Invitation Sent</span>
+            <span>Invite Sent</span>
+          </div>
+        ) : connecting ? (
+          <div className="flex items-center justify-center space-x-2">
+            <FaCheck className="w-4 h-4" />
+            <span>Sending...</span>
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
@@ -384,15 +433,124 @@ const SuggestionCard = ({ suggestion, onConnect, connecting }: {
 
 export default function FriendsPage() {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<{ id: string; profile: UserProfile } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; authId: string; profile: UserProfile } | null>(null);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [invitations, setInvitations] = useState<FriendInvitation[]>([]);
   const [suggestions, setSuggestions] = useState<UserSuggestion[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
+  const [searchResults, setSearchResults] = useState<UserSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [connectingUsers, setConnectingUsers] = useState<Set<string>>(new Set());
+  const [sentInvitations, setSentInvitations] = useState<Set<string>>(new Set());
+  const [newInvitationAlert, setNewInvitationAlert] = useState(false);
+
+  // Show alert when new invitations arrive
+  useEffect(() => {
+    if (invitations.length > 0) {
+      setNewInvitationAlert(true);
+      const timer = setTimeout(() => setNewInvitationAlert(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [invitations.length]);
+
+  // Unified compatibility calculation function
+  const calculateCompatibilityScore = (userProfile: UserProfile | null, targetProfile: UserProfile) => {
+    const userSkills = userProfile?.skills || [];
+    const userCareerGoals = userProfile?.career_goals || [];
+    const userLearningGoals = userProfile?.learning_goals || [];
+    
+    const targetSkills = targetProfile?.skills || [];
+    const targetCareerGoals = targetProfile?.career_goals || [];
+    const targetLearningGoals = targetProfile?.learning_goals || [];
+    
+    // Calculate shared interests across multiple categories
+    const sharedSkills = userSkills.filter((skill: string) => targetSkills.includes(skill));
+    const sharedCareerGoals = userCareerGoals.filter((goal: string) => targetCareerGoals.includes(goal));
+    const sharedLearningGoals = userLearningGoals.filter((goal: string) => targetLearningGoals.includes(goal));
+    
+    // Advanced compatibility score calculation
+    let compatibilityScore = 30; // Lower base score for more realistic results
+    
+    // Skills compatibility (40% weight)
+    if (userSkills.length > 0 && targetSkills.length > 0) {
+      const skillsMatchRatio = sharedSkills.length / Math.max(userSkills.length, targetSkills.length);
+      compatibilityScore += skillsMatchRatio * 40;
+    }
+    
+    // Career goals compatibility (30% weight)
+    if (userCareerGoals.length > 0 && targetCareerGoals.length > 0) {
+      const careerMatchRatio = sharedCareerGoals.length / Math.max(userCareerGoals.length, targetCareerGoals.length);
+      compatibilityScore += careerMatchRatio * 30;
+    }
+    
+    // Learning goals compatibility (30% weight)
+    if (userLearningGoals.length > 0 && targetLearningGoals.length > 0) {
+      const learningMatchRatio = sharedLearningGoals.length / Math.max(userLearningGoals.length, targetLearningGoals.length);
+      compatibilityScore += learningMatchRatio * 30;
+    }
+    
+    // Ensure score is within valid range
+    compatibilityScore = Math.min(100, Math.max(0, Math.round(compatibilityScore)));
+    
+    // Combine all shared interests
+    const allSharedInterests = [...new Set([...sharedSkills, ...sharedCareerGoals, ...sharedLearningGoals])];
+
+    console.log(`🎯 Compatibility calculation for ${targetProfile.full_name}:`, {
+      userSkills,
+      targetSkills,
+      sharedSkills,
+      userCareerGoals,
+      targetCareerGoals,
+      sharedCareerGoals,
+      userLearningGoals,
+      targetLearningGoals,
+      sharedLearningGoals,
+      finalScore: compatibilityScore,
+      allSharedInterests
+    });
+
+    return {
+      score: compatibilityScore,
+      sharedInterests: allSharedInterests,
+      breakdown: {
+        skills: sharedSkills,
+        careerGoals: sharedCareerGoals,
+        learningGoals: sharedLearningGoals
+      }
+    };
+  };
+
+  // Calculate actual mutual friends (not based on shared interests)
+  const calculateMutualFriends = async (userId1: string, userId2: string) => {
+    try {
+      // Get friends of user1
+      const { data: user1Friends } = await supabase
+        .from('friendships')
+        .select('friend_id')
+        .eq('user_id', userId1)
+        .eq('status', 'accepted');
+
+      // Get friends of user2  
+      const { data: user2Friends } = await supabase
+        .from('friendships')
+        .select('friend_id')
+        .eq('user_id', userId2)
+        .eq('status', 'accepted');
+
+      if (!user1Friends || !user2Friends) return 0;
+
+      // Find common friend IDs
+      const user1FriendIds = user1Friends.map(f => f.friend_id);
+      const user2FriendIds = user2Friends.map(f => f.friend_id);
+      const mutualFriendIds = user1FriendIds.filter(id => user2FriendIds.includes(id));
+
+      return mutualFriendIds.length;
+    } catch (error) {
+      console.error('Error calculating mutual friends:', error);
+      return 0;
+    }
+  };
 
   const initializeUser = useCallback(async () => {
     console.log('🚀 ===== INITIALIZING USER =====');
@@ -448,20 +606,15 @@ export default function FriendsPage() {
       }
 
       if (profile) {
-        const currentUserData = { id: userId, profile };
+        const currentUserData = { id: profile.id, authId: userId, profile }; // id = profile ID, authId = auth user ID
         setCurrentUser(currentUserData);
         console.log('🚀 Current user set successfully:', currentUserData);
         
         // Fetch all data after setting current user
         console.log('🚀 Fetching all data (friends, invitations, suggestions)...');
-        const fetchPromises = [
-          fetchFriendsForUser(userId),
-          fetchInvitationsForUser(userId),
-          fetchSuggestions(userId)
-        ];
+        // Note: These functions are defined later, so they'll be called via useEffect
         
-        await Promise.all(fetchPromises);
-        console.log('🚀 All data fetched successfully');
+        console.log('🚀 All data will be fetched via useEffect hooks');
       } else {
         console.log('🚀 No profile data returned');
       }
@@ -565,7 +718,7 @@ export default function FriendsPage() {
       const { data: profiles, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
-        .in('user_id', senderIds);
+        .in('id', senderIds); // Use 'id' instead of 'user_id' since sender_id is a profile ID
 
       if (profileError) {
         console.error('Error fetching sender profiles:', profileError);
@@ -575,7 +728,7 @@ export default function FriendsPage() {
 
       // Combine data manually
       const transformedInvitations: FriendInvitation[] = invitations.map(invitation => {
-        const profile = profiles?.find(p => p.user_id === invitation.sender_id);
+        const profile = profiles?.find(p => p.id === invitation.sender_id); // Use 'id' to match sender_id
         return {
           id: invitation.id,
           sender_id: invitation.sender_id,
@@ -595,17 +748,18 @@ export default function FriendsPage() {
     }
   };
 
-  const fetchFriends = async () => {
+  const fetchFriends = useCallback(async () => {
     if (!currentUser) return;
     await fetchFriendsForUser(currentUser.id);
-  };
+  }, [currentUser]);
 
-  const fetchInvitations = async () => {
+  const fetchInvitations = useCallback(async () => {
     if (!currentUser) return;
+    console.log('📨 Fetching invitations for user:', currentUser.id);
     await fetchInvitationsForUser(currentUser.id);
-  };
+  }, [currentUser]);
 
-  const fetchSuggestions = async (userId: string) => {
+  const fetchSuggestions = useCallback(async (userId: string) => {
     try {
       console.log('Fetching suggestions for user:', userId);
       
@@ -629,41 +783,83 @@ export default function FriendsPage() {
         return;
       }
 
-      // Get current user's profile for comparison
+      // Get current user's full profile for compatibility calculation
       const { data: userProfile } = await supabase
         .from('user_profiles')
-        .select('skills, career_goals, learning_goals')
+        .select('*')
         .eq('user_id', userId)
         .single();
 
-      // Create suggestions with basic compatibility scoring
-      const suggestions: UserSuggestion[] = profiles.map(profile => {
-        const userSkills = userProfile?.skills || [];
-        const profileSkills = profile.skills || [];
-        
-        // Calculate shared skills
-        const sharedSkills = userSkills.filter((skill: string) => profileSkills.includes(skill));
-        
-        // Basic compatibility score
-        const compatibilityScore = Math.min(100, Math.max(60, 
-          (sharedSkills.length * 20) + Math.floor(Math.random() * 30) + 50
-        ));
+      console.log('📊 Current user profile for compatibility:', userProfile);
 
-        return {
-          profile: profile as UserProfile,
-          compatibility_score: compatibilityScore,
-          shared_interests: sharedSkills.slice(0, 3),
-          mutual_connections: Math.floor(Math.random() * 3)
-        };
-      }).sort((a, b) => b.compatibility_score - a.compatibility_score).slice(0, 6);
+      // Create suggestions with advanced compatibility scoring using unified function
+      const suggestions: UserSuggestion[] = await Promise.all(
+        profiles.map(async (profile) => {
+          const compatibility = calculateCompatibilityScore(userProfile, profile);
+          const mutualConnections = await calculateMutualFriends(userId, profile.user_id);
 
-      console.log('Generated suggestions:', suggestions);
-      setSuggestions(suggestions);
+          return {
+            profile: profile as UserProfile,
+            compatibility_score: compatibility.score,
+            shared_interests: compatibility.sharedInterests.slice(0, 3),
+            mutual_connections: mutualConnections
+          };
+        })
+      );
+
+      // Sort by compatibility score
+      const sortedSuggestions = suggestions
+        .sort((a, b) => b.compatibility_score - a.compatibility_score)
+        .slice(0, 6);
+
+      console.log('Generated suggestions:', sortedSuggestions);
+      setSuggestions(sortedSuggestions);
     } catch (error) {
       console.error('Error fetching suggestions:', error);
       setSuggestions([]);
     }
-  };
+  }, []); // No dependencies needed for fetchSuggestions
+
+  useEffect(() => {
+    // Set up real-time subscription for new invitations
+    const setupRealTimeUpdates = () => {
+      if (!currentUser?.id) return;
+
+      console.log('🔔 Setting up real-time invitations subscription...');
+
+      // Subscribe to new friend invitations
+      const invitationsSubscription = supabase
+        .channel('friend_invitations_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'friend_invitations',
+            filter: `receiver_id=eq.${currentUser.id}`
+          },
+          (payload) => {
+            console.log('🔔 Real-time invitation update:', payload);
+            
+            if (payload.eventType === 'INSERT') {
+              // New invitation received - refresh invitations
+              fetchInvitations();
+            } else if (payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
+              // Invitation status changed or deleted - refresh invitations
+              fetchInvitations();
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        invitationsSubscription.unsubscribe();
+      };
+    };
+
+    const cleanup = setupRealTimeUpdates();
+    return cleanup;
+  }, [currentUser?.id, fetchInvitations]);
 
   useEffect(() => {
     // Debug Supabase connection on component mount
@@ -794,16 +990,16 @@ export default function FriendsPage() {
       console.log('🔍 Executing search query...');
       
       // Simple search without complex filtering first
-      const { data: profiles, error } = await supabase
+      const { data: searchProfiles, error } = await supabase
         .from('user_profiles')
         .select('id, user_id, full_name, username, current_status, skills, career_goals, learning_goals, created_at')
         .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
-        .neq('user_id', currentUser.id)
+        .neq('user_id', currentUser.authId)
         .limit(10);
 
       console.log('🔍 ===== SUPABASE SEARCH COMPLETE =====');
-      console.log('🔍 Profiles found:', profiles);
-      console.log('🔍 Profiles count:', profiles?.length || 0);
+      console.log('🔍 Profiles found:', searchProfiles);
+      console.log('🔍 Profiles count:', searchProfiles?.length || 0);
       console.log('🔍 Search error:', error);
 
       if (error) {
@@ -814,16 +1010,33 @@ export default function FriendsPage() {
         return;
       }
 
-      const results = (profiles as UserProfile[]) || [];
-      console.log('🔍 Transformed results:', results);
-      console.log('🔍 Results count:', results.length);
+      const searchProfilesList = (searchProfiles as UserProfile[]) || [];
+      console.log('🔍 Transformed profiles:', searchProfilesList);
+      console.log('🔍 Profiles count:', searchProfilesList.length);
+
+      // Calculate compatibility for each search result
+      const resultsWithCompatibility = await Promise.all(
+        searchProfilesList.map(async (profile) => {
+          const compatibility = calculateCompatibilityScore(currentUser.profile, profile);
+          const mutualConnections = await calculateMutualFriends(currentUser.authId, profile.user_id);
+
+          return {
+            profile: profile,
+            compatibility_score: compatibility.score,
+            shared_interests: compatibility.sharedInterests.slice(0, 3),
+            mutual_connections: mutualConnections
+          };
+        })
+      );
+
+      console.log('🔍 Results with compatibility:', resultsWithCompatibility);
       console.log('🔍 Setting search results...');
       
-      setSearchResults(results);
+      setSearchResults(resultsWithCompatibility);
       setSearching(false);
       
       console.log('🔍 ===== SEARCH RESULTS SET =====');
-      console.log('🔍 Final results:', results);
+      console.log('🔍 Final results:', resultsWithCompatibility);
     } catch (error) {
       console.error('🔍 ===== SEARCH EXCEPTION =====');
       console.error('🔍 Exception in search:', error);
@@ -841,40 +1054,117 @@ export default function FriendsPage() {
     try {
       console.log('Sending invitation from', currentUser.id, 'to', receiverId);
       
-      // Simple insertion without complex checks first
-      const { error } = await supabase
+      // First, check if there's already an existing invitation between these users
+      const { data: existingInvitations, error: checkError } = await supabase
         .from('friend_invitations')
-        .insert([{
-          sender_id: currentUser.id,
-          receiver_id: receiverId,
-          status: 'pending',
-          message: message || null
-        }]);
+        .select('*')
+        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${currentUser.id})`)
+        .in('status', ['pending', 'accepted']);
 
-      if (error) {
-        console.error('Error sending invitation:', error);
+      if (checkError) {
+        console.error('Error checking existing invitations:', checkError);
+        throw checkError;
+      }
+
+      if (existingInvitations && existingInvitations.length > 0) {
+        const existing = existingInvitations[0];
+        if (existing.status === 'pending') {
+          console.log('Invitation already exists and is pending');
+          alert('An invitation is already pending between you and this user.');
+          return;
+        } else if (existing.status === 'accepted') {
+          console.log('Users are already friends');
+          alert('You are already friends with this user.');
+          return;
+        }
+      }
+
+      // Check if there are any declined invitations that we need to update
+      const { data: declinedInvitations, error: declinedError } = await supabase
+        .from('friend_invitations')
+        .select('*')
+        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${currentUser.id})`)
+        .eq('status', 'declined')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (declinedError) {
+        console.error('Error checking declined invitations:', declinedError);
+      }
+
+      let insertResult;
+
+      if (declinedInvitations && declinedInvitations.length > 0) {
+        // Update the existing declined invitation to pending
+        const declinedInvitation = declinedInvitations[0];
+        insertResult = await supabase
+          .from('friend_invitations')
+          .update({
+            sender_id: currentUser.id,
+            receiver_id: receiverId,
+            status: 'pending',
+            message: message || null,
+            created_at: new Date().toISOString()
+          })
+          .eq('id', declinedInvitation.id);
+      } else {
+        // Insert a new invitation
+        insertResult = await supabase
+          .from('friend_invitations')
+          .insert([{
+            sender_id: currentUser.id,
+            receiver_id: receiverId,
+            status: 'pending',
+            message: message || null
+          }]);
+      }
+
+      if (insertResult.error) {
+        console.error('Error sending invitation:', insertResult.error);
+        console.error('Error details:', {
+          code: insertResult.error.code,
+          message: insertResult.error.message,
+          details: insertResult.error.details,
+          hint: insertResult.error.hint
+        });
+        
+        // Provide specific error messages based on error type
+        let errorMessage = 'Failed to send invitation';
+        if (insertResult.error.code === '42501' || insertResult.error.message.includes('policy')) {
+          errorMessage = 'Permission denied. Please check your authentication and try again.';
+        } else if (insertResult.error.code === '23505') {
+          errorMessage = 'An invitation already exists between you and this user.';
+        } else if (insertResult.error.message) {
+          errorMessage = `Failed to send invitation: ${insertResult.error.message}`;
+        }
+        
+        alert(errorMessage);
+        throw insertResult.error;
       } else {
         console.log('Invitation sent successfully');
         // Remove from suggestions or search results
-        setSuggestions(prev => prev.filter(s => s.profile.user_id !== receiverId));
-        setSearchResults(prev => prev.filter(s => s.user_id !== receiverId));
+        setSuggestions(prev => prev.filter(s => s.profile.id !== receiverId));
+        setSearchResults(prev => prev.filter(s => s.profile.id !== receiverId));
+        
+        // Add to sent invitations set
+        setSentInvitations(prev => new Set(prev).add(receiverId));
+        
+        // Show success message
+        alert('Study invitation sent successfully!');
       }
       
-      // Show success feedback
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      alert(`Failed to send invitation. Please try again.`);
+    } finally {
+      // Always remove loading state
       setTimeout(() => {
         setConnectingUsers(prev => {
           const newSet = new Set(prev);
           newSet.delete(receiverId);
           return newSet;
         });
-      }, 2000);
-    } catch (error) {
-      console.error('Error sending invitation:', error);
-      setConnectingUsers(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(receiverId);
-        return newSet;
-      });
+      }, 1000);
     }
   };
 
@@ -882,29 +1172,161 @@ export default function FriendsPage() {
     if (!currentUser) return;
 
     try {
-      console.log('Accepting invitation:', invitationId);
+      console.log('=== ACCEPTING INVITATION ===');
+      console.log('Invitation ID:', invitationId);
+      console.log('Current user:', currentUser.id);
+      console.log('Current profile:', currentUser?.profile?.id);
       
-      // Update invitation status
-      const { error } = await supabase
+      // First, try to get the invitation without .single() to see what's there
+      const { data: invitationCheck, error: checkError } = await supabase
+        .from('friend_invitations')
+        .select('*')
+        .eq('id', invitationId);
+
+      console.log('Invitation check result:', {
+        data: invitationCheck,
+        error: checkError,
+        count: invitationCheck?.length || 0
+      });
+
+      if (checkError) {
+        console.error('Error checking invitation:', checkError);
+        alert(`Failed to check invitation: ${checkError.message}`);
+        return;
+      }
+
+      if (!invitationCheck || invitationCheck.length === 0) {
+        console.error('No invitation found with ID:', invitationId);
+        alert('Invitation not found. It may have been removed or you may not have permission to view it.');
+        return;
+      }
+
+      if (invitationCheck.length > 1) {
+        console.error('Multiple invitations found with same ID:', invitationCheck);
+        alert('Database error: Multiple invitations with same ID found.');
+        return;
+      }
+
+      const invitation = invitationCheck[0];
+      console.log('Found invitation:', invitation);
+
+      // Verify this is the correct receiver
+      if (invitation.receiver_id !== currentUser?.profile?.id) {
+        console.error('User is not the receiver of this invitation:', {
+          invitationReceiver: invitation.receiver_id,
+          currentProfile: currentUser?.profile?.id
+        });
+        alert('You are not authorized to accept this invitation.');
+        return;
+      }
+
+      // Check if invitation is still pending
+      if (invitation.status !== 'pending') {
+        console.error('Invitation is not pending:', invitation.status);
+        alert(`This invitation has already been ${invitation.status}.`);
+        // Refresh data to show current state
+        await Promise.all([fetchFriends(), fetchInvitations()]);
+        return;
+      }
+
+      console.log('Updating invitation status to accepted...');
+      // Update invitation status to accepted
+      const { error: updateError } = await supabase
         .from('friend_invitations')
         .update({ status: 'accepted' })
         .eq('id', invitationId);
 
-      if (error) {
-        console.error('Error accepting invitation:', error);
+      if (updateError) {
+        console.error('Error updating invitation:', updateError);
+        alert(`Failed to update invitation: ${updateError.message}`);
         return;
       }
 
-      console.log('Invitation accepted successfully');
+      console.log('Invitation status updated successfully');
+
+      // Create mutual friendship records in the friendships table
+      const friendshipData = [
+        {
+          user_id: invitation.sender_id,
+          friend_id: invitation.receiver_id,
+          status: 'accepted'
+        },
+        {
+          user_id: invitation.receiver_id,
+          friend_id: invitation.sender_id,
+          status: 'accepted'
+        }
+      ];
+
+      console.log('Creating friendships:', friendshipData);
+
+      // Check if friendships already exist to avoid duplicates
+      const { data: existingFriendships, error: friendshipCheckError } = await supabase
+        .from('friendships')
+        .select('*')
+        .or(`and(user_id.eq.${invitation.sender_id},friend_id.eq.${invitation.receiver_id}),and(user_id.eq.${invitation.receiver_id},friend_id.eq.${invitation.sender_id})`);
+
+      if (friendshipCheckError) {
+        console.error('Error checking existing friendships:', friendshipCheckError);
+        // If we can't check, revert the invitation status
+        console.log('Reverting invitation status due to check error...');
+        await supabase
+          .from('friend_invitations')
+          .update({ status: 'pending' })
+          .eq('id', invitationId);
+        alert(`Failed to check existing friendships: ${friendshipCheckError.message}`);
+        return;
+      }
+
+      if (existingFriendships && existingFriendships.length > 0) {
+        console.log('Friendships already exist:', existingFriendships);
+        console.log('✅ Invitation accepted - friendships were already created');
+      } else {
+        // Create new friendships only if they don't exist
+        console.log('Creating new friendships...');
+        const { error: friendshipError } = await supabase
+          .from('friendships')
+          .insert(friendshipData);
+
+        if (friendshipError) {
+          console.error('Error creating friendships:', friendshipError);
+          
+          // Check if it's a duplicate key error
+          if (friendshipError.code === '23505') {
+            console.log('Duplicate friendship detected - this is expected if friendship was created elsewhere');
+            console.log('✅ Invitation accepted - friendships already exist');
+          } else {
+            // For other errors, revert the invitation status
+            console.log('Reverting invitation status due to friendship error...');
+            await supabase
+              .from('friend_invitations')
+              .update({ status: 'pending' })
+              .eq('id', invitationId);
+            alert(`Failed to create friendship: ${friendshipError.message}`);
+            return;
+          }
+        } else {
+          console.log('✅ New friendships created successfully');
+        }
+      }
+
+      console.log('=== INVITATION ACCEPTED SUCCESSFULLY ===');
+      console.log('Friendship status verified/created successfully');
       
       // Refresh data to show the changes
+      console.log('Refreshing friends and invitations data...');
       await Promise.all([
         fetchFriends(),
-        fetchInvitations()
+        fetchInvitations(),
+        fetchSuggestions(currentUser.authId) // Also refresh suggestions so UI updates
       ]);
 
+      alert('Study buddy request accepted! You are now connected.');
+
     } catch (error) {
-      console.error('Error accepting invitation:', error);
+      console.error('=== ERROR ACCEPTING INVITATION ===');
+      console.error('Caught exception:', error);
+      alert('Failed to accept invitation. Please try again.');
     }
   };
 
@@ -969,6 +1391,32 @@ export default function FriendsPage() {
     console.log('🔍 Timeout set, waiting for debounce...');
   };
 
+  useEffect(() => {
+    // Load initial data when currentUser is available
+    if (currentUser?.id) {
+      console.log('🔄 Loading initial data for user:', currentUser.id);
+      
+      const loadInitialData = async () => {
+        try {
+          console.log('📊 Fetching friends, invitations, and suggestions...');
+          
+          // Load all data in parallel
+          await Promise.all([
+            fetchFriends(),
+            fetchInvitations(),
+            fetchSuggestions(currentUser.authId)
+          ]);
+          
+          console.log('✅ Initial data loading complete');
+        } catch (error) {
+          console.error('❌ Error loading initial data:', error);
+        }
+      };
+      
+      loadInitialData();
+    }
+  }, [currentUser?.id, currentUser?.authId, fetchInvitations, fetchFriends, fetchSuggestions]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -984,49 +1432,7 @@ export default function FriendsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30">
       {/* Premium Header with glass morphism effect */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center space-x-4"
-            >
-              <button
-                onClick={() => router.push('/home')}
-                className="text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 transition-all duration-300"
-              >
-                EduFlix AI
-              </button>
-              <div className="h-8 w-px bg-gray-300" />
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
-                  <FaUsers className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-xl font-bold text-gray-900">Study Network</span>
-              </div>
-            </motion.div>
-            
-            {/* Premium user info */}
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center space-x-4"
-            >
-              {currentUser && (
-                <div className="flex items-center space-x-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-full px-4 py-2 border border-indigo-200">
-                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                    {currentUser.profile.full_name?.charAt(0) || 'U'}
-                  </div>
-                  <span className="text-sm font-semibold text-gray-700">
-                    {currentUser.profile.full_name}
-                  </span>
-                </div>
-              )}
-            </motion.div>
-          </div>
-        </div>
-      </header>
+      <Header currentPage="friends" currentUser={currentUser} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Premium Search Section with advanced styling */}
@@ -1092,17 +1498,13 @@ export default function FriendsPage() {
                 </span>
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {searchResults.map((user) => (
+                {searchResults.map((result) => (
                   <SuggestionCard
-                    key={user.id}
-                    suggestion={{
-                      profile: user,
-                      mutual_connections: 0,
-                      compatibility_score: 85,
-                      shared_interests: user.skills?.slice(0, 2) || []
-                    }}
+                    key={result.profile.id}
+                    suggestion={result}
                     onConnect={sendInvitation}
-                    connecting={connectingUsers.has(user.user_id)}
+                    connecting={connectingUsers.has(result.profile.id)}
+                    inviteSent={sentInvitations.has(result.profile.id)}
                   />
                 ))}
               </div>
@@ -1113,23 +1515,33 @@ export default function FriendsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
           {/* Premium Sidebar */}
           <div className="lg:col-span-1 space-y-8">
-            {/* Enhanced Pending Invitations */}
+            {/* Enhanced Pending Invitations - Fixed container */}
             {invitations.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-gray-200"
+                className="bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-gray-200 overflow-visible"
               >
-                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                  <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center mr-3">
-                    <FaUserPlus className="text-white" />
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center flex-wrap">
+                  <div className={`w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center mr-2 ${newInvitationAlert ? 'animate-pulse' : ''}`}>
+                    <FaUserPlus className="text-white text-sm" />
                   </div>
-                  Study Invites
-                  <span className="ml-3 px-2 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full text-xs font-bold">
+                  <span>Study Invites</span>
+                  <span className={`ml-2 px-2 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full text-xs font-bold ${newInvitationAlert ? 'animate-bounce' : ''}`}>
                     {invitations.length}
                   </span>
+                  {newInvitationAlert && (
+                    <motion.span
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="ml-2 text-green-600 text-sm font-semibold"
+                    >
+                      New!
+                    </motion.span>
+                  )}
                 </h3>
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
                   {invitations.map((invitation) => (
                     <InvitationCard
                       key={invitation.id}
@@ -1185,14 +1597,25 @@ export default function FriendsPage() {
                 </div>
               </div>
               
-              {/* Progress indicator */}
+              {/* Progress indicator - Network Growth */}
               <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-100">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-purple-700">Network Growth</span>
-                  <span className="text-xs font-bold text-purple-600">85%</span>
+                  <span className="text-xs font-bold text-purple-600">
+                    {Math.min(100, Math.round((friends.length + invitations.length) * 10))}%
+                  </span>
                 </div>
                 <div className="w-full bg-purple-200 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full w-4/5"></div>
+                  <div 
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, (friends.length + invitations.length) * 10)}%` }}
+                  ></div>
+                </div>
+                <div className="mt-2 text-xs text-purple-600">
+                  {friends.length + invitations.length < 10 
+                    ? `Connect with ${10 - (friends.length + invitations.length)} more people to reach 100%`
+                    : 'Great networking progress! Keep growing your study community.'
+                  }
                 </div>
               </div>
             </motion.div>
@@ -1281,7 +1704,7 @@ export default function FriendsPage() {
                           // If no suggestions are available, trigger a new fetch
                           if (currentUser) {
                             console.log('🎯 Fetching suggestions for user:', currentUser.id);
-                            fetchSuggestions(currentUser.id);
+                            fetchSuggestions(currentUser.authId);
                           } else {
                             console.log('🎯 No current user, cannot fetch suggestions');
                           }
@@ -1335,7 +1758,8 @@ export default function FriendsPage() {
                         <SuggestionCard
                           suggestion={suggestion}
                           onConnect={sendInvitation}
-                          connecting={connectingUsers.has(suggestion.profile.user_id)}
+                          connecting={connectingUsers.has(suggestion.profile.id)}
+                          inviteSent={sentInvitations.has(suggestion.profile.id)}
                         />
                       </motion.div>
                     ))}

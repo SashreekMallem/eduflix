@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fa';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
+import Header from '@/components/Header';
 
 // Supabase data structures matching the database schema
 interface UserProfile {
@@ -319,30 +320,7 @@ export default function MyProfilePage() {
       </div>
       
       {/* Navigation */}
-      <nav className="relative z-10 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => router.push('/home')}
-              className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
-            >
-              EduFlix AI
-            </button>
-            <div className="flex items-center space-x-3">
-              <button className="p-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors group">
-                <FaShare className="text-gray-600 group-hover:text-blue-600 transition-colors" />
-              </button>
-              <button 
-                onClick={() => setEditMode(!editMode)}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-lg"
-              >
-                <FaEdit />
-                <span>Edit Profile</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Header currentPage="myprofile" currentUser={profile ? { profile: { full_name: profile.full_name } } : null} />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
         {/* Hero Section - Personal Overview */}

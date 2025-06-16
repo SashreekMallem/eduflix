@@ -19,6 +19,7 @@ import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRe
 import Link from 'next/link';
 import gsap from 'gsap';
 import { createClient } from '@/lib/supabase';
+import Header from '@/components/Header';
 
 // New CourseCard component
 interface Reel {
@@ -154,6 +155,7 @@ export default function Home() {
     }
     return 0;
   });
+  const [currentUser, setCurrentUser] = useState<{ profile: { full_name: string } } | null>(null);
   const API_BASE_URL = "http://localhost:8000";
   const [currentTime, setCurrentTime] = useState(new Date());
   // New state for ad carousel
@@ -877,33 +879,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 text-gray-800 overflow-hidden">
-      <header className="flex justify-between items-center p-6 bg-white bg-opacity-70 backdrop-blur-md shadow-lg fixed top-0 left-0 right-0 z-50">
-        <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700">
-          EduFlix AI
-        </h1>
-        <div className="flex-grow mx-4">
-          <input
-            type="text"
-            placeholder="Search courses..."
-            className="w-full px-4 py-2 bg-gray-100 text-gray-800 rounded-full focus:outline-none shadow-md"
-          />
-        </div>
-        <nav className="flex space-x-4">
-          <button
-            onClick={() => router.push('/study-group')}
-            className="px-4 py-2 text-lg font-semibold text-gray-800 hover:text-purple-400 transition-colors duration-200"
-          >
-            Study Group
-          </button>
-          <button
-            onClick={() => router.push('/myprofile')}
-            className="px-4 py-2 text-lg font-semibold text-gray-800 hover:text-purple-400 transition-colors duration-200"
-          >
-            <FaUser className="mr-2 inline-block" /> {/* Add the icon here */}
-            Profile
-          </button>
-        </nav>
-      </header>
+      <Header currentPage="home" currentUser={currentUser} />
       <main className="flex-grow relative flex justify-end items-start p-4 space-x-4 overflow-y-auto mt-24 mb-40">
         <aside className="w-72 mt-[-16px]">
           <h3 className="text-2xl font-bold mb-4 text-center text-purple-400 font-sans">
