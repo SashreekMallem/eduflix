@@ -12,20 +12,11 @@ import {
   IoCheckmarkDone,
   IoCheckmark,
   IoAdd,
-  IoEllipsisHorizontal,
   IoCall,
   IoVideocam,
   IoSend,
   IoHeart,
   IoStarOutline,
-  IoFlash,
-  IoTrophy,
-  IoRocket,
-  IoPeople,
-  IoBookmark,
-  IoTime,
-  IoNotifications,
-  IoSettings,
 } from 'react-icons/io5';
 
 interface Conversation {
@@ -263,11 +254,7 @@ export default function MessengerPage() {
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
         <Header currentPage="messenger" currentUser={currentUser ? { profile: { full_name: currentUser.full_name } } : null} />
         <div className="flex items-center justify-center h-[calc(100vh-5rem)]">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full"
-          />
+          <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
           <span className="ml-3 text-gray-600 font-medium">Loading conversations...</span>
         </div>
       </div>
@@ -305,9 +292,6 @@ export default function MessengerPage() {
                   <IoAdd className="w-5 h-5" />
                   <span>Find Study Buddies</span>
                 </motion.button>
-                <button className="p-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
-                  <IoEllipsisHorizontal className="w-5 h-5 text-gray-600" />
-                </button>
               </div>
             </div>
           </div>

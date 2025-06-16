@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { FaUsers, FaHome, FaUser } from 'react-icons/fa';
+import { FaUsers, FaHome, FaUser, FaComments } from 'react-icons/fa';
 
 interface HeaderProps {
   currentPage?: string;
@@ -24,6 +24,7 @@ export default function Header({ currentPage = '', currentUser, pageIcon, pageTi
       case 'friends': return <FaUsers className="w-4 h-4 text-white" />;
       case 'home': return <FaHome className="w-4 h-4 text-white" />;
       case 'profile': return <FaUser className="w-4 h-4 text-white" />;
+      case 'messenger': return <FaComments className="w-4 h-4 text-white" />;
       default: return <FaHome className="w-4 h-4 text-white" />;
     }
   };
@@ -35,6 +36,7 @@ export default function Header({ currentPage = '', currentUser, pageIcon, pageTi
       case 'home': return 'Dashboard';
       case 'profile': return 'Profile';
       case 'myprofile': return 'My Profile';
+      case 'messenger': return 'Messages';
       default: return 'EduFlix AI';
     }
   };
