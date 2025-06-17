@@ -137,53 +137,87 @@ export default function MessengerPage() {
 
       // Build conversations from friends
       const conversationsPromises = friendProfiles.map(async (friendProfile) => {
-        // Get the latest message between current user and this friend (using auth user IDs)
-        const { data: latestMessage } = await supabase
-          .from('messages')
-          .select('*')
-          .or(`and(sender_id.eq.${userId},receiver_id.eq.${friendProfile.user_id}),and(sender_id.eq.${friendProfile.user_id},receiver_id.eq.${userId})`)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+        try {
+          // Get or create conversation between current user and friend
+          const { data: conversationId, error: convError } = await supabase
+            .rpc('create_direct_conversation', {
+              user1_id: userId,
+              user2_id: friendProfile.user_id
+            });
 
-        // Get unread message count for this conversation (using auth user IDs)
-        const { count: unreadCount } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('sender_id', friendProfile.user_id)
-          .eq('receiver_id', userId)
-          .eq('is_read', false);
+          if (convError) {
+            console.error('Error getting conversation:', convError);
+            return null;
+          }
 
-        // Get friend's online status (using auth user ID)
-        const { data: friendStatus } = await supabase
-          .from('user_status')
-          .select('status, last_seen')
-          .eq('user_id', friendProfile.user_id)
-          .single();
+          // Get the latest message for this conversation
+          const { data: latestMessage } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .eq('is_deleted', false)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-        const conversation: Conversation = {
-          id: `${userId}-${friendProfile.user_id}`,
-          participant: {
-            id: friendProfile.user_id, // Use auth user ID for consistency
-            username: friendProfile.username,
-            full_name: friendProfile.full_name,
-            avatar_url: friendProfile.avatar_url,
-            status: friendStatus?.status || 'offline',
-            last_seen: friendStatus?.last_seen || new Date().toISOString(),
-          },
-          lastMessage: latestMessage ? {
-            content: latestMessage.content,
-            timestamp: latestMessage.created_at,
-            isFromCurrentUser: latestMessage.sender_id === userId,
-            isRead: latestMessage.is_read,
-          } : null,
-          unreadCount: unreadCount || 0,
-        };
+          // Get unread message count for this conversation
+          // First get all messages from the friend in this conversation
+          const { data: friendMessages } = await supabase
+            .from('messages')
+            .select('id')
+            .eq('conversation_id', conversationId)
+            .eq('sender_id', friendProfile.user_id)
+            .eq('is_deleted', false);
 
-        return conversation;
+          let unreadCount = 0;
+          if (friendMessages && friendMessages.length > 0) {
+            // Get read receipts for these messages by current user
+            const messageIds = friendMessages.map(m => m.id);
+            const { data: readReceipts } = await supabase
+              .from('message_read_receipts')
+              .select('message_id')
+              .in('message_id', messageIds)
+              .eq('user_id', userId);
+
+            const readMessageIds = new Set(readReceipts?.map(r => r.message_id) || []);
+            unreadCount = friendMessages.filter(m => !readMessageIds.has(m.id)).length;
+          }
+
+          // Get friend's online status (using auth user ID)
+          const { data: friendStatus } = await supabase
+            .from('user_status')
+            .select('status, last_seen')
+            .eq('user_id', friendProfile.user_id)
+            .maybeSingle();
+
+          const conversation: Conversation = {
+            id: conversationId,
+            participant: {
+              id: friendProfile.user_id,
+              username: friendProfile.username,
+              full_name: friendProfile.full_name,
+              avatar_url: friendProfile.avatar_url,
+              status: friendStatus?.status || 'offline',
+              last_seen: friendStatus?.last_seen || new Date().toISOString(),
+            },
+            lastMessage: latestMessage ? {
+              content: latestMessage.content,
+              timestamp: latestMessage.created_at,
+              isFromCurrentUser: latestMessage.sender_id === userId,
+              isRead: unreadCount === 0,
+            } : null,
+            unreadCount: unreadCount,
+          };
+
+          return conversation;
+        } catch (error) {
+          console.error('Error building conversation for friend:', friendProfile.username, error);
+          return null;
+        }
       });
 
-      const conversationsList = await Promise.all(conversationsPromises);
+      const conversationsList = (await Promise.all(conversationsPromises))
+        .filter(conv => conv !== null) as Conversation[];
       
       // Sort by last message timestamp
       conversationsList.sort((a, b) => {

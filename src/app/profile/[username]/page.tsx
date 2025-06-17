@@ -5,11 +5,12 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { 
-  FaDownload, FaCalendarAlt, FaCode, FaBriefcase, FaProjectDiagram,
+  FaShare, FaDownload, FaUser,
+  FaCalendarAlt, FaCode, FaBriefcase, FaProjectDiagram,
   FaUniversity, FaCertificate, FaGraduationCap, FaBookOpen,
   FaBuilding, FaTools, FaHeart, FaRocket,
   FaLightbulb, FaGithub, FaLinkedin,
-  FaEye, FaLock, FaUserPlus, FaCheck
+  FaEye, FaLock
 } from 'react-icons/fa';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
@@ -151,204 +152,6 @@ export default function PublicProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isCurrentUser, setIsCurrentUser] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
-  const [friendshipStatus, setFriendshipStatus] = useState<'none' | 'pending' | 'friends' | 'declined'>('none');
-  const [isSendingInvitation, setIsSendingInvitation] = useState(false);
-
-  // Function to check friendship status between current user and profile user
-  const checkFriendshipStatus = async (currentUserId: string, profileUserId: string) => {
-    try {
-      // First get profile IDs from auth user IDs for both users
-      const { data: currentUserProfile, error: currentProfileError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('user_id', currentUserId)
-        .single();
-
-      const { data: targetUserProfile, error: targetProfileError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('user_id', profileUserId)
-        .single();
-
-      if (currentProfileError || targetProfileError || !currentUserProfile || !targetUserProfile) {
-        console.error('Error getting profile IDs:', { currentProfileError, targetProfileError });
-        return;
-      }
-
-      const currentProfileId = currentUserProfile.id;
-      const targetProfileId = targetUserProfile.id;
-
-      // Check for existing friendship (using auth user IDs)
-      const { data: friendships, error: friendshipError } = await supabase
-        .from('friendships')
-        .select('*')
-        .or(`and(user_id.eq.${currentUserId},friend_id.eq.${profileUserId}),and(user_id.eq.${profileUserId},friend_id.eq.${currentUserId})`)
-        .eq('status', 'accepted');
-
-      if (friendshipError) {
-        console.error('Error checking friendship:', friendshipError);
-        return;
-      }
-
-      if (friendships && friendships.length > 0) {
-        setFriendshipStatus('friends');
-        return;
-      }
-
-      // Check for pending invitations (using profile IDs)
-      const { data: invitations, error: invitationError } = await supabase
-        .from('friend_invitations')
-        .select('*')
-        .or(`and(sender_id.eq.${currentProfileId},receiver_id.eq.${targetProfileId}),and(sender_id.eq.${targetProfileId},receiver_id.eq.${currentProfileId})`)
-        .in('status', ['pending', 'declined', 'accepted'])
-        .order('created_at', { ascending: false });
-
-      if (invitationError) {
-        console.error('Error checking invitation:', invitationError);
-        return;
-      }
-
-      if (invitations && invitations.length > 0) {
-        const latestInvitation = invitations[0];
-        if (latestInvitation.status === 'pending') {
-          setFriendshipStatus('pending');
-        } else if (latestInvitation.status === 'declined') {
-          setFriendshipStatus('declined');
-        } else if (latestInvitation.status === 'accepted') {
-          // This should have created friendships, but maybe they haven't synced yet
-          setFriendshipStatus('friends');
-        }
-      } else {
-        setFriendshipStatus('none');
-      }
-    } catch (error) {
-      console.error('Error checking friendship status:', error);
-    }
-  };
-
-  // Function to send study buddy invitation
-  const sendStudyBuddyInvitation = async () => {
-    if (!currentUser || !userData?.profile) return;
-
-    setIsSendingInvitation(true);
-    
-    try {
-      // Get profile IDs from auth user IDs
-      const { data: currentUserProfile, error: currentProfileError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('user_id', currentUser.id)
-        .single();
-
-      const { data: targetUserProfile, error: targetProfileError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('user_id', userData.profile.user_id)
-        .single();
-
-      if (currentProfileError || targetProfileError || !currentUserProfile || !targetUserProfile) {
-        console.error('Error getting profile IDs:', { currentProfileError, targetProfileError });
-        alert('Failed to send invitation - could not resolve user profiles.');
-        return;
-      }
-
-      const currentProfileId = currentUserProfile.id;
-      const targetProfileId = targetUserProfile.id;
-
-      // Check if there's already an existing invitation between these users (using profile IDs)
-      const { data: existingInvitations, error: checkError } = await supabase
-        .from('friend_invitations')
-        .select('*')
-        .or(`and(sender_id.eq.${currentProfileId},receiver_id.eq.${targetProfileId}),and(sender_id.eq.${targetProfileId},receiver_id.eq.${currentProfileId})`)
-        .in('status', ['pending', 'accepted']);
-
-      if (checkError) {
-        console.error('Error checking existing invitations:', checkError);
-        throw checkError;
-      }
-
-      if (existingInvitations && existingInvitations.length > 0) {
-        const existing = existingInvitations[0];
-        if (existing.status === 'pending') {
-          alert('An invitation is already pending between you and this user.');
-          return;
-        } else if (existing.status === 'accepted') {
-          alert('You are already friends with this user.');
-          return;
-        }
-      }
-
-      // Check if there are any declined invitations that we need to update
-      const { data: declinedInvitations, error: declinedError } = await supabase
-        .from('friend_invitations')
-        .select('*')
-        .or(`and(sender_id.eq.${currentProfileId},receiver_id.eq.${targetProfileId}),and(sender_id.eq.${targetProfileId},receiver_id.eq.${currentProfileId})`)
-        .eq('status', 'declined')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (declinedError) {
-        console.error('Error checking declined invitations:', declinedError);
-      }
-
-      let insertResult;
-
-      if (declinedInvitations && declinedInvitations.length > 0) {
-        // Update the existing declined invitation to pending
-        const declinedInvitation = declinedInvitations[0];
-        insertResult = await supabase
-          .from('friend_invitations')
-          .update({
-            sender_id: currentProfileId,
-            receiver_id: targetProfileId,
-            status: 'pending',
-            message: null,
-            created_at: new Date().toISOString()
-          })
-          .eq('id', declinedInvitation.id);
-      } else {
-        // Insert a new invitation
-        insertResult = await supabase
-          .from('friend_invitations')
-          .insert([{
-            sender_id: currentProfileId,
-            receiver_id: targetProfileId,
-            status: 'pending',
-            message: null
-          }]);
-      }
-
-      if (insertResult.error) {
-        console.error('Error sending invitation:', insertResult.error);
-        
-        // Provide specific error messages based on error type
-        let errorMessage = 'Failed to send study buddy invitation';
-        if (insertResult.error.code === '42501' || insertResult.error.message.includes('policy')) {
-          errorMessage = 'Permission denied. Please check your authentication and try again.';
-        } else if (insertResult.error.code === '23505') {
-          errorMessage = 'An invitation already exists between you and this user.';
-        } else if (insertResult.error.message) {
-          errorMessage = `Failed to send invitation: ${insertResult.error.message}`;
-        }
-        
-        alert(errorMessage);
-        throw insertResult.error;
-      } else {
-        // Update friendship status to pending
-        setFriendshipStatus('pending');
-        
-        // Show success message
-        alert('Study buddy invitation sent successfully!');
-      }
-      
-    } catch (error) {
-      console.error('Error sending invitation:', error);
-      alert(`Failed to send study buddy invitation. Please try again.`);
-    } finally {
-      setIsSendingInvitation(false);
-    }
-  };
 
   useEffect(() => {
     const fetchPublicProfile = async () => {
@@ -372,13 +175,6 @@ export default function PublicProfilePage() {
         // Check if this is the current user's profile
         if (session?.user?.id === profileData.user_id) {
           setIsCurrentUser(true);
-        } else {
-          // Set current user for friendship checks
-          if (session?.user) {
-            setCurrentUser({ id: session.user.id });
-            // Check friendship status
-            await checkFriendshipStatus(session.user.id, profileData.user_id);
-          }
         }
 
         const userId = profileData.user_id;
@@ -430,79 +226,6 @@ export default function PublicProfilePage() {
       fetchPublicProfile();
     }
   }, [username]);
-
-  // Set up real-time subscription for friendship status updates
-  useEffect(() => {
-    if (!currentUser || !userData?.profile || isCurrentUser) return;
-
-    const currentUserId = currentUser.id;
-    const profileUserId = userData.profile.user_id;
-
-    // Subscribe to friendship changes (using auth user IDs)
-    const friendshipSubscription = supabase
-      .channel('friendship_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'friendships',
-          filter: `or(and(user_id.eq.${currentUserId},friend_id.eq.${profileUserId}),and(user_id.eq.${profileUserId},friend_id.eq.${currentUserId}))`
-        },
-        () => {
-          // Refresh friendship status when friendships table changes
-          checkFriendshipStatus(currentUserId, profileUserId);
-        }
-      )
-      .subscribe();
-
-    // Subscribe to invitation changes (need to get profile IDs for this)
-    const setupInvitationSubscription = async () => {
-      try {
-        const { data: currentProfile } = await supabase
-          .from('user_profiles')
-          .select('id')
-          .eq('user_id', currentUserId)
-          .single();
-
-        const { data: targetProfile } = await supabase
-          .from('user_profiles')
-          .select('id')
-          .eq('user_id', profileUserId)
-          .single();
-
-        if (currentProfile && targetProfile) {
-          const invitationSubscription = supabase
-            .channel('invitation_changes')
-            .on(
-              'postgres_changes',
-              {
-                event: '*',
-                schema: 'public',
-                table: 'friend_invitations',
-                filter: `or(and(sender_id.eq.${currentProfile.id},receiver_id.eq.${targetProfile.id}),and(sender_id.eq.${targetProfile.id},receiver_id.eq.${currentProfile.id}))`
-              },
-              () => {
-                // Refresh friendship status when invitations change
-                checkFriendshipStatus(currentUserId, profileUserId);
-              }
-            )
-            .subscribe();
-
-          return invitationSubscription;
-        }
-      } catch (error) {
-        console.error('Error setting up invitation subscription:', error);
-      }
-      return null;
-    };
-
-    setupInvitationSubscription();
-
-    return () => {
-      supabase.removeChannel(friendshipSubscription);
-    };
-  }, [currentUser, userData, isCurrentUser]);
 
   if (loading) {
     return (
@@ -615,58 +338,23 @@ export default function PublicProfilePage() {
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col space-y-3">
-              {/* Study Buddy Invitation Button - Only show to other users */}
-              {!isCurrentUser && currentUser && (
-                <div className="mb-4">
-                  {friendshipStatus === 'friends' ? (
-                    <button 
-                      disabled
-                      className="flex items-center space-x-2 bg-green-50 text-green-600 px-4 py-2 rounded-xl font-semibold cursor-not-allowed"
-                    >
-                      <FaCheck />
-                      <span>Study Buddies</span>
-                    </button>
-                  ) : friendshipStatus === 'pending' ? (
-                    <button 
-                      disabled
-                      className="flex items-center space-x-2 bg-yellow-50 text-yellow-600 px-4 py-2 rounded-xl font-semibold cursor-not-allowed"
-                    >
-                      <FaCalendarAlt />
-                      <span>Request Sent</span>
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={sendStudyBuddyInvitation}
-                      disabled={isSendingInvitation}
-                      className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded-xl font-semibold transition-colors"
-                    >
-                      <FaUserPlus />
-                      <span>{isSendingInvitation ? 'Sending...' : 'Send Study Buddy Request'}</span>
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Document Download Buttons - Only show to current user */}
-              {isCurrentUser && (
-                <>
-                  {documents.some(doc => doc.document_type === 'resume') && (
-                    <button className="flex items-center space-x-2 bg-purple-50 hover:bg-purple-100 text-purple-600 px-4 py-2 rounded-xl font-semibold transition-colors">
-                      <FaDownload />
-                      <span>Download Resume</span>
-                    </button>
-                  )}
-                  {documents.some(doc => doc.document_type === 'transcript') && (
-                    <button className="flex items-center space-x-2 bg-gray-50 hover:bg-gray-100 text-gray-600 px-4 py-2 rounded-xl font-semibold transition-colors">
-                      <FaLock />
-                      <span>View Transcripts</span>
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
+            {/* Action Buttons - Only show documents to current user */}
+            {isCurrentUser && (
+              <div className="flex flex-col space-y-3">
+                {documents.some(doc => doc.document_type === 'resume') && (
+                  <button className="flex items-center space-x-2 bg-purple-50 hover:bg-purple-100 text-purple-600 px-4 py-2 rounded-xl font-semibold transition-colors">
+                    <FaDownload />
+                    <span>Download Resume</span>
+                  </button>
+                )}
+                {documents.some(doc => doc.document_type === 'transcript') && (
+                  <button className="flex items-center space-x-2 bg-gray-50 hover:bg-gray-100 text-gray-600 px-4 py-2 rounded-xl font-semibold transition-colors">
+                    <FaLock />
+                    <span>View Transcripts</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Profile Stats */}

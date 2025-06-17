@@ -339,6 +339,8 @@ export default function ChatPage() {
       }
     };
 
+    let cleanup: (() => void) | null = null;
+
     // Get conversation ID for filtering real-time messages
     const setupRealtime = async () => {
       try {
@@ -351,7 +353,7 @@ export default function ChatPage() {
         if (!conversationId) return;
 
         const channel = supabase
-          .channel('messages')
+          .channel(`messages-${conversationId}-${Date.now()}`) // Unique channel name
           .on(
             'postgres_changes',
             {
@@ -389,7 +391,7 @@ export default function ChatPage() {
           )
           .subscribe();
 
-        return () => {
+        cleanup = () => {
           supabase.removeChannel(channel);
         };
       } catch (error) {
@@ -398,6 +400,10 @@ export default function ChatPage() {
     };
 
     setupRealtime();
+
+    return () => {
+      if (cleanup) cleanup();
+    };
   }, [currentUser, friend]);
 
   // WebRTC Configuration
