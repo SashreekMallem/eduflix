@@ -141,8 +141,8 @@ export default function StudyGroupPage() {
         name: suggestion.group_name,
         description: suggestion.group_description,
         subject: suggestion.group_subject,
-        difficulty: 'beginner', // Default for now
-        member_count: 0,
+        difficulty: suggestion.group_difficulty || 'beginner',
+        member_count: suggestion.member_count || 0,
         is_private: false,
         created_at: new Date().toISOString(),
         created_by: '',
@@ -177,7 +177,7 @@ export default function StudyGroupPage() {
           id: user.id,
           username: userProfile.username,
           full_name: userProfile.full_name,
-          avatar_url: userProfile.avatar_url,
+          avatar_url: undefined, // No avatar support yet
           status: 'online',
           last_seen: new Date().toISOString()
         });
@@ -278,7 +278,8 @@ export default function StudyGroupPage() {
       setMessages([]);
       setGroupMembers([]);
     }
-  }, [currentGroup]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentGroup]); // loadGroupMessages and loadGroupMembers are stable (useCallback)
 
   // Load suggestions when discover tab is selected (reusing friends pattern)
   useEffect(() => {
@@ -378,7 +379,7 @@ export default function StudyGroupPage() {
   };
 
   // Load messages for a specific group (reusing messenger chat pattern)
-  const loadGroupMessages = async (groupId: string) => {
+  const loadGroupMessages = useCallback(async (groupId: string) => {
     try {
       const { data: messagesData, error } = await supabase
         .from('study_group_messages')
@@ -410,26 +411,30 @@ export default function StudyGroupPage() {
       if (senderIds.length > 0) {
         const { data: senderProfiles } = await supabase
           .from('user_profiles')
-          .select('user_id, username, full_name, avatar_url')
+          .select('user_id, username, full_name')
           .in('user_id', senderIds);
 
         const senderMap = new Map(senderProfiles?.map(profile => [profile.user_id, profile]) || []);
 
-        const transformedMessages: Message[] = messagesData?.map(msg => ({
-          id: msg.id,
-          content: msg.content,
-          sender_id: msg.sender_id,
-          sender: {
-            id: msg.sender_id,
-            username: senderMap.get(msg.sender_id)?.username || 'Unknown',
-            full_name: senderMap.get(msg.sender_id)?.full_name || 'Unknown User',
-            avatar_url: senderMap.get(msg.sender_id)?.avatar_url,
-            status: 'offline',
-            last_seen: new Date().toISOString()
-          },
-          created_at: msg.created_at,
-          message_type: msg.message_type as 'text' | 'image' | 'file' | 'video' | 'voice' | 'announcement' | 'system' | 'poll' | 'study_resource'
-        })) || [];
+        const transformedMessages: Message[] = messagesData?.map(msg => {
+          const senderProfile = senderMap.get(msg.sender_id);
+          const isCurrentUser = msg.sender_id === currentUser?.id;
+          return {
+            id: msg.id,
+            content: msg.content,
+            sender_id: msg.sender_id,
+            sender: {
+              id: msg.sender_id,
+              username: senderProfile?.username || 'Unknown',
+              full_name: isCurrentUser ? 'You' : (senderProfile?.full_name || 'Unknown User'),
+              avatar_url: undefined,
+              status: 'offline',
+              last_seen: new Date().toISOString()
+            },
+            created_at: msg.created_at,
+            message_type: msg.message_type as 'text' | 'image' | 'file' | 'video' | 'voice' | 'announcement' | 'system' | 'poll' | 'study_resource'
+          };
+        }) || [];
 
         setMessages(transformedMessages);
       } else {
@@ -439,7 +444,7 @@ export default function StudyGroupPage() {
       console.error('Error loading group messages:', error);
       setMessages([]);
     }
-  };
+  }, [currentUser]);
 
   // Send message function (reusing messenger pattern)
   const sendMessage = async () => {
@@ -508,48 +513,76 @@ export default function StudyGroupPage() {
   };
 
   // Load group members (reusing messenger pattern)
-  const loadGroupMembers = async (groupId: string) => {
+  const loadGroupMembers = useCallback(async (groupId: string) => {
     try {
-      const { data: membersData, error } = await supabase
+      // First, get the member data
+      const { data: membersData, error: membersError } = await supabase
         .from('study_group_members')
         .select(`
           user_id,
           role,
           joined_at,
-          last_active_at,
-          user_profiles!inner (
-            user_id,
-            username,
-            full_name,
-            avatar_url
-          )
+          last_active_at
         `)
         .eq('group_id', groupId)
         .eq('status', 'active')
         .is('left_at', null)
         .order('joined_at', { ascending: true });
 
-      if (error) {
-        console.error('Error loading group members:', error);
+      if (membersError) {
+        console.error('Error loading group members:', membersError);
         return;
       }
 
+      if (!membersData || membersData.length === 0) {
+        setGroupMembers([]);
+        return;
+      }
+
+      // Get user profile data for all members
+      const userIds = membersData.map(member => member.user_id);
+      console.log('Loading profiles for user IDs:', userIds);
+      
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('user_profiles')
+        .select('user_id, username, full_name')
+        .in('user_id', userIds);
+
+      if (profilesError) {
+        console.error('Error loading member profiles:', profilesError);
+        return;
+      }
+
+      console.log('Loaded profiles data:', profilesData);
+
+      // Create a map of user profiles for easy lookup
+      const profilesMap = new Map(profilesData?.map(profile => [profile.user_id, profile]) || []);
+
       // Transform the data to User format
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const members: User[] = membersData?.map((member: any) => ({
-        id: member.user_id,
-        username: member.user_profiles.username,
-        full_name: member.user_profiles.full_name,
-        avatar_url: member.user_profiles.avatar_url,
-        status: 'offline', // Will be updated with real status later
-        last_seen: member.last_active_at || member.joined_at
-      })) || [];
+      const members: User[] = membersData.map(member => {
+        const profile = profilesMap.get(member.user_id);
+        const isCurrentUser = member.user_id === currentUser?.id;
+        return {
+          id: member.user_id,
+          username: profile?.username || 'Unknown',
+          full_name: isCurrentUser ? 'You' : (profile?.full_name || 'Unknown User'),
+          avatar_url: undefined, // No avatar support in current schema
+          status: 'offline', // Will be updated with real status later
+          last_seen: member.last_active_at || member.joined_at
+        };
+      });
 
       setGroupMembers(members);
     } catch (error) {
       console.error('Error loading group members:', error);
       setGroupMembers([]);
     }
+  }, [currentUser]);
+
+  // Handle member profile click
+  const handleMemberClick = (member: User) => {
+    // Navigate to their profile page
+    router.push(`/profile/${member.username}`);
   };
 
   // Get filtered groups based on active tab (reusing messenger filtering pattern)
@@ -934,12 +967,17 @@ export default function StudyGroupPage() {
                       key={member.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="flex items-center space-x-3 p-3 bg-white/60 rounded-xl hover:bg-white/80 transition-colors"
+                      onClick={() => handleMemberClick(member)}
+                      className="flex items-center space-x-3 p-3 bg-white/60 rounded-xl hover:bg-white/80 transition-colors cursor-pointer"
                     >
                       <div className="relative">
                         <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                           {member.avatar_url ? (
-                            <img src={member.avatar_url} alt={member.full_name} className="w-10 h-10 rounded-full object-cover" />
+                            <img 
+                              src={member.avatar_url} 
+                              alt={member.full_name} 
+                              className="w-10 h-10 rounded-full object-cover" 
+                            />
                           ) : (
                             <span className="text-white font-semibold text-sm">
                               {member.full_name.charAt(0)}
