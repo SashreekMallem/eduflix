@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import { supabase } from '@/lib/supabase';
+import Image from 'next/image';
 import {
   IoAdd,
   IoSearch,
@@ -19,9 +20,41 @@ import {
   IoDocument,
   IoImage,
   IoLink,
-  IoSchool
+  IoSchool,
+  IoCheckmarkDone,
+  IoCheckmark,
+  IoCall,
+  IoHeart,
+  IoStarOutline,
+  IoTime,
+  IoNotifications,
+  IoNotificationsOff,
+  IoExit,
+  IoShareOutline,
+  IoBookmark,
+  IoBookmarkOutline,
+  IoFilter,
+  IoChatbubble,
+  IoTrendingUp,
+  IoFlash,
+  IoRocket
 } from 'react-icons/io5';
+import {
+  HiSparkles,
+  HiLightningBolt,
+  HiTrendingUp as HiTrendingUpOld,
+  HiAcademicCap,
+  HiChat,
+  HiDotsHorizontal,
+  HiChatAlt2,
+  HiUserGroup,
+  HiUsers,
+  HiBadgeCheck,
+  HiFire,
+  HiStar
+} from 'react-icons/hi';
 
+// Interfaces (reusing patterns from messenger and friends)
 interface User {
   id: string;
   username: string;
@@ -29,23 +62,44 @@ interface User {
   avatar_url?: string;
   status: 'online' | 'idle' | 'dnd' | 'offline';
   last_seen: string;
+  current_status?: string;
+  skills?: string[];
+  career_goals?: string[];
 }
 
-interface Message {
+interface StudyGroupMember {
   id: string;
-  content: string;
+  user_id: string;
+  role: 'owner' | 'admin' | 'moderator' | 'member';
+  joined_at: string;
+  last_active_at: string;
+  permissions: {
+    can_invite: boolean;
+    can_kick: boolean;
+    can_mute: boolean;
+    can_manage_resources: boolean;
+    can_pin_messages: boolean;
+    can_create_events: boolean;
+  };
+  user_profile: User;
+}
+
+interface StudyGroupMessage {
+  id: string;
+  group_id: string;
   sender_id: string;
-  sender: User;
-  created_at: string;
-  message_type: 'text' | 'image' | 'file' | 'video' | 'voice' | 'announcement' | 'system' | 'poll' | 'study_resource';
-  reactions?: { emoji: string; count: number; users: string[] }[];
-  replies?: Message[];
-  is_deleted?: boolean;
-  is_pinned?: boolean;
-  reply_to_message_id?: string;
+  content: string;
+  message_type: 'text' | 'image' | 'file' | 'announcement' | 'system';
   file_url?: string;
   file_name?: string;
-  metadata?: Record<string, unknown>;
+  reply_to_message_id?: string;
+  is_pinned: boolean;
+  is_edited: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  sender_profile: User;
+  reactions?: { emoji: string; count: number; users: string[] }[];
 }
 
 interface StudyGroup {
@@ -56,116 +110,302 @@ interface StudyGroup {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   member_count: number;
   is_private: boolean;
+  auto_accept_requests: boolean;
+  last_activity_at: string;
   created_at: string;
   created_by: string;
   tags: string[];
   avatar_url?: string;
-  active_members?: number;
-  last_activity_at?: string;
-  max_members?: number;
-  is_active?: boolean;
+  banner_url?: string;
+  is_premium: boolean;
+  // Computed properties
+  unread_count?: number;
+  user_role?: string;
+  is_bookmarked?: boolean;
+  activity_status?: 'active' | 'recent' | 'idle' | 'inactive';
+}
+
+interface StudyGroupInvitation {
+  id: string;
+  group_id: string;
+  inviter_id: string;
+  invitee_id: string;
+  message?: string;
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
+  created_at: string;
+  expires_at: string;
+  group: StudyGroup;
+  inviter_profile: User;
+}
+
+interface GroupSuggestion {
+  group_id: string;
+  group_name: string;
+  group_description: string;
+  group_subject: string;
+  compatibility_score: number;
+  shared_interests?: string[];
+  member_count?: number;
+  activity_level?: string;
 }
 
 export default function StudyGroupPage() {
   const router = useRouter();
+  
+  // State management (reusing messenger patterns)
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [studyGroups, setStudyGroups] = useState<StudyGroup[]>([]);
   const [currentGroup, setCurrentGroup] = useState<StudyGroup | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [groupMembers, setGroupMembers] = useState<StudyGroupMember[]>([]);
+  const [messages, setMessages] = useState<StudyGroupMessage[]>([]);
+  const [groupInvitations, setGroupInvitations] = useState<StudyGroupInvitation[]>([]);
+  const [groupSuggestions, setGroupSuggestions] = useState<GroupSuggestion[]>([]);
+  
+  // UI state (reusing messenger/friends patterns)
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  
+  // Tab management (reusing messenger tab pattern)
   const [activeTab, setActiveTab] = useState<'joined' | 'discover' | 'trending'>('joined');
-  const [discoveredGroups, setDiscoveredGroups] = useState<StudyGroup[]>([]);
-  const [groupMembers, setGroupMembers] = useState<User[]>([]);
-
-  // Join group function (reusing friends invitation pattern)
-  const joinGroup = async (groupId: string) => {
-    if (!currentUser) return;
-
-    try {
-      const result = await supabase
-        .rpc('join_study_group', {
-          p_group_id: groupId,
-          p_user_id: currentUser.id
-        });
-
-      if (result.data === 'JOINED') {
-        // Group joined successfully, reload groups
-        await loadStudyGroups(currentUser.id);
-        await loadGroupSuggestions();
-      } else if (result.data === 'INVITATION_SENT') {
-        // Invitation sent, show message
-        console.log('Invitation sent!');
-      }
-    } catch (error) {
-      console.error('Error joining group:', error);
-    }
-  };
+  const [groupTab, setGroupTab] = useState<'chat' | 'members' | 'resources' | 'analytics'>('chat');
   
-  // Modals
+  // Modals and dropdowns (reusing friends patterns)
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [openDropdowns, setOpenDropdowns] = useState<{ [key: string]: boolean }>({});
   
-  // Create group form
+  // Create group form (enhanced from original)
   const [newGroupForm, setNewGroupForm] = useState({
     name: '',
     description: '',
     subject: '',
     difficulty: 'beginner' as 'beginner' | 'intermediate' | 'advanced',
     is_private: false,
+    auto_accept_requests: true,
+    max_members: 50,
     tags: [] as string[]
   });
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Utility functions (reusing messenger patterns)
+  const formatTime = useCallback((timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
-  // Load group suggestions (reusing friends suggestion pattern)
-  const loadGroupSuggestions = useCallback(async () => {
+    if (diffInHours < 1) {
+      return 'Just now';
+    } else if (diffInHours < 24) {
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } else if (diffInHours < 168) { // Less than a week
+      return date.toLocaleDateString('en-US', { weekday: 'short' });
+    } else {
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+  }, []);
+
+  const getStatusColor = useCallback((status: string) => {
+    switch (status) {
+      case 'online': return 'bg-green-400';
+      case 'idle': return 'bg-yellow-400';
+      case 'dnd': return 'bg-red-400';
+      default: return 'bg-gray-300';
+    }
+  }, []);
+
+  const getActivityStatus = useCallback((lastActivity: string) => {
+    const diffInHours = (new Date().getTime() - new Date(lastActivity).getTime()) / (1000 * 60 * 60);
+    if (diffInHours < 1) return 'active';
+    if (diffInHours < 24) return 'recent';
+    if (diffInHours < 168) return 'idle';
+    return 'inactive';
+  }, []);
+
+  const getDifficultyColor = useCallback((difficulty: string) => {
+    switch (difficulty) {
+      case 'beginner': return 'bg-green-100 text-green-800';
+      case 'intermediate': return 'bg-yellow-100 text-yellow-800';
+      case 'advanced': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  }, []);
+
+  const toggleDropdown = useCallback((id: string) => {
+    setOpenDropdowns(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  }, []);
+
+  // Real-time subscriptions (reusing messenger patterns)
+  const setupRealtimeSubscriptions = useCallback(() => {
     if (!currentUser) return;
-    
+
+    const subscriptions = [
+      // Group updates
+      supabase
+        .channel('study_groups')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'study_groups' },
+          () => {
+            loadStudyGroups();
+          }
+        )
+        .subscribe(),
+      
+      // Member changes  
+      supabase
+        .channel('study_group_members')
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'study_group_members' },
+          () => {
+            loadStudyGroups();
+            if (currentGroup) {
+              loadGroupMembers(currentGroup.id);
+            }
+          }
+        )
+        .subscribe(),
+      
+      // Message updates
+      supabase
+        .channel('study_group_messages')
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'study_group_messages' },
+          (payload) => {
+            if (currentGroup && payload.new && (payload.new as any).group_id === currentGroup.id) {
+              loadGroupMessages(currentGroup.id);
+            }
+          }
+        )
+        .subscribe(),
+      
+      // Invitation updates
+      supabase
+        .channel('study_group_invitations')
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'study_group_invitations' },
+          () => {
+            loadGroupInvitations();
+          }
+        )
+        .subscribe()
+    ];
+
+    return () => {
+      subscriptions.forEach(sub => sub.unsubscribe());
+    };
+  }, [currentUser, currentGroup]);
+
+  // Filter and search functions (reusing messenger/friends patterns)
+  const getFilteredGroups = useCallback(() => {
+    let filtered = studyGroups.filter(group =>
+      group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      group.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      group.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      group.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    switch (activeTab) {
+      case 'joined':
+        filtered = filtered.filter(group => group.user_role);
+        break;
+      case 'discover':
+        filtered = filtered.filter(group => !group.user_role && !group.is_private);
+        break;
+      case 'trending':
+        filtered = filtered
+          .filter(group => !group.user_role && !group.is_private)
+          .sort((a, b) => {
+            const aActivity = getActivityStatus(a.last_activity_at);
+            const bActivity = getActivityStatus(b.last_activity_at);
+            const activityScore = { active: 4, recent: 3, idle: 2, inactive: 1 };
+            return (activityScore[bActivity] || 0) - (activityScore[aActivity] || 0);
+          });
+        break;
+      default:
+        break;
+    }
+
+    return filtered;
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Data loading functions (reusing messenger/friends patterns)
+  const loadStudyGroups = useCallback(async () => {
     try {
-      const { data: suggestions, error } = await supabase
-        .rpc('suggest_study_groups_for_user', {
-          p_user_id: currentUser.id,
-          p_limit: 20
-        });
+      if (!currentUser) return;
+      
+      // TODO: Replace with actual Supabase queries
+      // For now, using placeholder data with the expected structure
+      setStudyGroups([]);
+    } catch (error) {
+      console.error('Error loading study groups:', error);
+      setStudyGroups([]);
+    }
+  }, [currentUser]);
 
-      if (error) {
-        console.error('Error loading group suggestions:', error);
-        return;
-      }
+  const loadGroupMembers = useCallback(async (groupId: string) => {
+    try {
+      // TODO: Load group members from Supabase
+      setGroupMembers([]);
+    } catch (error) {
+      console.error('Error loading group members:', error);
+      setGroupMembers([]);
+    }
+  }, []);
 
-      // Transform suggestions to StudyGroup format
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const suggestedGroups: StudyGroup[] = suggestions?.map((suggestion: any) => ({
-        id: suggestion.group_id,
-        name: suggestion.group_name,
-        description: suggestion.group_description,
-        subject: suggestion.group_subject,
-        difficulty: 'beginner', // Default for now
-        member_count: 0,
-        is_private: false,
-        created_at: new Date().toISOString(),
-        created_by: '',
-        tags: [],
-        active_members: 0
-      })) || [];
+  const loadGroupMessages = useCallback(async (groupId: string) => {
+    try {
+      // TODO: Load group messages from Supabase
+      setMessages([]);
+    } catch (error) {
+      console.error('Error loading group messages:', error);
+      setMessages([]);
+    }
+  }, []);
 
-      setDiscoveredGroups(suggestedGroups);
+  const loadGroupInvitations = useCallback(async () => {
+    try {
+      if (!currentUser) return;
+      
+      // TODO: Load group invitations from Supabase
+      setGroupInvitations([]);
+    } catch (error) {
+      console.error('Error loading group invitations:', error);
+      setGroupInvitations([]);
+    }
+  }, [currentUser]);
+
+  const loadGroupSuggestions = useCallback(async () => {
+    try {
+      if (!currentUser) return;
+      
+      // TODO: Load group suggestions from Supabase
+      setGroupSuggestions([]);
     } catch (error) {
       console.error('Error loading group suggestions:', error);
+      setGroupSuggestions([]);
     }
   }, [currentUser]);
 
   const initializeStudyGroups = useCallback(async () => {
     try {
-      // Get current user (reusing messenger pattern)
+      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/auth/login');
         return;
       }
 
-      // Get user profile (reusing messenger pattern)
+      // Get user profile
       const { data: userProfile } = await supabase
         .from('user_profiles')
         .select('*')
@@ -182,86 +422,19 @@ export default function StudyGroupPage() {
           last_seen: new Date().toISOString()
         });
 
-        // Load study groups using auth user ID (reusing messenger pattern)
-        await loadStudyGroups(user.id);
-        
-        // Load group suggestions for discovery (reusing friends pattern)
-        await loadGroupSuggestions();
+        // Load study groups
+        await loadStudyGroups();
       }
     } catch (error) {
       console.error('Error initializing study groups:', error);
     } finally {
       setLoading(false);
     }
-  }, [router, loadGroupSuggestions]);
+  }, [router]);
 
   useEffect(() => {
     initializeStudyGroups();
-    
-    // Setup real-time subscriptions (reusing messenger pattern)
-    const cleanup = setupRealtimeSubscriptions();
-
-    return () => {
-      // Cleanup subscriptions
-      if (cleanup) cleanup();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initializeStudyGroups]);
-
-  // Setup real-time subscriptions (reusing messenger pattern)
-  const setupRealtimeSubscriptions = () => {
-    if (!currentUser) return;
-
-    // Subscribe to study group changes
-    const groupSubscription = supabase
-      .channel('study_groups')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'study_groups' },
-        () => {
-          // Reload groups when they change
-          if (currentUser) loadStudyGroups(currentUser.id);
-        }
-      )
-      .subscribe();
-
-    // Subscribe to member changes
-    const memberSubscription = supabase
-      .channel('study_group_members')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'study_group_members' },
-        () => {
-          // Reload groups when membership changes
-          if (currentUser) loadStudyGroups(currentUser.id);
-        }
-      )
-      .subscribe();
-
-    // Subscribe to new messages in current group
-    let messageSubscription = null;
-    if (currentGroup) {
-      messageSubscription = supabase
-        .channel(`group-messages-${currentGroup.id}`)
-        .on('postgres_changes',
-          { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'study_group_messages',
-            filter: `group_id=eq.${currentGroup.id}`
-          },
-          () => {
-            // Reload messages when new message arrives
-            loadGroupMessages(currentGroup.id);
-          }
-        )
-        .subscribe();
-    }
-
-    return () => {
-      groupSubscription.unsubscribe();
-      memberSubscription.unsubscribe();
-      if (messageSubscription) messageSubscription.unsubscribe();
-    };
-  };
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -269,309 +442,82 @@ export default function StudyGroupPage() {
     }
   }, [messages]);
 
-  // Load messages and members when group is selected (reusing messenger chat pattern)
-  useEffect(() => {
-    if (currentGroup) {
-      loadGroupMessages(currentGroup.id);
-      loadGroupMembers(currentGroup.id);
-    } else {
-      setMessages([]);
-      setGroupMembers([]);
-    }
-  }, [currentGroup]);
-
-  // Load suggestions when discover tab is selected (reusing friends pattern)
-  useEffect(() => {
-    if (activeTab === 'discover' && currentUser) {
-      loadGroupSuggestions();
-    }
-  }, [activeTab, currentUser, loadGroupSuggestions]);
-
-  // Load study groups from Supabase (reusing messenger conversation loading pattern)
-  const loadStudyGroups = async (userId: string) => {
+  // Load study groups from Supabase
+  const loadStudyGroups = async () => {
     try {
-      // Get user's groups (similar to messenger's conversation loading)
-      const { data: userGroups, error } = await supabase
-        .from('study_group_members')
-        .select(`
-          study_groups (
-            id,
-            name,
-            description,
-            subject,
-            difficulty,
-            is_private,
-            created_at,
-            created_by,
-            tags,
-            avatar_url,
-            member_count,
-            last_activity_at
-          )
-        `)
-        .eq('user_id', userId)
-        .is('left_at', null)
-        .eq('status', 'active');
+      // TODO: Replace with actual Supabase query
+      // const { data: userGroups } = await supabase
+      //   .from('study_group_members')
+      //   .select(`
+      //     study_groups (
+      //       id,
+      //       name,
+      //       description,
+      //       subject,
+      //       difficulty,
+      //       is_private,
+      //       created_at,
+      //       created_by,
+      //       tags,
+      //       avatar_url
+      //     )
+      //   `)
+      //   .eq('user_id', currentUser?.id);
 
-      if (error) {
-        console.error('Error fetching user groups:', error);
-        setStudyGroups([]);
-        return;
-      }
-
-      if (!userGroups || userGroups.length === 0) {
-        setStudyGroups([]);
-        return;
-      }
-
-      // Transform the data and get additional info for each group (reusing messenger pattern)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const groupsPromises = userGroups.map(async (userGroup: any) => {
-        const group = userGroup.study_groups;
-        if (!group) return null;
-
-        try {
-          // Get active members count (similar to messenger online status)
-          const { data: activeMembers } = await supabase
-            .from('study_group_members')
-            .select('user_id')
-            .eq('group_id', group.id)
-            .is('left_at', null)
-            .eq('status', 'active')
-            .gte('last_active_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // Active in last 24h
-
-          const studyGroup: StudyGroup = {
-            id: group.id,
-            name: group.name,
-            description: group.description,
-            subject: group.subject,
-            difficulty: group.difficulty,
-            member_count: group.member_count,
-            is_private: group.is_private,
-            created_at: group.created_at,
-            created_by: group.created_by,
-            tags: group.tags || [],
-            avatar_url: group.avatar_url,
-            active_members: activeMembers?.length || 0
-          };
-
-          return studyGroup;
-        } catch (error) {
-          console.error('Error building group data:', group.name, error);
-          return null;
-        }
-      });
-
-      const groupsList = (await Promise.all(groupsPromises))
-        .filter(group => group !== null) as StudyGroup[];
-      
-      // Sort by last activity (same pattern as messenger)
-      groupsList.sort((a, b) => {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      });
-
-      setStudyGroups(groupsList);
+      // For now, set empty arrays until backend is ready
+      setStudyGroups([]);
+      setMessages([]);
     } catch (error) {
       console.error('Error loading study groups:', error);
       setStudyGroups([]);
-    }
-  };
-
-  // Load messages for a specific group (reusing messenger chat pattern)
-  const loadGroupMessages = async (groupId: string) => {
-    try {
-      const { data: messagesData, error } = await supabase
-        .from('study_group_messages')
-        .select(`
-          id,
-          content,
-          sender_id,
-          message_type,
-          created_at,
-          is_deleted,
-          is_pinned,
-          reply_to_message_id,
-          file_url,
-          file_name,
-          metadata
-        `)
-        .eq('group_id', groupId)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        console.error('Error loading messages:', error);
-        return;
-      }
-
-      // Get sender profiles for messages (reusing messenger pattern)
-      const senderIds = [...new Set(messagesData?.map(msg => msg.sender_id) || [])];
-      
-      if (senderIds.length > 0) {
-        const { data: senderProfiles } = await supabase
-          .from('user_profiles')
-          .select('user_id, username, full_name, avatar_url')
-          .in('user_id', senderIds);
-
-        const senderMap = new Map(senderProfiles?.map(profile => [profile.user_id, profile]) || []);
-
-        const transformedMessages: Message[] = messagesData?.map(msg => ({
-          id: msg.id,
-          content: msg.content,
-          sender_id: msg.sender_id,
-          sender: {
-            id: msg.sender_id,
-            username: senderMap.get(msg.sender_id)?.username || 'Unknown',
-            full_name: senderMap.get(msg.sender_id)?.full_name || 'Unknown User',
-            avatar_url: senderMap.get(msg.sender_id)?.avatar_url,
-            status: 'offline',
-            last_seen: new Date().toISOString()
-          },
-          created_at: msg.created_at,
-          message_type: msg.message_type as 'text' | 'image' | 'file' | 'video' | 'voice' | 'announcement' | 'system' | 'poll' | 'study_resource'
-        })) || [];
-
-        setMessages(transformedMessages);
-      } else {
-        setMessages([]);
-      }
-    } catch (error) {
-      console.error('Error loading group messages:', error);
       setMessages([]);
     }
   };
 
-  // Send message function (reusing messenger pattern)
   const sendMessage = async () => {
     if (!newMessage.trim() || !currentUser || !currentGroup) return;
 
-    try {
-      const { error } = await supabase
-        .from('study_group_messages')
-        .insert({
-          group_id: currentGroup.id,
-          sender_id: currentUser.id,
-          content: newMessage.trim(),
-          message_type: 'text'
-        });
+    const message: Message = {
+      id: Date.now().toString(),
+      content: newMessage,
+      sender_id: currentUser.id,
+      sender: currentUser,
+      created_at: new Date().toISOString(),
+      message_type: 'text'
+    };
 
-      if (error) {
-        console.error('Error sending message:', error);
-        return;
-      }
-
-      setNewMessage('');
-      // Message will be added via real-time subscription
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
+    setMessages(prev => [...prev, message]);
+    setNewMessage('');
   };
 
-  // Create group function (reusing friends invitation pattern)
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGroupForm.name.trim() || !currentUser) return;
 
-    try {
-      const { error } = await supabase
-        .rpc('create_study_group', {
-          p_name: newGroupForm.name,
-          p_description: newGroupForm.description,
-          p_subject: newGroupForm.subject,
-          p_difficulty: newGroupForm.difficulty,
-          p_is_private: newGroupForm.is_private,
-          p_max_members: 50,
-          p_tags: newGroupForm.tags,
-          p_creator_id: currentUser.id
-        });
+    const newGroup: StudyGroup = {
+      id: Date.now().toString(),
+      ...newGroupForm,
+      member_count: 1,
+      created_at: new Date().toISOString(),
+      created_by: currentUser.id,
+      active_members: 1
+    };
 
-      if (error) {
-        console.error('Error creating group:', error);
-        return;
-      }
-
-      // Reload groups to show the new one
-      await loadStudyGroups(currentUser.id);
-      
-      setShowCreateGroup(false);
-      setNewGroupForm({
-        name: '',
-        description: '',
-        subject: '',
-        difficulty: 'beginner',
-        is_private: false,
-        tags: []
-      });
-    } catch (error) {
-      console.error('Error creating group:', error);
-    }
+    setStudyGroups(prev => [newGroup, ...prev]);
+    setCurrentGroup(newGroup);
+    setShowCreateGroup(false);
+    setNewGroupForm({
+      name: '',
+      description: '',
+      subject: '',
+      difficulty: 'beginner',
+      is_private: false,
+      tags: []
+    });
   };
 
-  // Load group members (reusing messenger pattern)
-  const loadGroupMembers = async (groupId: string) => {
-    try {
-      const { data: membersData, error } = await supabase
-        .from('study_group_members')
-        .select(`
-          user_id,
-          role,
-          joined_at,
-          last_active_at,
-          user_profiles!inner (
-            user_id,
-            username,
-            full_name,
-            avatar_url
-          )
-        `)
-        .eq('group_id', groupId)
-        .eq('status', 'active')
-        .is('left_at', null)
-        .order('joined_at', { ascending: true });
-
-      if (error) {
-        console.error('Error loading group members:', error);
-        return;
-      }
-
-      // Transform the data to User format
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const members: User[] = membersData?.map((member: any) => ({
-        id: member.user_id,
-        username: member.user_profiles.username,
-        full_name: member.user_profiles.full_name,
-        avatar_url: member.user_profiles.avatar_url,
-        status: 'offline', // Will be updated with real status later
-        last_seen: member.last_active_at || member.joined_at
-      })) || [];
-
-      setGroupMembers(members);
-    } catch (error) {
-      console.error('Error loading group members:', error);
-      setGroupMembers([]);
-    }
-  };
-
-  // Get filtered groups based on active tab (reusing messenger filtering pattern)
   const getFilteredGroups = () => {
-    let groupsToFilter: StudyGroup[] = [];
-    
-    switch (activeTab) {
-      case 'joined':
-        groupsToFilter = studyGroups;
-        break;
-      case 'discover':
-        groupsToFilter = discoveredGroups;
-        break;
-      case 'trending':
-        // For trending, show public groups sorted by activity
-        groupsToFilter = discoveredGroups.slice(0, 10);
-        break;
-      default:
-        groupsToFilter = studyGroups;
-    }
-
-    return groupsToFilter.filter(group => 
+    return studyGroups.filter(group => 
       group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       group.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
       group.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -673,34 +619,19 @@ export default function StudyGroupPage() {
                       key={group.id}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => activeTab === 'joined' ? setCurrentGroup(group) : null}
-                      className={`p-4 rounded-xl transition-all ${
-                        activeTab === 'joined' && currentGroup?.id === group.id
-                          ? 'bg-blue-50 border-2 border-blue-200 shadow-md cursor-pointer'
-                          : activeTab === 'joined'
-                          ? 'bg-white/60 border border-gray-100 hover:bg-white/80 hover:shadow-md cursor-pointer'
+                      onClick={() => setCurrentGroup(group)}
+                      className={`p-4 rounded-xl cursor-pointer transition-all ${
+                        currentGroup?.id === group.id
+                          ? 'bg-blue-50 border-2 border-blue-200 shadow-md'
                           : 'bg-white/60 border border-gray-100 hover:bg-white/80 hover:shadow-md'
                       }`}
                     >
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="font-semibold text-gray-800 text-sm leading-tight">{group.name}</h3>
-                        {activeTab === 'joined' ? (
-                          <div className="flex items-center text-xs text-gray-500">
-                            <div className="w-2 h-2 bg-emerald-400 rounded-full mr-1"></div>
-                            {group.active_members}
-                          </div>
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              joinGroup(group.id);
-                            }}
-                            className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-1"
-                          >
-                            <IoPersonAdd className="w-3 h-3" />
-                            <span>Join</span>
-                          </button>
-                        )}
+                        <div className="flex items-center text-xs text-gray-500">
+                          <div className="w-2 h-2 bg-emerald-400 rounded-full mr-1"></div>
+                          {group.active_members}
+                        </div>
                       </div>
                       
                       <p className="text-xs text-gray-600 mb-3 line-clamp-2">{group.description}</p>
@@ -730,17 +661,11 @@ export default function StudyGroupPage() {
                 ) : (
                   <div className="text-center py-12">
                     <IoSchool className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-600 mb-2">
-                      {activeTab === 'joined' ? 'No Study Groups Joined' : 
-                       activeTab === 'discover' ? 'No Groups Found' : 
-                       'No Trending Groups'}
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-600 mb-2">No Study Groups Found</h3>
                     <p className="text-gray-500 text-sm mb-4">
-                      {searchQuery ? 'Try adjusting your search terms' : 
-                       activeTab === 'joined' ? 'Create your first study group to get started' :
-                       'Check back later for group suggestions'}
+                      {searchQuery ? 'Try adjusting your search terms' : 'Create your first study group to get started'}
                     </p>
-                    {!searchQuery && activeTab === 'joined' && (
+                    {!searchQuery && (
                       <button
                         onClick={() => setShowCreateGroup(true)}
                         className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg"
@@ -928,49 +853,12 @@ export default function StudyGroupPage() {
 
               {/* Members List */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {currentGroup && groupMembers.length > 0 ? (
-                  groupMembers.map((member) => (
-                    <motion.div
-                      key={member.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex items-center space-x-3 p-3 bg-white/60 rounded-xl hover:bg-white/80 transition-colors"
-                    >
-                      <div className="relative">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                          {member.avatar_url ? (
-                            <img src={member.avatar_url} alt={member.full_name} className="w-10 h-10 rounded-full object-cover" />
-                          ) : (
-                            <span className="text-white font-semibold text-sm">
-                              {member.full_name.charAt(0)}
-                            </span>
-                          )}
-                        </div>
-                        <div className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(member.status)} rounded-full border-2 border-white`}></div>
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-gray-800 text-sm truncate">{member.full_name}</div>
-                        <div className="text-xs text-gray-500">@{member.username}</div>
-                      </div>
-                      
-                      <div className="text-xs text-gray-400">
-                        {new Date(member.last_seen).toLocaleDateString()}
-                      </div>
-                    </motion.div>
-                  ))
-                ) : !currentGroup ? (
-                  <div className="text-center py-8">
-                    <IoPeople className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 text-sm">No group selected</p>
-                    <p className="text-gray-400 text-xs mt-1">Select a study group to see members</p>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <IoPeople className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 text-sm">Loading members...</p>
-                  </div>
-                )}
+                {/* Empty state - will be populated with real data */}
+                <div className="text-center py-8">
+                  <IoPeople className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 text-sm">No members to show</p>
+                  <p className="text-gray-400 text-xs mt-1">Join a study group to see members</p>
+                </div>
               </div>
             </div>
           </div>
