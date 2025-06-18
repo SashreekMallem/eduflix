@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import { supabase } from '@/lib/supabase';
 import {
   IoAdd,
@@ -638,7 +639,7 @@ export default function StudyGroupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 pb-20">
       <Header 
         currentPage="study-group" 
         pageIcon={<IoSchool className="w-4 h-4 text-white" />}
@@ -1123,6 +1124,9 @@ export default function StudyGroupPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Universal Footer */}
+      <Footer showEduNews={true} />
     </div>
   );
 }

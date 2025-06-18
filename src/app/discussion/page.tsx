@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Calendar, { CalendarProps } from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import { supabase } from '@/lib/supabase';
 import {
   IoHelpCircle,
@@ -422,7 +423,7 @@ export default function DiscussionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 pb-20">
       <Header 
         currentPage="discussion" 
         pageIcon={<IoChatbubble className="w-4 h-4 text-white" />}
@@ -1089,6 +1090,9 @@ export default function DiscussionPage() {
           )}
         </AnimatePresence>
       </div>
+      
+      {/* Universal Footer */}
+      <Footer showEduNews={true} />
     </div>
   );
 }

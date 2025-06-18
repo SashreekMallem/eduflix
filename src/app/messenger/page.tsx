@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import Image from 'next/image';
 import {
   IoSearch,
@@ -381,7 +382,7 @@ export default function MessengerPage() {
   const filteredConversations = getFilteredConversations();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 pb-20">
       <Header currentPage="messenger" currentUser={currentUser ? { profile: { full_name: currentUser.full_name } } : null} />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -685,6 +686,9 @@ export default function MessengerPage() {
           </div>
         </div>
       </div>
+      
+      {/* Universal Footer */}
+      <Footer showEduNews={true} />
     </div>
   );
 }

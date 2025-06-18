@@ -13,6 +13,7 @@ import {
 } from 'react-icons/hi';
 import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
 // Supabase Schema Interfaces
 interface UserProfile {
@@ -1390,7 +1391,7 @@ export default function FriendsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50/30 pb-20">
       {/* Premium Header with glass morphism effect */}
       <Header currentPage="friends" currentUser={currentUser} />
 
@@ -1729,6 +1730,9 @@ export default function FriendsPage() {
           </div>
         </div>
       </div>
+      
+      {/* Universal Footer */}
+      <Footer showEduNews={true} />
     </div>
   );
 }
