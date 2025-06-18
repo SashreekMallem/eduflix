@@ -25,7 +25,7 @@ class NewsService {
   private readonly MAX_ARTICLES = 100; // Get maximum articles per request
   
   // Hardcoded API key fallback - ADD YOUR API KEY HERE if environment variables don't work
-  private readonly FALLBACK_API_KEY = ''; // Replace '' with your actual NewsAPI key
+  private readonly FALLBACK_API_KEY = '2085f02dd6c541b39715153e290c4537'; // Your News API key added
 
   constructor() {
     // Priority order: 1. Environment variable, 2. Hardcoded fallback, 3. localStorage
