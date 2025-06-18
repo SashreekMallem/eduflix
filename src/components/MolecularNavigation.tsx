@@ -245,7 +245,6 @@ const MolecularNavigation: React.FC<MolecularNavigationProps> = ({ onAtomSelect 
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(8);
   const [hoveredAtom, setHoveredAtom] = useState<Atom | null>(null);
-  const [selectedAtom, setSelectedAtom] = useState<Atom | null>(null);
   const [navigationHistory, setNavigationHistory] = useState<Array<{center: Atom, level: Atom[]}>>([]);
 
   // Efficient atom material creation - solid metal colors
@@ -458,7 +457,6 @@ const MolecularNavigation: React.FC<MolecularNavigationProps> = ({ onAtomSelect 
     if (intersects.length > 0) {
       const atom = intersects[0].object.userData.atom as Atom;
       if (atom.id !== centerAtom?.id) {
-        setSelectedAtom(atom); // Set selected atom for info panel
         handleAtomClick(atom);
       }
     }
@@ -598,100 +596,81 @@ const MolecularNavigation: React.FC<MolecularNavigationProps> = ({ onAtomSelect 
     <div className="relative w-full h-full">
       <div ref={mountRef} className="w-full h-full min-h-[600px]" />
       
-      {/* UI Overlay */}
-      <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-gray-200">
-        <h3 className="text-lg font-bold text-gray-800 mb-2">
+      {/* Modern Premium UI Overlay */}
+      <div className="absolute top-6 left-6 bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20 max-w-sm">
+        <h3 className="text-xl font-semibold text-gray-800 mb-3">
           {centerAtom?.name || 'Knowledge Structure'}
         </h3>
-        <p className="text-sm text-gray-600 mb-3">
-          {centerAtom?.description || 'Click on any atom to explore deeper'}
+        <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+          {centerAtom?.description || 'Navigate through interconnected learning pathways'}
         </p>
-        <div className="text-xs text-gray-500">
-          <p>🎯 Center: {centerAtom?.name}</p>
-          <p>🔬 Exploring: {currentLevel.length} topics</p>
-          <p>📍 Depth: Level {navigationHistory.length + 1}</p>
-        </div>
-      </div>
-
-      {/* Back Button */}
-      {navigationHistory.length > 0 && (
-        <div className="absolute top-20 left-4 bg-white/90 backdrop-blur-sm rounded-xl p-2 shadow-lg border border-gray-200">
-          <button 
-            onClick={handleGoBack}
-            disabled={isTransitioning}
-            className="w-16 h-10 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Go Back"
-          >
-            ← Back
-          </button>
-        </div>
-      )}
-
-      {/* Zoom Controls */}
-      <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-xl p-2 shadow-lg border border-gray-200">
-        <div className="flex flex-col space-y-2">
-          <button 
-            onClick={() => setZoomLevel(prev => Math.max(prev - 2, 4))}
-            className="w-10 h-10 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center font-bold text-lg"
-            aria-label="Zoom In"
-          >
-            +
-          </button>
-          <button 
-            onClick={() => setZoomLevel(prev => Math.min(prev + 2, 20))}
-            className="w-10 h-10 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center font-bold text-lg"
-            aria-label="Zoom Out"
-          >
-            −
-          </button>
-        </div>
-      </div>
-
-      {/* Hover Tooltip */}
-      {hoveredAtom && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
-          <div className="bg-white/95 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-gray-200 text-center">
-            <div className="flex items-center justify-center space-x-2 mb-1">
-              <span className="text-lg">{hoveredAtom.icon}</span>
-              <span className="font-semibold text-gray-800">{hoveredAtom.name}</span>
-            </div>
-            <p className="text-xs text-gray-600">{hoveredAtom.description}</p>
-            <p className="text-xs text-blue-600 mt-1">Click to explore →</p>
+        <div className="space-y-2 text-xs text-gray-500">
+          <div className="flex items-center justify-between">
+            <span>Current Focus:</span>
+            <span className="font-medium text-gray-700">{centerAtom?.name}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Available Paths:</span>
+            <span className="font-medium text-gray-700">{currentLevel.length}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Depth Level:</span>
+            <span className="font-medium text-gray-700">{navigationHistory.length + 1}</span>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Selection Info Panel */}
-      {selectedAtom && (
-        <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-gray-200 max-w-64">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-2">
-              <span className="text-xl">{selectedAtom.icon}</span>
-              <span className="font-bold text-gray-800">{selectedAtom.name}</span>
-            </div>
-            <button 
-              onClick={() => setSelectedAtom(null)}
-              className="text-gray-400 hover:text-gray-600"
+      {/* Modern Navigation Controls */}
+      <div className="absolute top-6 right-6 bg-white/10 backdrop-blur-lg rounded-2xl p-4 shadow-2xl border border-white/20">
+        <div className="flex items-center space-x-3">
+          {/* Back Button */}
+          {navigationHistory.length > 0 && (
+            <button
+              onClick={handleGoBack}
+              disabled={isTransitioning}
+              className="w-12 h-12 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-105 border border-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Go Back"
             >
-              ✕
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-gray-700">
+                <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          )}
+          
+          {/* Zoom Controls */}
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setZoomLevel(prev => Math.max(prev - 2, 4))}
+              className="w-12 h-12 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-105 border border-white/20"
+              aria-label="Zoom In"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-gray-700">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => setZoomLevel(prev => Math.min(prev + 2, 20))}
+              className="w-12 h-12 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-105 border border-white/20"
+              aria-label="Zoom Out"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-gray-700">
+                <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
             </button>
           </div>
-          <p className="text-sm text-gray-600 mb-3">{selectedAtom.description}</p>
-          {selectedAtom.children && (
-            <div>
-              <p className="text-xs font-semibold text-gray-700 mb-2">Sub-topics:</p>
-              <div className="space-y-1">
-                {selectedAtom.children.map(child => (
-                  <div key={child.id} className="flex items-center space-x-2 text-xs text-gray-600">
-                    <span>{child.icon}</span>
-                    <span>{child.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+        </div>
+      </div>
+
+      {/* Modern Hover Tooltip */}
+      {hoveredAtom && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
+          <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4 shadow-xl border border-white/30 text-center max-w-xs">
+            <h4 className="font-semibold text-gray-800 mb-2">{hoveredAtom.name}</h4>
+            <p className="text-sm text-gray-600 leading-relaxed">{hoveredAtom.description}</p>
+          </div>
         </div>
       )}
+
     </div>
   );
 };
