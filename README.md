@@ -20,6 +20,31 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Configuration
+
+### News API Setup
+
+EduFlix displays live education, career, and technology news in the footer. To enable this feature, you need a NewsAPI key.
+
+**Option 1: Environment Variable (Recommended)**
+1. Get a free API key from [NewsAPI.org](https://newsapi.org)
+2. Create a `.env.local` file in the project root
+3. Add your API key:
+   ```
+   NEXT_PUBLIC_NEWS_API_KEY=your_api_key_here
+   ```
+
+**Option 2: Hardcoded Key (Alternative)**
+If environment variables don't work in your setup:
+1. Open `src/lib/newsService.ts`
+2. Find the line: `private readonly FALLBACK_API_KEY = '';`
+3. Replace the empty string with your API key:
+   ```typescript
+   private readonly FALLBACK_API_KEY = 'your_api_key_here';
+   ```
+
+The news service automatically falls back to the hardcoded key if no environment variable is found.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

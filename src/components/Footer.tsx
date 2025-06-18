@@ -2,24 +2,37 @@
 
 import { motion } from 'framer-motion';
 import { IoNewspaper, IoFlash } from 'react-icons/io5';
+import { useEffect, useState } from 'react';
+import { newsService, type NewsArticle } from '@/lib/newsService';
 
 interface FooterProps {
-  eduNews?: string[];
   showEduNews?: boolean;
 }
 
-export default function Footer({ eduNews = [], showEduNews = true }: FooterProps) {
-  const defaultNews = [
-    "EduFlix launches new AI-powered personalized learning pathways!",
-    "Top 10 courses to boost your career in 2024.",
-    "EduFlix partners with leading universities for exclusive content.",
-    "New features added to EduFlix for enhanced learning experience.",
-    "EduFlix introduces gamified learning to keep students engaged.",
-    "EduFlix now supports offline learning for premium users.",
-    "Join the EduFlix community and start your learning journey today!",
-  ];
+export default function Footer({ showEduNews = true }: FooterProps) {
+  const [eduNews, setEduNews] = useState<NewsArticle[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const newsItems = eduNews.length > 0 ? eduNews : defaultNews;
+  useEffect(() => {
+    const loadNews = async () => {
+      setIsLoading(true);
+      try {
+        const news = await newsService.getNewsArticles();
+        setEduNews(news);
+      } catch (error) {
+        console.error('Failed to load news:', error);
+        setEduNews([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadNews();
+    
+    // Refresh news every 10 minutes
+    const interval = setInterval(loadNews, 10 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (!showEduNews) return null;
 
@@ -55,14 +68,27 @@ export default function Footer({ eduNews = [], showEduNews = true }: FooterProps
               className="overflow-hidden whitespace-nowrap"
             >
               <div className="animate-marquee flex">
-                {newsItems.concat(newsItems).map((news, index) => (
-                  <span 
-                    key={index} 
-                    className="mx-8 text-gray-700 font-medium text-sm hover:text-indigo-600 transition-colors duration-300"
-                  >
-                    {news}
+                {isLoading ? (
+                  <span className="mx-8 text-gray-500 font-medium text-sm">
+                    Loading education & career news...
                   </span>
-                ))}
+                ) : eduNews.length > 0 ? (
+                  eduNews.concat(eduNews).map((article: NewsArticle, index: number) => (
+                    <a
+                      key={index}
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mx-8 text-gray-700 font-medium text-sm hover:text-indigo-600 transition-colors duration-300 cursor-pointer"
+                    >
+                      {article.title}
+                    </a>
+                  ))
+                ) : (
+                  <span className="mx-8 text-gray-500 font-medium text-sm">
+                    No education news available at the moment...
+                  </span>
+                )}
               </div>
             </motion.div>
           </div>

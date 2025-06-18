@@ -7,18 +7,6 @@ import Footer from '@/components/Footer';
 import MolecularNavigation from '@/components/MolecularNavigation';
 
 export default function Home() {
-  const [eduNews] = useState([
-    "EduFlix launches new AI-powered personalized learning pathways!",
-    "Top 10 courses to boost your career in 2023.",
-    "EduFlix partners with leading universities for exclusive content.",
-    "New features added to EduFlix for enhanced learning experience.",
-    "EduFlix introduces gamified learning to keep students engaged.",
-    "EduFlix now supports offline learning for premium users.",
-    "Join the EduFlix community and start your learning journey today!",
-    "EduFlix offers scholarships for top-performing students.",
-    "EduFlix collaborates with industry experts for exclusive content.",
-    "EduFlix launches new coding bootcamp for aspiring developers.",
-  ]);
   const [currentUser] = useState<{ profile: { full_name: string } } | null>(null);
 
   const handleAtomSelect = (atom: { id: string; name: string; description?: string }) => {
@@ -42,7 +30,7 @@ export default function Home() {
       </main>
       
       {/* Fixed Footer Component */}
-      <Footer eduNews={eduNews} showEduNews={true} />
+      <Footer showEduNews={true} />
     </div>
   );
 }
