@@ -1,0 +1,12 @@
+# robots.txt for EduFlix AI
+# Created by Sashreek Mallem
+
+User-agent: *
+Allow: /
+
+# Disallow admin and API routes
+Disallow: /api/
+Disallow: /auth/callback
+
+# Sitemap
+Sitemap: https://www.eduflixai.com/sitemap.xml
