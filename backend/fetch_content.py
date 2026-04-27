@@ -20,7 +20,7 @@ from main import get_db_connection  # Import get_db_connection function
 nlp = spacy.load("en_core_web_sm")
 
 # YouTube API Key (Replace with your own API Key)
-YOUTUBE_API_KEY = "AIzaSyBktWr9NEB_mp6JHaHIuY_gYJpsgfbh_Vs"
+YOUTUBE_API_KEY = "YOUR_YOUTUBE_API_KEY"
 
 # Initialize OpenAI client
 client = OpenAI()
@@ -359,4 +359,3 @@ if __name__ == "__main__":
     fetch_and_rank_videos(user_id)
 
 print("YouTube Data fetched, ranked, and stored successfully in /Users/ms/eduflix/youtube_ranked_data.txt!")
-
