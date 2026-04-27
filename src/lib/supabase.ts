@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Supabase configuration with fallback values for production
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xymfscalouppymcdjtfc.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bWZzY2Fsb3VwcHltY2RqdGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyMTEyNjMsImV4cCI6MjA3OTc4NzI2M30.E9wHd_xA3AvdgEyfQecqgIkrFZi8uFMIhmWDMFEGjZ4';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
 
 // Validate that we have the required values
 if (!supabaseUrl || supabaseUrl === 'your-supabase-url') {
