@@ -47,7 +47,7 @@ app.add_middleware(
 # PostgreSQL Connection
 DB_NAME = "eduflix_db"
 DB_USER = "eduflix_user"
-DB_PASSWORD = "password123"
+DB_PASSWORD = "YOUR_DB_PASSWORD"
 DB_HOST = "localhost"
 
 # Function to establish DB connection
@@ -1343,20 +1343,3 @@ def generate_learning_pathway_endpoint(user_id: int):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, log_level="debug")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
