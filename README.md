@@ -1,61 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EduFlix AI
 
-## Getting Started
+An LLM-powered adaptive learning platform that reads your background — education, certifications, projects, work history — and generates a personalized, gap-targeted study plan specific to you.
 
-First, run the development server:
+Most learning platforms give everyone the same curriculum. EduFlix doesn't. It analyses who you are first, then builds the path.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## How it works
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. **Onboarding** — Multi-step intake captures your education, work experience, projects, certifications, skills, and career goals. Resume upload supported.
+2. **Skill extraction** — A GPT-4o pipeline (MetaGPT architecture) reads your full profile, infers both explicit and implicit skills, assigns proficiency levels, and validates them against industry benchmarks.
+3. **Gap analysis** — Career and learning goals are cross-referenced against extracted skills to identify priority gaps.
+4. **Learning pathway generation** — A structured pathway is generated with modules, subtopics, and curated resources — scoped to your specific gaps, not a generic syllabus.
+5. **Continuous refinement** — Task completion rates per session feed back into pathway prioritisation.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Frontend** — Next.js 15, TypeScript, Tailwind CSS, Framer Motion
+- **Backend** — Python FastAPI, GPT-4o (OpenAI), MetaGPT pipeline
+- **Database** — Supabase (Postgres + pgvector), full schema for profiles, education, experience, projects, certifications, skill proficiencies
+- **Auth** — Supabase Auth with full session management
 
-## Configuration
+## Key features
 
-### News API Setup
+- Resume + transcript upload with AI-assisted skill extraction
+- Proficiency scoring per skill with industry validation
+- Adaptive questionnaire to refine career and learning goals
+- EduReels — short-form learning content feed
+- Social layer — friends, study groups, discussion board, messenger
+- Real-time learning pathway editor with module/subtopic management
 
-EduFlix displays live education, career, and technology news in the footer. To enable this feature, you need a NewsAPI key.
+## Architecture note
 
-**Option 1: Environment Variable (Recommended)**
-1. Get a free API key from [NewsAPI.org](https://newsapi.org)
-2. Create a `.env.local` file in the project root
-3. Add your API key:
-   ```
-   NEXT_PUBLIC_NEWS_API_KEY=your_api_key_here
-   ```
-
-**Option 2: Hardcoded Key (Alternative)**
-If environment variables don't work in your setup:
-1. Open `src/lib/newsService.ts`
-2. Find the line: `private readonly FALLBACK_API_KEY = '';`
-3. Replace the empty string with your API key:
-   ```typescript
-   private readonly FALLBACK_API_KEY = 'your_api_key_here';
-   ```
-
-The news service automatically falls back to the hardcoded key if no environment variable is found.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The skill extraction pipeline uses a LangChain-style chaining pattern: GPT-4o ingests the full user profile → extracts and normalises skills → scores them against impact statements → cross-validates against industry benchmark data → outputs a structured skill gap map. Fine-tuning (PEFT/LoRA) was evaluated and ruled out — prompt-based extraction was chosen because it adapts as industry benchmarks shift without retraining.
